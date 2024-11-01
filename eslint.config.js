@@ -10,14 +10,18 @@ module.exports = [
       parser: parser,
       parserOptions: {
         ecmaVersion: "latest",
-        sourceType: "module",
+        sourceType: "module"
       },
+      globals: {
+        process: "readonly"
+      }
     },
     plugins: {
-      "@typescript-eslint": typescript,
+      "@typescript-eslint": typescript
     },
     rules: {
       ...typescript.configs.recommended.rules,
-    },
-  },
+      "@typescript-eslint/no-unused-vars": "error"
+    }
+  }
 ];
