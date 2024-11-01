@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, development ]
+  pull_request:
+    branches: [ main, development ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Use Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20.18.0'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Check types
+      run: npm run type-check
+      
+    - name: Run ESLint
+      run: npm run lint
+      
+    - name: Build project
+      run: npm run build
+      
+    # Tests will be added later when we have them
+    # - name: Run tests
+    #   run: npm test
+
+    - name: Check for dist directory
+      run: |
+        if [ ! -d "dist" ]; then
+          echo "Build failed - dist directory not created"
+          exit 1
+        fi
