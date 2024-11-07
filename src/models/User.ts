@@ -45,8 +45,7 @@ userSchema.pre('save', async function (next) {
         this.password = await bcrypt.hash(this.password, salt);
         next();
     } catch (error) {
-        // We need this error logging for development and production
-        // eslint-disable-next-line no-console
+        // eslint-disable-next-line no-undef
         console.error('Error hashing password:', error);
         next(error as Error);
     }
@@ -58,8 +57,7 @@ userSchema.methods.comparePassword = async function (candidatePassword: string):
         const isMatch = await bcrypt.compare(candidatePassword, this.password);
         return isMatch;
     } catch (error) {
-        // Critical error that needs logging
-        // eslint-disable-next-line no-console
+        // eslint-disable-next-line no-undef
         console.error('Password comparison error:', error);
         throw new Error('Error comparing passwords');
     }
