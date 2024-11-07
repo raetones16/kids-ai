@@ -1,5 +1,5 @@
 // src/models/User.ts
-import { Schema, model, Types } from 'mongoose';
+import { Schema, model } from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { IUser, IUserMethods, IUserModel } from './types/user.types';
 
@@ -47,6 +47,7 @@ userSchema.pre('save', async function (next) {
         this.password = await bcrypt.hash(this.password, salt);
         next();
     } catch (error) {
+        console.error('Error hashing password:', error);
         next(error as Error);
     }
 });

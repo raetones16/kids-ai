@@ -14,7 +14,6 @@ declare module 'connect-mongodb-session' {
     }
 
     interface MongoDBStore extends Store, EventEmitter {
-        new(options: MongoDBSessionOptions): MongoDBStore;
     }
 
     function ConnectMongoDBSession(
