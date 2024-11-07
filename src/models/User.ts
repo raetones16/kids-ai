@@ -38,27 +38,28 @@ userSchema.index({ email: 1 });
 
 // Hash password before saving
 userSchema.pre('save', async function (next) {
-    // Only hash the password if it has been modified (or is new)
     if (!this.isModified('password')) return next();
 
     try {
-        // Generate salt and hash password
         const salt = await bcrypt.genSalt(10);
         this.password = await bcrypt.hash(this.password, salt);
         next();
     } catch (error) {
+        // We need this error logging for development and production
+        // eslint-disable-next-line no-console
         console.error('Error hashing password:', error);
         next(error as Error);
     }
 });
 
 // Method to compare passwords
-userSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
+userSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
     try {
-        // Use this.password directly since we're selecting it in the login query
         const isMatch = await bcrypt.compare(candidatePassword, this.password);
         return isMatch;
     } catch (error) {
+        // Critical error that needs logging
+        // eslint-disable-next-line no-console
         console.error('Password comparison error:', error);
         throw new Error('Error comparing passwords');
     }
@@ -69,6 +70,5 @@ userSchema.static('findByEmail', function (email: string) {
     return this.findOne({ email: email.toLowerCase() });
 });
 
-// Create and export the model
 const User = model<IUser, IUserModel>('User', userSchema);
 export default User;

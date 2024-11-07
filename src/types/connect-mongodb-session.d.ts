@@ -1,4 +1,5 @@
-import { Store } from 'express-session';
+// src/types/connect-mongodb-session.d.ts
+import { Store, SessionOptions } from 'express-session';
 import { EventEmitter } from 'events';
 
 declare module 'connect-mongodb-session' {
@@ -7,15 +8,16 @@ declare module 'connect-mongodb-session' {
         collection?: string;
         expires?: number;
         databaseName?: string;
-        connectionOptions?: object;
+        connectionOptions?: Record<string, unknown>;
     }
 
     interface MongoDBStore extends Store, EventEmitter {
         // Store methods defined here
     }
 
+    // Using proper type instead of any
     function ConnectMongoDBSession(
-        expressSession: any
+        expressSession: { Store: typeof Store } & typeof SessionOptions
     ): new (options: MongoDBSessionOptions) => MongoDBStore;
 
     export = ConnectMongoDBSession;
