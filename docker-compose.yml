@@ -9,12 +9,14 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV:-development}
       - PORT=${PORT:-3000}
-      - MONGODB_URI=${MONGODB_URI:-mongodb://mongodb:27017/kids-ai}
+      - MONGODB_URI=mongodb://mongodb:27017/kids-ai
       - SESSION_SECRET=${SESSION_SECRET:-default-secret-key-change-in-production}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
     depends_on:
       - mongodb
     command: npm run dev
+    networks:
+      - app-network
 
   mongodb:
     image: mongo:latest
@@ -22,6 +24,12 @@ services:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
 
 volumes:
   mongodb_data:
