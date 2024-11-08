@@ -1,20 +1,12 @@
-// src/App.tsx
-import { Button } from "./components/ui/button/button"
+// frontend/src/App.tsx
+import { RouterProvider } from 'react-router-dom';
+import { router } from './lib/router';
+
+// You might want to keep this temporary styles import if you have one
+import './App.css';
 
 function App() {
-  return (
-    <div className="p-4">
-      <h1 className="text-2xl font-bold mb-4">Kids AI Platform</h1>
-      <div className="space-x-4">
-        <Button>Default Button</Button>
-        <Button variant="destructive">Destructive Button</Button>
-        <Button variant="outline">Outline Button</Button>
-        <Button variant="secondary">Secondary Button</Button>
-        <Button variant="ghost">Ghost Button</Button>
-        <Button variant="link">Link Button</Button>
-      </div>
-    </div>
-  )
+  return <RouterProvider router={router} />;
 }
 
-export default App
+export default App;
