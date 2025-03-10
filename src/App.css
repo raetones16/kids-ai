@@ -1,0 +1,48 @@
+.app {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1rem;
+  background-color: #F5F5F5;
+}
+
+/* Braun-inspired minimalist design styles */
+button {
+  background-color: #FFFFFF;
+  border: 1px solid #EEEEEE;
+  border-radius: 4px;
+  padding: 0.75rem 1.5rem;
+  font-size: 16px;
+  font-weight: normal;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+button:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+input {
+  background-color: #FFFFFF;
+  border: 1px solid #EEEEEE;
+  border-radius: 4px;
+  padding: 0.75rem;
+  font-size: 16px;
+  width: 100%;
+  max-width: 300px;
+}
+
+h1, h2, h3 {
+  font-weight: normal;
+  margin-bottom: 1.5rem;
+}
+
+.logo {
+  font-size: 24px;
+  margin-bottom: 2rem;
+  font-weight: bold;
+}
