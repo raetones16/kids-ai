@@ -78,6 +78,11 @@ const ChildInterface = ({ childId, childName, onLogout }) => {
       try {
         speechRecognitionRef.current = new SpeechRecognitionService();
         
+        // Set a shorter pause threshold (2 seconds) as requested
+        if (typeof speechRecognitionRef.current.setPauseThreshold === 'function') {
+          speechRecognitionRef.current.setPauseThreshold(2000); // 2 seconds
+        }
+        
         // Set up speech recognition callbacks
         speechRecognitionRef.current.onResult((transcript) => {
           console.log('Got speech result:', transcript);
