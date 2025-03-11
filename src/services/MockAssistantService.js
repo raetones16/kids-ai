@@ -31,12 +31,31 @@ export class MockAssistantService {
 
   // Generate custom instructions based on child profile
   generateInstructions(childProfile) {
+    // Calculate age based on date of birth
+    let age = '';
+    if (childProfile.dob) {
+      const birthDate = new Date(childProfile.dob);
+      const today = new Date();
+      age = today.getFullYear() - birthDate.getFullYear();
+      
+      // Adjust age if birthday hasn't occurred yet this year
+      const m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+    } else if (childProfile.age) {
+      // Fallback to age field for backward compatibility
+      age = childProfile.age;
+    } else {
+      age = 8; // Default age if neither is provided
+    }
+    
     return `
       You are a friendly, helpful assistant for ${childProfile.name}, 
-      who is ${childProfile.age} years old.
+      who is ${age} years old.
       
-      Always use age-appropriate language and concepts.
-      ${childProfile.customInstructions || ''}
+      Always use age-appropriate language and concepts suitable for a ${age}-year-old child.
+      ${childProfile.customInstructions ? `Additional context: ${childProfile.customInstructions}` : ''}
       
       Keep responses concise and engaging.
       If asked something inappropriate, gently redirect to a more suitable topic.

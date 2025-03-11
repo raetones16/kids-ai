@@ -8,7 +8,7 @@ const storageService = new StorageService();
 const LoginScreen = ({ childProfiles, onChildLogin }) => {
   const [showAddProfile, setShowAddProfile] = useState(false);
   const [newProfileName, setNewProfileName] = useState('');
-  const [newProfileAge, setNewProfileAge] = useState('');
+  const [newProfileDob, setNewProfileDob] = useState('');
   const [newProfileInstructions, setNewProfileInstructions] = useState('');
 
   // Demo profiles for initial setup when none exist
@@ -17,14 +17,14 @@ const LoginScreen = ({ childProfiles, onChildLogin }) => {
       {
         id: uuidv4(),
         name: 'Emma',
-        age: 7,
-        customInstructions: 'Emma loves science and space. Use simple explanations.'
+        dob: '2017-05-15', // 7 years old in 2024
+        customInstructions: 'Emma loves science and space. She might sometimes ask about these topics.'
       },
       {
         id: uuidv4(),
         name: 'Jack',
-        age: 9,
-        customInstructions: 'Jack is interested in dinosaurs and history. He likes detailed facts.'
+        dob: '2015-09-23', // 9 years old in 2024
+        customInstructions: 'Jack is interested in dinosaurs and history. He enjoys learning interesting facts.'
       }
     ];
 
@@ -40,12 +40,12 @@ const LoginScreen = ({ childProfiles, onChildLogin }) => {
   const handleAddProfile = async (e) => {
     e.preventDefault();
     
-    if (!newProfileName.trim() || !newProfileAge) return;
+    if (!newProfileName.trim() || !newProfileDob) return;
     
     const newProfile = {
       id: uuidv4(),
       name: newProfileName.trim(),
-      age: parseInt(newProfileAge, 10),
+      dob: newProfileDob,
       customInstructions: newProfileInstructions.trim()
     };
     
@@ -53,7 +53,7 @@ const LoginScreen = ({ childProfiles, onChildLogin }) => {
     
     // Reset form and hide it
     setNewProfileName('');
-    setNewProfileAge('');
+    setNewProfileDob('');
     setNewProfileInstructions('');
     setShowAddProfile(false);
     
@@ -122,15 +122,13 @@ const LoginScreen = ({ childProfiles, onChildLogin }) => {
               </div>
               
               <div className="form-group">
-                <label htmlFor="age">Age</label>
+                <label htmlFor="dob">Date of Birth</label>
                 <input
-                  id="age"
-                  type="number"
-                  min="3"
-                  max="12"
-                  value={newProfileAge}
-                  onChange={(e) => setNewProfileAge(e.target.value)}
-                  placeholder="Enter age"
+                  id="dob"
+                  type="date"
+                  value={newProfileDob}
+                  onChange={(e) => setNewProfileDob(e.target.value)}
+                  max={new Date().toISOString().split('T')[0]} // Can't select future dates
                   required
                 />
               </div>

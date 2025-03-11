@@ -162,7 +162,7 @@ const ChildInterface = ({ childId, childName, onLogout }) => {
         const profile = await storageRef.current.getChildProfileById(childId);
         childProfileRef.current = profile || { 
           name: childName, 
-          age: 8,
+          dob: new Date(Date.now() - 8 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Default to 8 years old
           id: childId
         };
         
