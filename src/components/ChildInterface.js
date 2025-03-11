@@ -1,18 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './ChildInterface.css';
-import SimpleCircleAnimation from './SimpleCircleAnimation';
+import CircleAnimation from './CircleAnimation';
 import SubtitleDisplay from './SubtitleDisplay';
 import { AssistantService } from '../services/AssistantService';
 import { MockAssistantService } from '../services/MockAssistantService';
 import { SpeechRecognitionService } from '../services/SpeechRecognitionService';
 import { TextToSpeechService } from '../services/TextToSpeechService';
+import { OpenAITTSService } from '../services/OpenAITTSService';
 import { StorageService } from '../services/StorageService';
 
 // Get API key from environment variable
 const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
 
-// Flag to use real API instead of mock service
+// Flags for services
 const USE_REAL_API = true;
+const USE_OPENAI_TTS = true; // Use OpenAI TTS instead of browser TTS
 
 // Simple flag to prevent multiple initializations
 let isInitialized = false;
@@ -23,6 +25,7 @@ const ChildInterface = ({ childId, childName, onLogout }) => {
   const [textInput, setTextInput] = useState('');
   const [showTextInput, setShowTextInput] = useState(false);
   const [error, setError] = useState(null);
+  const [audioData, setAudioData] = useState(null);
   
   // Store services in refs
   const assistantRef = useRef(null);
@@ -52,6 +55,13 @@ const ChildInterface = ({ childId, childName, onLogout }) => {
       assistantRef.current = new MockAssistantService();
       console.log('Using mock AI service');
     }
+    
+    // Set up welcome message (don't speak yet)
+    const welcomeMessage = {
+      role: 'assistant',
+      content: 'Hello! Tap the circle to start talking with me.'
+    };
+    setMessages([welcomeMessage]);
     
     try {
       speechRecognitionRef.current = new SpeechRecognitionService();
@@ -84,7 +94,14 @@ const ChildInterface = ({ childId, childName, onLogout }) => {
     }
     
     try {
-      textToSpeechRef.current = new TextToSpeechService();
+      // Initialize either OpenAI TTS or browser TTS based on flag
+      if (USE_OPENAI_TTS) {
+        textToSpeechRef.current = new OpenAITTSService(OPENAI_API_KEY);
+        console.log('Using OpenAI TTS for voice output');
+      } else {
+        textToSpeechRef.current = new TextToSpeechService();
+        console.log('Using browser TTS for voice output');
+      }
       
       // Set up text-to-speech callbacks
       textToSpeechRef.current.onStart(() => {
@@ -94,12 +111,28 @@ const ChildInterface = ({ childId, childName, onLogout }) => {
       textToSpeechRef.current.onEnd(() => {
         setInterfaceState('idle');
       });
+      
+      // Set up error callback for OpenAI TTS
+      if (USE_OPENAI_TTS && textToSpeechRef.current.onError) {
+        textToSpeechRef.current.onError((error) => {
+          console.error('TTS error:', error);
+          setInterfaceState('idle');
+          
+          // Fallback to browser TTS if OpenAI TTS fails
+          try {
+            const fallbackTTS = new TextToSpeechService();
+            fallbackTTS.speak('I had a bit of trouble with my voice. Let me try again.');
+          } catch (fallbackError) {
+            console.error('Fallback TTS error:', fallbackError);
+          }
+        });
+      }
     } catch (err) {
       console.error('Failed to initialize text-to-speech:', err);
     }
     
-    // Set up conversation
-    const setupConversation = async () => {
+    // Prepare the conversation but don't start speaking yet
+    const prepareConversation = async () => {
       try {
         // Load child profile
         const profile = await storageRef.current.getChildProfileById(childId);
@@ -123,31 +156,29 @@ const ChildInterface = ({ childId, childName, onLogout }) => {
           threadId,
           messages: []
         });
-        
-        // Add welcome message
-        const welcomeMessage = {
-          role: 'assistant',
-          content: `Hello ${childProfileRef.current.name}! What would you like to talk about today?`
-        };
-        
-        setMessages([welcomeMessage]);
-        
-        await storageRef.current.saveMessage(conversationId, welcomeMessage);
-        
-        // Speak welcome message
-        if (textToSpeechRef.current) {
-          setTimeout(() => {
-            textToSpeechRef.current.speak(welcomeMessage.content);
-          }, 500);
-        }
       } catch (err) {
-        console.error('Error setting up conversation:', err);
+        console.error('Error preparing conversation:', err);
         setError('Failed to start conversation. Please try again.');
         setShowTextInput(true); // Always show text input on error
       }
     };
     
-    setupConversation();
+    prepareConversation();
+    
+    // Set up animation frame for audio visualization
+    let animationFrameId;
+    
+    const updateAudioData = () => {
+      if (textToSpeechRef.current && 
+          interfaceState === 'speaking' && 
+          typeof textToSpeechRef.current.getAudioData === 'function') {
+        const data = textToSpeechRef.current.getAudioData();
+        setAudioData(data);
+      }
+      animationFrameId = requestAnimationFrame(updateAudioData);
+    };
+    
+    animationFrameId = requestAnimationFrame(updateAudioData);
     
     // Cleanup on unmount
     return () => {
@@ -156,6 +187,9 @@ const ChildInterface = ({ childId, childName, onLogout }) => {
       }
       if (textToSpeechRef.current) {
         textToSpeechRef.current.stop();
+      }
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
       }
       isInitialized = false;
     };
@@ -208,7 +242,23 @@ const ChildInterface = ({ childId, childName, onLogout }) => {
       
       // Speak response
       if (textToSpeechRef.current) {
-        textToSpeechRef.current.speak(response);
+        // Ensure audio context is initialized
+        if (USE_OPENAI_TTS && typeof textToSpeechRef.current.initAudioContext === 'function') {
+          textToSpeechRef.current.initAudioContext();
+        }
+        
+        try {
+          await textToSpeechRef.current.speak(response);
+        } catch (ttsError) {
+          console.error('Error during speech synthesis:', ttsError);
+          // Fallback to browser TTS
+          try {
+            const fallbackTTS = new TextToSpeechService();
+            fallbackTTS.speak(response);
+          } catch (fallbackError) {
+            console.error('Fallback TTS error:', fallbackError);
+          }
+        }
       }
     } catch (err) {
       console.error('Error processing input:', err);
@@ -218,8 +268,57 @@ const ChildInterface = ({ childId, childName, onLogout }) => {
   };
 
   // Handle microphone button click
-  const handleMicrophoneClick = () => {
+  const handleMicrophoneClick = async () => {
+    // First-time initialization when user interacts
+    if (!conversationIdRef.current) {
+      try {
+        // Set the actual personalized welcome message now that we know the user's name
+        const personalWelcomeMessage = {
+          role: 'assistant',
+          content: `Hello ${childProfileRef.current?.name || 'there'}! What would you like to talk about today?`
+        };
+        
+        setMessages([personalWelcomeMessage]);
+        
+        // Save the message to conversation if we have a conversation ID
+        if (conversationIdRef.current) {
+          await storageRef.current.saveMessage(conversationIdRef.current, personalWelcomeMessage);
+        }
+        
+        // Initialize audio context for OpenAI TTS
+        if (USE_OPENAI_TTS && textToSpeechRef.current && typeof textToSpeechRef.current.initAudioContext === 'function') {
+          textToSpeechRef.current.initAudioContext();
+        }
+        
+        // Speak the welcome message now that audio context is initialized
+        if (textToSpeechRef.current) {
+          try {
+            await textToSpeechRef.current.speak(personalWelcomeMessage.content);
+          } catch (err) {
+            console.error('Error speaking welcome message:', err);
+            // Fallback to browser TTS if OpenAI TTS fails
+            try {
+              const fallbackTTS = new TextToSpeechService();
+              fallbackTTS.speak(personalWelcomeMessage.content);
+            } catch (fallbackError) {
+              console.error('Fallback TTS error:', fallbackError);
+            }
+          }
+        }
+        
+        return; // Don't start listening on the first click
+      } catch (error) {
+        console.error('Error initializing conversation:', error);
+      }
+    }
+    
+    // Normal microphone behavior after initialization
     if (interfaceState === 'idle') {
+      // Make sure audio context is initialized
+      if (USE_OPENAI_TTS && textToSpeechRef.current && typeof textToSpeechRef.current.initAudioContext === 'function') {
+        textToSpeechRef.current.initAudioContext();
+      }
+      
       setInterfaceState('listening');
       if (speechRecognitionRef.current) {
         speechRecognitionRef.current.start();
@@ -239,6 +338,11 @@ const ChildInterface = ({ childId, childName, onLogout }) => {
   const handleTextSubmit = async (e) => {
     e.preventDefault();
     if (!textInput.trim() || interfaceState !== 'idle') return;
+    
+    // Make sure audio context is initialized
+    if (USE_OPENAI_TTS && textToSpeechRef.current && typeof textToSpeechRef.current.initAudioContext === 'function') {
+      textToSpeechRef.current.initAudioContext();
+    }
     
     await processUserInput(textInput.trim());
     setTextInput('');
@@ -269,7 +373,7 @@ const ChildInterface = ({ childId, childName, onLogout }) => {
         ) : (
           <>
             <div className="circle-container" onClick={handleMicrophoneClick}>
-              <SimpleCircleAnimation state={interfaceState} />
+              <CircleAnimation state={interfaceState} audioData={audioData} />
               <div className="mic-hint">
                 {interfaceState === 'idle' && 'Tap to talk'}
                 {interfaceState === 'listening' && 'Listening...'}

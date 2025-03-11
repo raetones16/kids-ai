@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
 import './CircleAnimation.css';
 
-const CircleAnimation = ({ state = 'idle' }) => {
+const CircleAnimation = ({ state = 'idle', audioData = null }) => {
   const containerRef = useRef(null);
   const sceneRef = useRef(null);
   const cameraRef = useRef(null);
@@ -204,7 +204,19 @@ const CircleAnimation = ({ state = 'idle' }) => {
         
         for (let i = 0; i <= segments; i++) {
           const angle = (i / segments) * Math.PI * 2;
-          const amplitude = 0.1 + Math.sin(time * 2) * 0.05; // Varying amplitude
+          
+          // Use audio data for amplitude if available
+          let amplitude;
+          if (audioData && audioData.length > 0) {
+            // Map the angle to an index in the audio data array
+            const dataIndex = Math.floor((i / segments) * (audioData.length - 1));
+            // Scale the amplitude based on audio data (0-255 range from analyzer)
+            amplitude = 0.05 + (audioData[dataIndex] / 255) * 0.2;
+          } else {
+            // Fallback to animated amplitude if no audio data
+            amplitude = 0.1 + Math.sin(time * 2) * 0.05;
+          }
+          
           const radiusVariation = Math.sin(angle * 3 + offset) * amplitude;
           
           const radius = waveRadius + radiusVariation;
@@ -224,7 +236,7 @@ const CircleAnimation = ({ state = 'idle' }) => {
     };
     
     requestAnimationFrame(animateSpeaking);
-  }, [state]);
+  }, [state, audioData]);
 
   // Set up Three.js scene
   useEffect(() => {
@@ -330,7 +342,7 @@ const CircleAnimation = ({ state = 'idle' }) => {
         circleRef.current.material.color.set(0xFFFFFF);
         break;
     }
-  }, [state, clearAnimations, createListeningAnimation, createThinkingAnimation, createSpeakingAnimation]);
+  }, [state, audioData, clearAnimations, createListeningAnimation, createThinkingAnimation, createSpeakingAnimation]);
 
   return (
     <div ref={containerRef} className="circle-animation" />
