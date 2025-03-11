@@ -91,10 +91,10 @@ const ParentDashboard = ({ onLogout }) => {
 
   return (
     <div className="min-h-screen w-full bg-background">
-      {/* Header */}
+      {/* Header - Modified to remove default margins from h1 */}
       <header className="border-b bg-white">
-        <div className="flex h-16 items-center px-6 justify-between">
-          <h1 className="text-xl font-semibold">Kids AI - Parent Dashboard</h1>
+        <div className="flex h-16 items-center justify-between px-6">
+          <h1 className="text-xl font-semibold m-0 flex items-center">Kids AI - Parent Dashboard</h1>
           <Button 
             variant="ghost" 
             size="sm" 

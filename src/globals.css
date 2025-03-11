@@ -73,4 +73,13 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Forcefully override heading margins */
+  h1, h2, h3, h4, h5, h6 {
+    margin: 0 !important;
+  }
+}
+
+/* Additional override outside of Tailwind layers to ensure it takes priority */
+h1, h2, h3 {
+  margin-bottom: 0 !important;
 }

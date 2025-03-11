@@ -41,7 +41,11 @@ export function useChat(assistantService, childId, childName) {
         // Set up text-to-speech service
         if (USE_OPENAI_TTS) {
           textToSpeechRef.current = new OpenAITTSService(OPENAI_API_KEY);
-          console.log('Using OpenAI TTS for voice output');
+          // Set to use Opus format for lower latency
+          if (typeof textToSpeechRef.current.setResponseFormat === 'function') {
+            textToSpeechRef.current.setResponseFormat('opus');
+          }
+          console.log('Using OpenAI TTS for voice output with Opus format');
         } else {
           textToSpeechRef.current = new TextToSpeechService();
           console.log('Using browser TTS for voice output');
@@ -198,6 +202,7 @@ export function useChat(assistantService, childId, childName) {
       // Get streaming response from assistant
       let fullResponse = '';
       let isFirstChunk = true;
+      let lastSpeechChunk = '';
       
       // Track the current message for updates
       const messageId = tempAssistantMessage.id;
@@ -253,21 +258,50 @@ export function useChat(assistantService, childId, childName) {
           if (isFirstChunk && chunk.length > 10) {
             console.log(`First chunk received in ${Date.now() - startTime}ms: "${chunk}"`);
             isFirstChunk = false;
+            lastSpeechChunk = chunk;
             
-            // Switch to speaking state
+            // Switch to speaking state 
             setInterfaceState('speaking');
             console.log('Setting interface state to speaking (first chunk)');
             
-            // Start speaking this chunk
-            if (textToSpeechRef.current && typeof textToSpeechRef.current.speakStream === 'function') {
+            // For first chunk, use the optimized streaming method if available
+            if (textToSpeechRef.current && typeof textToSpeechRef.current.speakStreamOptimized === 'function') {
+              await textToSpeechRef.current.speakStreamOptimized(chunk, 'nova');
+            } else if (textToSpeechRef.current && typeof textToSpeechRef.current.speakStream === 'function') {
               await textToSpeechRef.current.speakStream(chunk, isPausePoint, isComplete);
             }
           } 
           // Process additional speech chunks if they're substantial or at a good break point
           else if (!isFirstChunk && ((chunk.length > 5 && isPausePoint) || isComplete)) {
-            // Speak this chunk
+            // Skip chunks we've already processed as part of larger chunks
+            if (lastSpeechChunk.includes(chunk)) {
+              console.log('Skipping chunk that was already processed in a larger chunk');
+              return;
+            }
+            
+            lastSpeechChunk = chunk;
+            
+            // For subsequent chunks or when complete, use the normal streaming method
             if (textToSpeechRef.current && typeof textToSpeechRef.current.speakStream === 'function') {
               await textToSpeechRef.current.speakStream(chunk, isPausePoint, isComplete);
+            }
+          }
+          
+          // For the final chunk when complete, process the full response if it's substantial
+          if (isComplete && fullText && fullText.length > 0) {
+            console.log(`Complete response received in ${Date.now() - startTime}ms, length: ${fullText.length} chars`);
+            
+            // If we didn't speak anything yet, speak the full response
+            if (isFirstChunk) {
+              isFirstChunk = false;
+              console.log('Speaking complete response as no chunks were spoken yet');
+              
+              // Use the optimized streaming method for the full response
+              if (textToSpeechRef.current && typeof textToSpeechRef.current.speakStreamOptimized === 'function') {
+                await textToSpeechRef.current.speakStreamOptimized(fullText, 'nova');
+              } else if (textToSpeechRef.current) {
+                await textToSpeechRef.current.speak(fullText);
+              }
             }
           }
         }
@@ -366,7 +400,12 @@ export function useChat(assistantService, childId, childName) {
       // Speak the welcome message now that audio context is initialized
       if (textToSpeechRef.current) {
         try {
-          await textToSpeechRef.current.speak(personalWelcomeMessage.content);
+          // Use optimized stream if available for welcome message
+          if (typeof textToSpeechRef.current.speakStreamOptimized === 'function') {
+            await textToSpeechRef.current.speakStreamOptimized(personalWelcomeMessage.content, 'nova');
+          } else {
+            await textToSpeechRef.current.speak(personalWelcomeMessage.content);
+          }
         } catch (err) {
           console.error('Error speaking welcome message:', err);
           // Fallback to browser TTS if OpenAI TTS fails

@@ -9,9 +9,21 @@ export class AssistantService {
     this.client = new OpenAI({
       apiKey,
       dangerouslyAllowBrowser: true, // Allow browser usage
+      maxRetries: 2, // Reduce retries to speed up error responses
     });
     this.assistants = {};
     this.lastResponse = null; // Track the last response to avoid repetition
+    
+    // Add tracking for ongoing runs
+    this.activeRuns = new Map(); // Track active runs
+    
+    // Polling configuration
+    this.pollingConfig = {
+      initialMessageCheckDelay: 150, // Start checking for messages sooner
+      subsequentMessageCheckDelay: 200, // Frequency to check for new messages
+      runStatusCheckFrequency: 3, // Check run status every N message checks
+      maxPollingAttempts: 60, // Maximum polling attempts
+    };
   }
 
   // Create or retrieve an assistant for a specific child
@@ -21,11 +33,14 @@ export class AssistantService {
     }
 
     try {
+      // Optimize instructions for shorter responses and faster processing
+      const instructions = this.generateInstructions(childProfile);
+      
       // Try to create a new assistant with child-specific instructions
       const assistant = await this.client.beta.assistants.create({
         name: `${childProfile.name}'s Assistant`,
-        instructions: this.generateInstructions(childProfile),
-        model: "gpt-4o-mini",
+        instructions,
+        model: "gpt-4o-mini", // Using mini model for speed
       });
 
       this.assistants[childId] = assistant;
@@ -77,36 +92,31 @@ export class AssistantService {
       }
     }
 
+    // More concise instructions for faster processing
     return `
-      You are a friendly, helpful assistant for ${
-        childProfile.name
-      }, who is ${age} years old.
+      You are a friendly, helpful assistant for ${childProfile.name}, age ${age}.
 
-      Always use age-appropriate language and concepts suitable for a ${age}-year-old child.
-      
-      IMPORTANT: Always respond to the child's most recent question with a fresh response. Never repeat your previous responses.
-      Each interaction should be treated as new - don't append your previous responses to new ones.
+      IMPORTANT INSTRUCTIONS FOR SPEED AND PERFORMANCE:
+      - Keep responses very short and direct.
+      - Aim for 1-3 sentences in most responses.
+      - Get to the point immediately without excess context.
+      - Response time is critical - be brief but helpful.
+      - Start speaking without preamble or thinking time.
+      - Use simpler vocabulary suitable for a ${age}-year-old.
+      - Use British English in all responses.
+      - Never repeat your previous responses.
 
       ${
         childProfile.customInstructions
-          ? `Additional context about ${childProfile.name} that may help you provide better responses: ${childProfile.customInstructions}`
+          ? `Context about ${childProfile.name}: ${childProfile.customInstructions}`
           : ""
       }
 
       ${
         interests.length > 0
-          ? `While ${childProfile.name} has interests such as ${interests.join(
-              ", "
-            )}, don't explicitly mention these unless they come up naturally in conversation. Let the child guide the topics of discussion.`
+          ? `${childProfile.name} is interested in: ${interests.join(", ")}`
           : ""
       }
-
-      Keep responses concise, engaging, and appropriate for a ${age}-year-old.
-      If asked something inappropriate, gently redirect to a more suitable topic.
-
-      Use British English in all your responses.
-
-      Never begin conversations by directly asking if they want to talk about their specific interests. Start with open-ended questions or general friendly greetings.
     `;
   }
 
@@ -126,6 +136,9 @@ export class AssistantService {
   // Send a message and get a streaming response
   async sendMessage(childId, threadId, message, childProfile, onChunk) {
     try {
+      const startTime = performance.now();
+      console.log("Starting sendMessage at", startTime);
+      
       // Get or create assistant for this child
       const assistant = await this.getAssistantForChild(childId, childProfile);
 
@@ -136,7 +149,7 @@ export class AssistantService {
         console.log(`Thread has ${existingMessages.data.length} existing messages`);
         
         // If the thread seems broken (empty or has tons of messages), create a new one
-        if (existingMessages.data.length === 0 || existingMessages.data.length > 50) {
+        if (existingMessages.data.length === 0 || existingMessages.data.length > 20) {
           console.log('Thread appears to be in a bad state, creating a new one');
           const newThreadId = await this.createThread();
           threadId = newThreadId;
@@ -153,15 +166,19 @@ export class AssistantService {
         role: "user",
         content: message,
       });
+      
+      console.log(`Message added to thread in ${performance.now() - startTime}ms`);
 
       // Run the assistant on the thread
       const run = await this.client.beta.threads.runs.create(threadId, {
         assistant_id: assistant.id,
       });
+      
+      console.log(`Run created in ${performance.now() - startTime}ms`);
 
       // If streaming with callback function, use streaming approach
       if (typeof onChunk === "function") {
-        return this.streamResponse(threadId, run.id, onChunk);
+        return this.streamResponseOptimized(threadId, run.id, onChunk);
       } else {
         // Fallback to non-streaming for backward compatibility
         const response = await this.waitForCompletion(threadId, run.id);
@@ -173,155 +190,126 @@ export class AssistantService {
     }
   }
 
-  // Stream the assistant's response in chunks (optimized)
-  async streamResponse(threadId, runId, onChunk) {
+  // Stream the assistant's response in chunks (highly optimized)
+  async streamResponseOptimized(threadId, runId, onChunk) {
+    const startTime = performance.now();
     let runStatus;
     let attempts = 0;
-    const maxAttempts = 60; // Longer max timeout for streaming
     let lastMessageId = null; // Track the last seen message ID
     let fullResponse = ""; // Collect the full response
-    let polling = true;
-    let initialDelay = 200; // Start with a short delay
-    let runResolved = false;
-
+    let lastPollingTime = 0;
+    let isFirstChunk = true;
+    
+    // Create a state updater function outside the loop to avoid ESLint warnings
+    const updateMessageState = (newLastMessageId, newFullResponse) => {
+      lastMessageId = newLastMessageId;
+      fullResponse = newFullResponse;
+    };
+    
     try {
-      // Immediately check for messages and status in parallel
+      // Start parallel fetch of initial status and messages
       const [initialStatus, initialMessages] = await Promise.all([
         this.client.beta.threads.runs.retrieve(threadId, runId),
         this.client.beta.threads.messages.list(threadId),
       ]);
+      
+      console.log(`Initial status and messages retrieved in ${performance.now() - startTime}ms`);
 
       runStatus = initialStatus;
-
-      // First check for initial messages
-      this.processMessages(
+      
+      // Check if we already have an answer (unlikely but possible)
+      const gotInitialResponse = this.processMessages(
         initialMessages,
         lastMessageId,
         fullResponse,
         onChunk,
         runStatus,
-        (newLastMessageId, newFullResponse) => {
-          lastMessageId = newLastMessageId;
-          fullResponse = newFullResponse;
-        }
+        updateMessageState,
+        isFirstChunk
       );
+      
+      if (gotInitialResponse) {
+        isFirstChunk = false;
+      }
 
-      // Setup polling with exponential backoff
-      const pollForUpdates = async () => {
-        if (!polling) return;
-
-        try {
-          // Adaptive polling - check messages first, run status less frequently
-          const messages = await this.client.beta.threads.messages.list(
-            threadId
-          );
-
-          this.processMessages(
+      // Implement an optimized polling strategy
+      while (runStatus.status === "in_progress" || runStatus.status === "queued") {
+        // Calculate adaptive delay based on whether we have some response yet
+        const currentDelay = fullResponse 
+          ? this.pollingConfig.subsequentMessageCheckDelay 
+          : this.pollingConfig.initialMessageCheckDelay;
+          
+        // Wait before next check
+        await new Promise(resolve => setTimeout(resolve, currentDelay));
+        
+        // Time-based throttling of message fetching
+        const currentTime = Date.now();
+        const timeSinceLastPolling = currentTime - lastPollingTime;
+        
+        // Always check messages first (they appear before run completion)
+        if (timeSinceLastPolling > 100) { // Ensure at least 100ms between message checks
+          // eslint-disable-next-line no-await-in-loop
+          const messages = await this.client.beta.threads.messages.list(threadId);
+          lastPollingTime = currentTime;
+          
+          const gotNewResponse = this.processMessages(
             messages,
             lastMessageId,
             fullResponse,
             onChunk,
             runStatus,
-            (newLastMessageId, newFullResponse) => {
-              lastMessageId = newLastMessageId;
-              fullResponse = newFullResponse;
-            }
+            updateMessageState,
+            isFirstChunk
           );
-
-          // Only check run status every 3 attempts to reduce API calls
-          if (attempts % 3 === 0 || !fullResponse) {
-            runStatus = await this.client.beta.threads.runs.retrieve(
-              threadId,
-              runId
-            );
+          
+          if (gotNewResponse && isFirstChunk) {
+            isFirstChunk = false;
+            console.log(`Got first response chunk in ${performance.now() - startTime}ms`);
           }
-
-          // If we have a response and run is completed, we're done
+        }
+        
+        // Check run status less frequently to reduce API calls
+        if (attempts % this.pollingConfig.runStatusCheckFrequency === 0) {
+          // eslint-disable-next-line no-await-in-loop
+          runStatus = await this.client.beta.threads.runs.retrieve(threadId, runId);
+          
+          // If the run is completed, wrap up
           if (runStatus.status === "completed") {
-            runResolved = true;
-            polling = false;
-
-            // Send one final call with the complete message
-            if (fullResponse) {
-              // Call the chunk callback with a special flag to indicate this is the full response
-              onChunk("", false, true, fullResponse);
-              
-              // Store this response to check for repetition in the future
-              this.lastResponse = fullResponse;
-            }
-            return;
-          } else if (
-            runStatus.status !== "in_progress" &&
-            runStatus.status !== "queued"
-          ) {
-            runResolved = true;
-            polling = false;
+            console.log(`Run completed in ${performance.now() - startTime}ms`);
+            
+            // Make one final check for messages to ensure we have everything
+            // eslint-disable-next-line no-await-in-loop
+            const finalMessages = await this.client.beta.threads.messages.list(threadId);
+            this.processMessages(
+              finalMessages,
+              lastMessageId,
+              fullResponse,
+              onChunk,
+              runStatus,
+              updateMessageState,
+              isFirstChunk
+            );
+            
+            // Mark as complete with a final empty chunk
+            onChunk("", false, true, fullResponse);
+            break;
+          } else if (runStatus.status !== "in_progress" && runStatus.status !== "queued") {
             throw new Error(`Run failed with status: ${runStatus.status}`);
           }
-
-          // Increment attempts counter
-          attempts++;
-
-          // Implement exponential backoff with a maximum delay
-          const exponentialDelay = Math.min(
-            initialDelay * Math.pow(1.2, attempts),
-            800
-          );
-
-          // If we have some content already, poll faster
-          const delay = fullResponse
-            ? Math.min(exponentialDelay, 400)
-            : exponentialDelay;
-
-          // Check if we've exceeded max attempts
-          if (attempts >= maxAttempts) {
-            polling = false;
-            throw new Error("Response timed out. Please try again later.");
-          }
-
-          // Schedule next poll
-          await new Promise((resolve) => setTimeout(resolve, delay));
-          await pollForUpdates();
-        } catch (error) {
-          if (!runResolved) {
-            console.error("Error during polling:", error);
-            polling = false;
-            throw error;
-          }
         }
-      };
-
-      // Start polling
-      await pollForUpdates();
-
-      // Final check to make sure we have the complete response
-      if (fullResponse === "") {
-        const finalMessages = await this.client.beta.threads.messages.list(
-          threadId
-        );
-        const assistantMessages = finalMessages.data.filter(
-          (msg) => msg.role === "assistant"
-        );
-
-        if (assistantMessages.length > 0) {
-          const latestMessage = assistantMessages[0];
-
-          if (latestMessage.content && latestMessage.content.length > 0) {
-            const textContent = latestMessage.content.find(
-              (item) => item.type === "text"
-            );
-            if (textContent) {
-              fullResponse = textContent.text.value;
-              // Send any remaining content
-              await onChunk(fullResponse, true, true, fullResponse);
-              
-              // Store this response to check for repetition in the future
-              this.lastResponse = fullResponse;
-            }
-          }
+        
+        attempts++;
+        
+        // Safety check to avoid infinite loops
+        if (attempts >= this.pollingConfig.maxPollingAttempts) {
+          console.warn(`Exceeded maximum polling attempts (${this.pollingConfig.maxPollingAttempts}), stopping.`);
+          break;
         }
       }
-
+      
+      // Store this response to check for repetition in the future
+      this.lastResponse = fullResponse;
+      
       return fullResponse;
     } catch (error) {
       console.error("Error in streaming response:", error);
@@ -336,7 +324,8 @@ export class AssistantService {
     fullResponse,
     onChunk,
     runStatus,
-    updateState
+    updateState,
+    isFirstChunk = false
   ) {
     const assistantMessages = messages.data.filter(
       (msg) => msg.role === "assistant"
@@ -401,7 +390,7 @@ export class AssistantService {
   async waitForCompletion(threadId, runId) {
     let runStatus;
     let attempts = 0;
-    const maxAttempts = 30; // Timeout after 30 attempts (approximately 30 seconds)
+    const maxAttempts = 30; // Timeout after 30 attempts
     let initialDelay = 300; // Start with a shorter initial polling time
 
     // Poll for status with exponential backoff

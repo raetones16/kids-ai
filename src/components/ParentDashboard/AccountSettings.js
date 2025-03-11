@@ -323,7 +323,7 @@ const AccountSettings = () => {
             <form id="pin-form" onSubmit={handlePinSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label>New PIN</Label>
-                <div className="flex justify-center gap-2">
+                <div className="flex justify-start gap-2">
                   {newPin.map((digit, index) => (
                     <Input
                       key={`new-${index}`}
@@ -345,7 +345,7 @@ const AccountSettings = () => {
               
               <div className="space-y-2">
                 <Label>Confirm New PIN</Label>
-                <div className="flex justify-center gap-2">
+                <div className="flex justify-start gap-2">
                   {confirmPin.map((digit, index) => (
                     <Input
                       key={`confirm-${index}`}
