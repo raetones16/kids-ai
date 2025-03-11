@@ -3,6 +3,20 @@
 export class StorageService {
   constructor(namespace = 'kids-ai') {
     this.namespace = namespace;
+    
+    // Initialize parent PIN if it doesn't exist
+    this.initializeParentPin();
+  }
+  
+  // Initialize default parent PIN if not set
+  async initializeParentPin() {
+    const settings = await this.getSettings();
+    if (!settings.parentPin) {
+      await this.saveSettings({
+        ...settings,
+        parentPin: '000000' // Default PIN as per requirements
+      });
+    }
   }
   
   // Child profiles
@@ -28,6 +42,21 @@ export class StorageService {
   async getChildProfileById(id) {
     const profiles = await this.getChildProfiles();
     return profiles.find(p => p.id === id);
+  }
+  
+  async deleteChildProfile(id) {
+    const profiles = await this.getChildProfiles();
+    const updatedProfiles = profiles.filter(p => p.id !== id);
+    
+    localStorage.setItem(`${this.namespace}.profiles`, JSON.stringify(updatedProfiles));
+    
+    // Also delete all conversations for this child
+    const conversations = await this.getConversations();
+    const updatedConversations = conversations.filter(c => c.childId !== id);
+    
+    localStorage.setItem(`${this.namespace}.conversations`, JSON.stringify(updatedConversations));
+    
+    return true;
   }
   
   // Conversations
@@ -82,5 +111,55 @@ export class StorageService {
     conversation.lastActivityAt = new Date();
     
     return this.saveConversation(conversation);
+  }
+  
+  // Settings management (including parent PIN)
+  async getSettings() {
+    const data = localStorage.getItem(`${this.namespace}.settings`);
+    return data ? JSON.parse(data) : {};
+  }
+  
+  async saveSettings(settings) {
+    localStorage.setItem(`${this.namespace}.settings`, JSON.stringify(settings));
+    return settings;
+  }
+  
+  async verifyParentPin(pin) {
+    const settings = await this.getSettings();
+    return settings.parentPin === pin;
+  }
+  
+  async updateParentPin(pin) {
+    const settings = await this.getSettings();
+    settings.parentPin = pin;
+    return this.saveSettings(settings);
+  }
+  
+  // Usage statistics
+  async getChildUsageStats(childId) {
+    const conversations = await this.getConversationsByChildId(childId);
+    
+    // Calculate basic statistics
+    const totalConversations = conversations.length;
+    
+    let totalMessages = 0;
+    let totalUserMessages = 0;
+    let totalAssistantMessages = 0;
+    
+    conversations.forEach(conv => {
+      if (conv.messages) {
+        totalMessages += conv.messages.length;
+        totalUserMessages += conv.messages.filter(m => m.role === 'user').length;
+        totalAssistantMessages += conv.messages.filter(m => m.role === 'assistant').length;
+      }
+    });
+    
+    return {
+      totalConversations,
+      totalMessages,
+      totalUserMessages,
+      totalAssistantMessages,
+      averageMessagesPerConversation: totalConversations > 0 ? (totalMessages / totalConversations).toFixed(1) : 0
+    };
   }
 }

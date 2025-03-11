@@ -7,12 +7,64 @@
   padding: 2rem;
 }
 
+.logo {
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 1.5rem;
+  color: #4285F4;
+}
+
+.login-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.login-header h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.parent-login-button {
+  display: flex;
+  align-items: center;
+  background-color: #F5F5F5;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.parent-login-button:hover {
+  background-color: #EEEEEE;
+}
+
+.parent-login-icon {
+  font-size: 18px;
+  margin-right: 0.5rem;
+}
+
+.parent-help {
+  width: 100%;
+  text-align: center;
+  margin-top: 2rem;
+  padding: 0.75rem;
+  background-color: #F5F5F5;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #666666;
+}
+
 .profile-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   gap: 1.5rem;
   width: 100%;
-  margin-top: 2rem;
+  margin-top: 1rem;
 }
 
 .profile-button {
