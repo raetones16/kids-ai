@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Input } from '../ui/input';
+import { Button } from '../ui/button';
 
 const PinEntryModal = ({ onVerify, error: propError, onCancel }) => {
   const [pin, setPin] = useState(['', '', '', '', '', '']); // 6-digit PIN
@@ -68,17 +70,23 @@ const PinEntryModal = ({ onVerify, error: propError, onCancel }) => {
   };
 
   return (
-    <div className="pin-modal-overlay">
-      <div className="pin-modal">
-        <h2>Enter Parent Dashboard PIN</h2>
-        <p>Please enter your 6-digit PIN to access the parent dashboard.</p>
-        
-        {error && <div className="error-message">{error}</div>}
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center">
+      <div className="bg-background rounded-lg w-full max-w-md p-6 shadow-lg">
+        <h2 className="text-xl font-semibold mb-2">Enter Parent Dashboard PIN</h2>
+        <p className="text-muted-foreground mb-6">
+          Please enter your 6-digit PIN to access the parent dashboard.
+        </p>
         
         <form onSubmit={handleSubmit}>
-          <div className="pin-entry">
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-md mb-4 text-sm">
+              {error}
+            </div>
+          )}
+          
+          <div className="flex justify-center gap-2 my-6">
             {pin.map((digit, index) => (
-              <input
+              <Input
                 key={index}
                 type="text"
                 inputMode="numeric"
@@ -88,34 +96,33 @@ const PinEntryModal = ({ onVerify, error: propError, onCancel }) => {
                 onChange={(e) => handleDigitChange(index, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(index, e)}
                 ref={(el) => (inputRefs.current[index] = el)}
-                className="pin-digit"
+                className="w-10 h-12 text-center text-lg"
                 required
               />
             ))}
           </div>
           
-          <div className="button-group">
-            <button 
+          <div className="text-sm text-muted-foreground mb-6 text-center">
+            <p>Default PIN: 000000</p>
+            <p>You can change your PIN in the Settings tab.</p>
+          </div>
+          
+          <div className="flex justify-end gap-2">
+            <Button 
               type="button" 
-              className="secondary-button"
+              variant="outline"
               onClick={onCancel}
             >
               Cancel
-            </button>
-            <button 
+            </Button>
+            <Button 
               type="submit" 
-              className="primary-button"
               disabled={pin.join('').length !== 6}
             >
               Verify
-            </button>
+            </Button>
           </div>
         </form>
-        
-        <div className="pin-help">
-          <p>Default PIN: 000000</p>
-          <p>You can change your PIN in the Settings tab.</p>
-        </div>
       </div>
     </div>
   );

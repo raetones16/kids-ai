@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Search, X } from 'lucide-react';
 import { StorageService } from '../../services/StorageService';
@@ -162,34 +162,26 @@ const ConversationViewer = ({ childId, childName }) => {
       {usageStats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-3xl font-bold text-primary">{usageStats.totalConversations}</CardTitle>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 flex flex-col items-center">
+              <div className="text-3xl font-bold text-primary">{usageStats.totalConversations}</div>
               <p className="text-sm text-muted-foreground">Conversations</p>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-3xl font-bold text-primary">{usageStats.totalMessages}</CardTitle>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 flex flex-col items-center">
+              <div className="text-3xl font-bold text-primary">{usageStats.totalMessages}</div>
               <p className="text-sm text-muted-foreground">Total Messages</p>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-3xl font-bold text-primary">{usageStats.totalUserMessages}</CardTitle>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 flex flex-col items-center">
+              <div className="text-3xl font-bold text-primary">{usageStats.totalUserMessages}</div>
               <p className="text-sm text-muted-foreground">Child Messages</p>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-3xl font-bold text-primary">{usageStats.averageMessagesPerConversation}</CardTitle>
-            </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 flex flex-col items-center">
+              <div className="text-3xl font-bold text-primary">{usageStats.averageMessagesPerConversation}</div>
               <p className="text-sm text-muted-foreground">Avg. Messages/Conv.</p>
             </CardContent>
           </Card>

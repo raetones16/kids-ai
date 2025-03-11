@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
-import './ParentLogin.css';
+import { Card, CardHeader, CardContent, CardFooter, CardTitle } from './ui/card';
+import { Input } from './ui/input';
+import { Button } from './ui/button';
+import { Label } from './ui/label';
 import { AuthService } from '../services/AuthService';
 
 const authService = new AuthService();
@@ -32,63 +35,70 @@ const ParentLogin = ({ onLoginSuccess, onCancel }) => {
   };
 
   return (
-    <div className="parent-login-modal">
-      <div className="parent-login-container">
-        <h2>Parent Login</h2>
-        
-        {error && <div className="error-message">{error}</div>}
+    <div className="fixed inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-50">
+      <Card className="w-full max-w-md mx-4">
+        <CardHeader>
+          <CardTitle className="text-xl">Parent Login</CardTitle>
+        </CardHeader>
         
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="username">Username</label>
-            <input
-              type="text"
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter username"
-              disabled={isLoading}
-              required
-            />
-          </div>
+          <CardContent className="space-y-4">
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-md text-sm">
+                {error}
+              </div>
+            )}
+            
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                type="text"
+                id="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter username"
+                disabled={isLoading}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                type="password"
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+                disabled={isLoading}
+                required
+              />
+            </div>
+            
+            <div className="text-sm text-muted-foreground">
+              <p>Default username: parent</p>
+              <p>Default password: password123</p>
+            </div>
+          </CardContent>
           
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password"
-              disabled={isLoading}
-              required
-            />
-          </div>
-          
-          <div className="help-text">
-            <p>Default username: parent</p>
-            <p>Default password: password123</p>
-          </div>
-          
-          <div className="button-group">
-            <button 
-              type="submit" 
-              className="primary-button"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Logging in...' : 'Login'}
-            </button>
-            <button 
+          <CardFooter className="flex justify-between">
+            <Button 
               type="button" 
-              className="secondary-button"
+              variant="outline"
               onClick={onCancel}
               disabled={isLoading}
             >
               Cancel
-            </button>
-          </div>
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={isLoading}
+            >
+              {isLoading ? 'Logging in...' : 'Login'}
+            </Button>
+          </CardFooter>
         </form>
-      </div>
+      </Card>
     </div>
   );
 };

@@ -7,6 +7,20 @@ import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { PlusCircle, Pencil, Trash2 } from 'lucide-react';
 
+// Define a fixed set of colors for profiles
+const PROFILE_COLORS = [
+  'bg-blue-500 hover:bg-blue-600',   // Blue
+  'bg-green-500 hover:bg-green-600', // Green
+  'bg-red-500 hover:bg-red-600',     // Red
+  'bg-yellow-500 hover:bg-yellow-600', // Yellow
+  'bg-purple-500 hover:bg-purple-600', // Purple
+  'bg-pink-500 hover:bg-pink-600',   // Pink
+  'bg-indigo-500 hover:bg-indigo-600', // Indigo
+  'bg-orange-500 hover:bg-orange-600', // Orange
+  'bg-teal-500 hover:bg-teal-600',   // Teal
+  'bg-cyan-500 hover:bg-cyan-600',   // Cyan
+];
+
 const ProfileManager = ({ profiles, selectedChildId, onProfileChange, onSelectChild }) => {
   const [editMode, setEditMode] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
@@ -22,11 +36,22 @@ const ProfileManager = ({ profiles, selectedChildId, onProfileChange, onSelectCh
   
   // Initialize new profile form
   const handleAddProfile = () => {
+    // Assign a random color if creating a new profile
+    const existingColors = profiles.map(p => p.color || '');
+    
+    // Find colors that aren't already used
+    const availableColors = PROFILE_COLORS.filter(color => !existingColors.includes(color));
+    
+    // If all colors are used, just pick a random one from the full set
+    const colorPool = availableColors.length > 0 ? availableColors : PROFILE_COLORS;
+    const randomColor = colorPool[Math.floor(Math.random() * colorPool.length)];
+    
     setCurrentProfile({
       id: uuidv4(),
       name: '',
       dob: '',
-      customInstructions: ''
+      customInstructions: '',
+      color: randomColor
     });
     setEditMode(true);
     setShowConfirmDelete(false);
@@ -35,7 +60,12 @@ const ProfileManager = ({ profiles, selectedChildId, onProfileChange, onSelectCh
   // Initialize edit profile form
   const handleEditProfile = (profile, e) => {
     e.stopPropagation();
-    setCurrentProfile({ ...profile });
+    // Ensure the profile has a color, assign one if missing
+    const profileWithColor = { 
+      ...profile, 
+      color: profile.color || PROFILE_COLORS[0]
+    };
+    setCurrentProfile(profileWithColor);
     setEditMode(true);
     setShowConfirmDelete(false);
   };
@@ -46,13 +76,19 @@ const ProfileManager = ({ profiles, selectedChildId, onProfileChange, onSelectCh
     
     if (!currentProfile.name || !currentProfile.dob) return;
     
+    // Ensure profile has a color before saving
+    const profileToSave = {
+      ...currentProfile,
+      color: currentProfile.color || PROFILE_COLORS[0]
+    };
+    
     // Check if this is a new or existing profile
-    const isNew = !profiles.some(p => p.id === currentProfile.id);
-    onProfileChange(isNew ? 'create' : 'update', currentProfile);
+    const isNew = !profiles.some(p => p.id === profileToSave.id);
+    onProfileChange(isNew ? 'create' : 'update', profileToSave);
     
     // Select the profile if it's new
     if (isNew) {
-      onSelectChild(currentProfile.id);
+      onSelectChild(profileToSave.id);
     }
     
     // Exit edit mode
@@ -77,19 +113,9 @@ const ProfileManager = ({ profiles, selectedChildId, onProfileChange, onSelectCh
     setShowConfirmDelete(false);
   };
   
-  // Generate a profile color based on name
-  const getProfileColor = (name) => {
-    const colors = [
-      'bg-blue-500',   // Blue
-      'bg-green-500',  // Green
-      'bg-red-500',    // Red
-      'bg-yellow-500', // Yellow
-      'bg-purple-500', // Purple
-    ];
-    
-    // Use the first character's code to pick a color
-    const charCode = name.charCodeAt(0) || 0;
-    return colors[charCode % colors.length];
+  // Get profile color, with fallback
+  const getProfileColor = (profile) => {
+    return profile.color || PROFILE_COLORS[0];
   };
 
   return (
@@ -125,9 +151,9 @@ const ProfileManager = ({ profiles, selectedChildId, onProfileChange, onSelectCh
                 <div className="relative">
                   <div className="absolute top-2 right-2 z-10">
                     <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8"
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 w-8 rounded-full bg-white shadow-sm border p-0 flex items-center justify-center"
                       onClick={(e) => handleEditProfile(profile, e)}
                     >
                       <Pencil className="h-4 w-4" />
@@ -136,7 +162,7 @@ const ProfileManager = ({ profiles, selectedChildId, onProfileChange, onSelectCh
                 </div>
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4">
-                    <div className={`flex items-center justify-center w-12 h-12 rounded-full text-white font-bold ${getProfileColor(profile.name)}`}>
+                    <div className={`flex items-center justify-center w-12 h-12 rounded-full text-white font-bold ${getProfileColor(profile)}`}>
                       {profile.name.charAt(0).toUpperCase()}
                     </div>
                     <div>
@@ -189,6 +215,25 @@ const ProfileManager = ({ profiles, selectedChildId, onProfileChange, onSelectCh
                 disabled={isLoading}
                 required
               />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Profile Color</Label>
+              <div className="flex flex-wrap gap-2">
+                {PROFILE_COLORS.map((color, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    className={`w-8 h-8 rounded-full ${color} transition-all ${
+                      currentProfile.color === color 
+                        ? 'ring-2 ring-offset-2 ring-primary' 
+                        : 'opacity-70 hover:opacity-100'
+                    }`}
+                    onClick={() => setCurrentProfile({...currentProfile, color})}
+                    aria-label={`Select color ${index + 1}`}
+                  />
+                ))}
+              </div>
             </div>
             
             <div className="space-y-2">

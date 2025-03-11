@@ -1,13 +1,16 @@
 import React from 'react';
+import { Button } from '../ui/button';
+import { LogOut } from 'lucide-react';
 
 const Header = ({ childName, onLogout }) => {
   return (
-    <div className="interface-header">
-      <h1>Hi, {childName}!</h1>
-      <button className="logout-button" onClick={onLogout}>
-        Sign Out
-      </button>
-    </div>
+    <header className="flex items-center justify-between p-4 w-full bg-background border-b">
+      <h1 className="text-xl font-semibold">Hi, {childName}!</h1>
+      <Button variant="ghost" size="sm" onClick={onLogout} className="flex items-center gap-2">
+        <LogOut className="h-4 w-4" />
+        <span className="hidden sm:inline">Sign Out</span>
+      </Button>
+    </header>
   );
 };
 

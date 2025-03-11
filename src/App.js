@@ -143,14 +143,14 @@ function App() {
 
   if (!appIsReady) {
     return (
-      <div className="app loading">
-        <div className="loader">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <div className="loader"></div>
       </div>
     );
   }
 
   return (
-    <div className="app">
+    <div className="min-h-screen bg-gray-100">
       {/* Show parent login if no session exists */}
       {showParentAuth ? (
         <ParentLogin
@@ -180,7 +180,7 @@ function App() {
       ) : (
         <LoginScreen 
           childProfiles={childProfiles} 
-          onChildLogin={handleChildLogin} 
+          onChildLogin={handleChildLogin}
           onParentLogin={handleParentLoginClick}
         />
       )}

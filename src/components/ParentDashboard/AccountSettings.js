@@ -233,154 +233,157 @@ const AccountSettings = () => {
         </div>
       )}
       
-      {/* Credentials Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5 text-primary" />
-            Login Credentials
-          </CardTitle>
-          <CardDescription>
-            Update your username and password. These credentials are used to initially access the application.
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent>
-          <form id="credentials-form" onSubmit={handleAccountSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
-              <Input
-                id="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter username"
-                disabled={isLoading}
-                required
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="password">
-                Password <span className="text-xs text-muted-foreground">(leave blank to keep current)</span>
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter new password"
-                disabled={isLoading}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm new password"
-                disabled={isLoading || !password}
-              />
-            </div>
-          </form>
+      {/* Two-column layout for cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Credentials Card */}
+        <Card className="h-full">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5 text-primary" />
+              Login Credentials
+            </CardTitle>
+            <CardDescription>
+              Update your username and password. These credentials are used to initially access the application.
+            </CardDescription>
+          </CardHeader>
           
-          <div className="bg-muted p-3 mt-6 rounded-md">
-            <p className="text-xs text-muted-foreground">
-              <strong>Note:</strong> Default credentials are:<br />
-              Username: <strong>parent</strong> | Password: <strong>password123</strong>
-            </p>
-          </div>
-        </CardContent>
-        
-        <CardFooter className="flex justify-end">
-          <Button 
-            type="submit"
-            form="credentials-form"
-            disabled={isLoading}
-          >
-            {isLoading ? 'Saving...' : 'Save Credentials'}
-          </Button>
-        </CardFooter>
-      </Card>
-      
-      {/* PIN Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-primary" />
-            Dashboard PIN
-          </CardTitle>
-          <CardDescription>
-            Update the 6-digit PIN used to access the parent dashboard from the child selection screen.
-          </CardDescription>
-        </CardHeader>
-        
-        <CardContent>
-          <form id="pin-form" onSubmit={handlePinSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label>New PIN</Label>
-              <div className="flex justify-center gap-2">
-                {newPin.map((digit, index) => (
-                  <Input
-                    key={`new-${index}`}
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={1}
-                    name={`new-pin-${index}`}
-                    value={digit}
-                    onChange={(e) => handlePinChange(index, e.target.value, 'new')}
-                    onKeyDown={(e) => handleKeyDown(index, e, 'new')}
-                    className="w-12 h-14 text-xl text-center"
-                    disabled={isLoading}
-                    required
-                  />
-                ))}
+          <CardContent>
+            <form id="credentials-form" onSubmit={handleAccountSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <Input
+                  id="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Enter username"
+                  disabled={isLoading}
+                  required
+                />
               </div>
-            </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="password">
+                  Password <span className="text-xs text-muted-foreground">(leave blank to keep current)</span>
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter new password"
+                  disabled={isLoading}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                  disabled={isLoading || !password}
+                />
+              </div>
+            </form>
             
-            <div className="space-y-2">
-              <Label>Confirm New PIN</Label>
-              <div className="flex justify-center gap-2">
-                {confirmPin.map((digit, index) => (
-                  <Input
-                    key={`confirm-${index}`}
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={1}
-                    name={`confirm-pin-${index}`}
-                    value={digit}
-                    onChange={(e) => handlePinChange(index, e.target.value, 'confirm')}
-                    onKeyDown={(e) => handleKeyDown(index, e, 'confirm')}
-                    className="w-12 h-14 text-xl text-center"
-                    disabled={isLoading}
-                    required
-                  />
-                ))}
-              </div>
+            <div className="bg-muted p-3 mt-6 rounded-md">
+              <p className="text-xs text-muted-foreground">
+                <strong>Note:</strong> Default credentials are:<br />
+                Username: <strong>parent</strong> | Password: <strong>password123</strong>
+              </p>
             </div>
-          </form>
+          </CardContent>
           
-          <div className="bg-muted p-3 mt-6 rounded-md">
-            <p className="text-xs text-muted-foreground">
-              <strong>Note:</strong> Default PIN is: <strong>000000</strong>
-            </p>
-          </div>
-        </CardContent>
+          <CardFooter className="flex justify-end mt-auto">
+            <Button 
+              type="submit"
+              form="credentials-form"
+              disabled={isLoading}
+            >
+              {isLoading ? 'Saving...' : 'Save Credentials'}
+            </Button>
+          </CardFooter>
+        </Card>
         
-        <CardFooter className="flex justify-end">
-          <Button 
-            type="submit"
-            form="pin-form"
-            disabled={isLoading}
-          >
-            {isLoading ? 'Updating...' : 'Update PIN'}
-          </Button>
-        </CardFooter>
-      </Card>
+        {/* PIN Card */}
+        <Card className="h-full">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-primary" />
+              Dashboard PIN
+            </CardTitle>
+            <CardDescription>
+              Update the 6-digit PIN used to access the parent dashboard from the child selection screen.
+            </CardDescription>
+          </CardHeader>
+          
+          <CardContent>
+            <form id="pin-form" onSubmit={handlePinSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label>New PIN</Label>
+                <div className="flex justify-center gap-2">
+                  {newPin.map((digit, index) => (
+                    <Input
+                      key={`new-${index}`}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={1}
+                      name={`new-pin-${index}`}
+                      value={digit}
+                      onChange={(e) => handlePinChange(index, e.target.value, 'new')}
+                      onKeyDown={(e) => handleKeyDown(index, e, 'new')}
+                      className="w-10 h-12 text-xl text-center"
+                      disabled={isLoading}
+                      required
+                    />
+                  ))}
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Confirm New PIN</Label>
+                <div className="flex justify-center gap-2">
+                  {confirmPin.map((digit, index) => (
+                    <Input
+                      key={`confirm-${index}`}
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={1}
+                      name={`confirm-pin-${index}`}
+                      value={digit}
+                      onChange={(e) => handlePinChange(index, e.target.value, 'confirm')}
+                      onKeyDown={(e) => handleKeyDown(index, e, 'confirm')}
+                      className="w-10 h-12 text-xl text-center"
+                      disabled={isLoading}
+                      required
+                    />
+                  ))}
+                </div>
+              </div>
+            </form>
+            
+            <div className="bg-muted p-3 mt-6 rounded-md">
+              <p className="text-xs text-muted-foreground">
+                <strong>Note:</strong> Default PIN is: <strong>000000</strong>
+              </p>
+            </div>
+          </CardContent>
+          
+          <CardFooter className="flex justify-end mt-auto">
+            <Button 
+              type="submit"
+              form="pin-form"
+              disabled={isLoading}
+            >
+              {isLoading ? 'Updating...' : 'Update PIN'}
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
       
       <div className="bg-amber-50 border border-amber-200 p-4 rounded-md">
         <p className="text-amber-800 text-sm">

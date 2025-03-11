@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Button } from '../ui/button';
+import { Keyboard, X } from 'lucide-react';
 import Header from './Header';
 import MainCircle from './MainCircle';
 import TextInput from './TextInput';
@@ -6,18 +8,7 @@ import ErrorDisplay from './ErrorDisplay';
 import SubtitleDisplay from '../SubtitleDisplay';
 import { useChat } from '../../hooks/useChat';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
-import '../ChildInterface.css'; // Import the CSS file
-
-// SVG for keyboard icon
-const KeyboardIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#333333" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect width="18" height="12" x="3" y="6" rx="2" />
-    <line x1="7" y1="10" x2="7" y2="10" />
-    <line x1="12" y1="10" x2="12" y2="10" />
-    <line x1="17" y1="10" x2="17" y2="10" />
-    <line x1="7" y1="14" x2="17" y2="14" />
-  </svg>
-);
+import '../ChildInterface.css'; // Retain original CSS for animations and layout
 
 const ChatInterface = ({ childId, childName, onLogout, assistantRef, useMockApi = false }) => {
   const [showTextInput, setShowTextInput] = useState(false);
@@ -137,49 +128,69 @@ const ChatInterface = ({ childId, childName, onLogout, assistantRef, useMockApi 
     setShowTextInput(!showTextInput);
   };
 
+  // Define a consistent container for both subtitle and text input
+  const containerClass = "w-full max-w-lg px-4";
+
   return (
-    <div className="child-interface">
+    <div className={`min-h-screen flex flex-col bg-gray-100 child-interface ${showTextInput ? 'chat-bottom-space' : ''}`}>
       <Header childName={childName} onLogout={onLogout} />
 
-      <div className="main-content">
+      <div className="flex-grow flex flex-col items-center justify-center">
         {error ? (
-          <ErrorDisplay 
-            message={error} 
-            onRetry={() => window.location.reload()} 
-          />
+          <div className="w-full max-w-md px-4">
+            <ErrorDisplay 
+              message={error} 
+              onRetry={() => window.location.reload()} 
+            />
+          </div>
         ) : (
-          <>
-            <MainCircle 
-              interfaceState={interfaceState} 
-              audioData={audioData} 
-              onClick={handleMicrophoneClick} 
-            />
+          <div className="flex flex-col items-center justify-center w-full">
+            <div className="circle-container-wrapper mb-4">
+              <MainCircle 
+                interfaceState={interfaceState} 
+                audioData={audioData} 
+                onClick={handleMicrophoneClick} 
+              />
+            </div>
 
-            <SubtitleDisplay messages={messages} />
+            <div className={containerClass + " mt-4"}>
+              <SubtitleDisplay messages={messages} />
+            </div>
             
-            <button 
-              className={`keyboard-toggle ${showTextInput ? 'active' : ''}`} 
-              onClick={toggleTextInput}
-              aria-label="Toggle keyboard input"
-            >
-              <KeyboardIcon />
-              <span className="keyboard-label">Type</span>
-            </button>
-            
-            <TextInput 
-              onSubmit={handleTextSubmit} 
-              interfaceState={interfaceState} 
-              visible={showTextInput} 
-            />
-            
-            {useMockApi && (
-              <div className="status-badge mock">
-                Using Mock AI (Offline Mode)
+            {/* Only show the text input when toggled - use same container class */}
+            {showTextInput && (
+              <div className={containerClass + " mt-4"}>
+                <TextInput 
+                  onSubmit={handleTextSubmit} 
+                  interfaceState={interfaceState} 
+                  visible={true} 
+                />
               </div>
             )}
-          </>
+          </div>
         )}
       </div>
+      
+      {/* Fixed Position Keyboard Toggle Button */}
+      <div className="fixed left-6 bottom-6 z-50">
+        <Button
+          variant="secondary"
+          onClick={toggleTextInput}
+          aria-label={showTextInput ? "Hide keyboard" : "Show keyboard"}
+          className="rounded-full w-12 h-12 bg-white border border-gray-200 shadow-md flex items-center justify-center"
+        >
+          {showTextInput 
+            ? <X className="h-5 w-5 text-black" /> 
+            : <Keyboard className="h-5 w-5 text-black" />
+          }
+        </Button>
+      </div>
+      
+      {useMockApi && (
+        <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto bg-yellow-100 border border-yellow-300 text-yellow-800 px-4 py-2 rounded text-center text-sm">
+          Using Mock AI (Offline Mode)
+        </div>
+      )}
     </div>
   );
 };

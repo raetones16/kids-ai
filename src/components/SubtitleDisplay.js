@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { cn } from '../lib/utils';
 import './SubtitleDisplay.css';
 
 const SubtitleDisplay = ({ messages }) => {
@@ -15,15 +16,27 @@ const SubtitleDisplay = ({ messages }) => {
   const recentMessages = messages.slice(-3);
 
   return (
-    <div className="subtitle-display" ref={containerRef}>
-      {recentMessages.map((message, index) => (
-        <div 
-          key={index} 
-          className={`message ${message.role === 'assistant' ? 'ai-message' : 'user-message'}`}
-        >
-          {message.content}
-        </div>
-      ))}
+    <div 
+      className="w-full max-h-40 overflow-y-auto rounded-lg p-4 bg-white shadow-sm"
+      ref={containerRef}
+    >
+      {recentMessages.length === 0 ? (
+        <p className="text-center text-muted-foreground italic">No messages yet</p>
+      ) : (
+        recentMessages.map((message, index) => (
+          <div 
+            key={index} 
+            className={cn(
+              "mb-2 py-2 px-3 rounded-lg max-w-[85%]",
+              message.role === 'assistant' 
+                ? "bg-primary/10 text-foreground mr-auto" 
+                : "bg-black text-white ml-auto"
+            )}
+          >
+            {message.content}
+          </div>
+        ))
+      )}
     </div>
   );
 };

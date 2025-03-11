@@ -260,7 +260,7 @@ const CircleAnimation = ({ state = 'idle', audioData = null }) => {
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
-    renderer.setClearColor(0xF5F5F5, 1);
+    renderer.setClearColor(0xF1F1F1, 0); // Transparent background
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -277,7 +277,7 @@ const CircleAnimation = ({ state = 'idle', audioData = null }) => {
     // Add border to main circle
     const borderGeometry = new THREE.RingGeometry(1.98, 2, 64);
     const borderMaterial = new THREE.MeshBasicMaterial({ 
-      color: 0xEEEEEE,
+      color: 0xE0E0E0, // Lighter border
       side: THREE.DoubleSide
     });
     const border = new THREE.Mesh(borderGeometry, borderMaterial);
@@ -301,6 +301,9 @@ const CircleAnimation = ({ state = 'idle', audioData = null }) => {
       camera.updateProjectionMatrix();
       renderer.setSize(width, height);
     };
+
+    // Initial resize
+    handleResize();
 
     window.addEventListener('resize', handleResize);
 
