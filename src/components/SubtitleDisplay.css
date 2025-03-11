@@ -19,6 +19,7 @@
   animation: fadeIn 0.3s ease-in-out;
   word-wrap: break-word;
   line-height: 1.4;
+  text-align: left;
 }
 
 .ai-message {
