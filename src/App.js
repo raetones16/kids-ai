@@ -1,21 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import LoginScreen from './components/LoginScreen';
-import ChildInterface from './components/ChildInterface';
+import ChatInterface from './components/ChatInterface';
 import DebugPanel from './components/DebugPanel';
 import { StorageService } from './services/StorageService';
+import { AssistantService } from './services/AssistantService';
+import { MockAssistantService } from './services/MockAssistantService';
 import Logger from './utils/Logger';
 
-// Initialize the storage service
-const storageService = new StorageService();
+// Get API key from environment variable
+const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
 
-// Enable debug mode (true for development, false for production)
+// Flags for services
+const USE_REAL_API = true;
 const DEBUG_MODE = true;
 
 function App() {
   const [user, setUser] = useState(null);
   const [childProfiles, setChildProfiles] = useState([]);
   const [appIsReady, setAppIsReady] = useState(false);
+  
+  // Store service in ref
+  const assistantRef = useRef(null);
+  const storageService = useRef(new StorageService());
 
   // Initialize app
   useEffect(() => {
@@ -23,6 +30,15 @@ function App() {
     
     const initializeApp = async () => {
       try {
+        // Initialize the real or mock assistant based on flag
+        if (USE_REAL_API) {
+          assistantRef.current = new AssistantService(OPENAI_API_KEY);
+          Logger.info('App', 'Using real OpenAI API');
+        } else {
+          assistantRef.current = new MockAssistantService();
+          Logger.info('App', 'Using mock AI service');
+        }
+        
         // Check for existing login
         const storedSession = localStorage.getItem('kids-ai.session');
         if (storedSession) {
@@ -32,7 +48,7 @@ function App() {
         }
 
         // Load child profiles
-        const profiles = await storageService.getChildProfiles();
+        const profiles = await storageService.current.getChildProfiles();
         Logger.debug('App', `Loaded ${profiles.length} profiles`);
         setChildProfiles(profiles);
         
@@ -85,10 +101,12 @@ function App() {
   return (
     <div className="app">
       {user && user.type === 'child' ? (
-        <ChildInterface 
+        <ChatInterface 
           childId={user.id} 
           childName={user.name} 
-          onLogout={handleLogout} 
+          onLogout={handleLogout}
+          assistantRef={assistantRef.current}
+          useMockApi={!USE_REAL_API}
         />
       ) : (
         <LoginScreen 
