@@ -1,4 +1,5 @@
 import { SearchApi, checkBackendAvailability } from './ApiService';
+import ContentSafetyService from './safety/ContentSafetyService';
 
 /**
  * Service for handling web search functionality via Brave Search API
@@ -28,8 +29,14 @@ export class SearchService {
    * @param {number} count - Number of results to return (default: 5)
    * @returns {Promise<Object>} Search results
    */
-  async search(query, count = 5) {
+  async search(query, count = 5, age = 8) {
     try {
+      // Safety check - block search for inappropriate content
+      if (ContentSafetyService.containsBlockedTopic(query)) {
+        console.warn('Search blocked due to inappropriate query content');
+        throw new Error('Search contains inappropriate content for children');
+      }
+
       // Check backend availability
       if (!this.isBackendAvailable) {
         await this.checkBackendAvailability();
@@ -137,7 +144,7 @@ export class SearchService {
     });
     
     // Add instruction for the AI based on child's age
-    formattedResults += `Please use this information to provide a simple, ${age <= 7 ? 'very easy to understand' : age <= 10 ? 'kid-friendly' : 'straightforward'} answer. Make sure to simplify complex concepts and avoid any inappropriate content.`;
+    formattedResults += `Please use this information to provide a simple, ${age <= 7 ? 'very easy to understand' : age <= 10 ? 'kid-friendly' : 'straightforward'} answer about the query. Don't mention that you're searching or using search results - just provide the information directly. Make sure to simplify complex concepts and avoid any inappropriate content.`;
     
     return formattedResults;
   }

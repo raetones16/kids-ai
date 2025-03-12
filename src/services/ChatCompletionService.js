@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import SearchService from "./SearchService";
+import ContentSafetyService from "./safety/ContentSafetyService";
 
 export class ChatCompletionService {
   constructor(apiKey) {
@@ -114,7 +115,7 @@ export class ChatCompletionService {
     } ${year}. The current time is ${formattedTime}. Today is ${dayOfWeek}.`;
 
     // More concise instructions for faster processing
-    return `
+    let basePrompt = `
       You are a friendly, helpful assistant for ${
         childProfile.name
       }, age ${age}.
@@ -151,7 +152,7 @@ export class ChatCompletionService {
         "December",
       ][now.getMonth()]
     } ${year}.
-      - When asked about current events, always mention that you're using web search to find the latest information.
+      - When asked about current events, provide the latest information directly without mentioning that you're using web search.
 
       ${
         childProfile.customInstructions
@@ -159,6 +160,9 @@ export class ChatCompletionService {
           : ""
       }
     `;
+    
+    // Enhance the system prompt with age-appropriate safety instructions
+    return ContentSafetyService.enhanceSystemPromptWithSafeguards(basePrompt, age);
   }
 
   // Send a message and get a streaming response
@@ -179,12 +183,53 @@ export class ChatCompletionService {
         recentMessages,
         childProfile
       );
-
-      // Add the new message
-      formattedMessages.push({
-        role: "user",
-        content: message,
-      });
+      
+      // Calculate age for content filtering
+      let age = 8; // Default age
+      if (childProfile?.dob) {
+        const birthDate = new Date(childProfile.dob);
+        const today = new Date();
+        age = today.getFullYear() - birthDate.getFullYear();
+        
+        // Adjust age if birthday hasn't occurred yet this year
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+      } else if (childProfile?.age) {
+        age = childProfile.age;
+      }
+      
+      // Only screen for completely inappropriate content
+      if (ContentSafetyService.containsBlockedTopic(message)) {
+        console.log('Blocked topic detected in user message');
+        // Instead of performing a search, provide a safe alternative response
+        formattedMessages.push({
+          role: "system",
+          content: "The user has asked about an inappropriate topic. Respond with a gentle redirection without specifically repeating any inappropriate terms they used."
+        });
+        
+        // Add the original message for context, but we've added instructions above
+        formattedMessages.push({
+          role: "user",
+          content: message,
+        });
+      } else {
+        // For most topics, just handle normally
+        formattedMessages.push({
+          role: "user",
+          content: message,
+        });
+        
+        // Only for suicide specifically, which requires special handling
+        if (message.toLowerCase().includes('suicide')) {
+          const ageCategory = ContentSafetyService.getAgeCategory(age);
+          formattedMessages.push({
+            role: "system",
+            content: "If the user is asking about suicide, provide an age-appropriate, thoughtful response that emphasizes the importance of talking to trusted adults about such serious topics."
+          });
+        }
+      }
 
       // Check if we should perform a web search
       const searchEnabled = process.env.REACT_APP_ENABLE_SEARCH === "true";
@@ -196,7 +241,9 @@ export class ChatCompletionService {
         `Should search for "${message}"? ${SearchService.shouldSearch(message)}`
       );
 
-      if (searchEnabled && SearchService.shouldSearch(message)) {
+      // Only perform search if there are no blocked topics detected - we're much less strict now
+      if (searchEnabled && SearchService.shouldSearch(message) && 
+          !ContentSafetyService.containsBlockedTopic(message)) {
         try {
           // Set the UI state to 'searching' if supported
           if (onChunk) {
@@ -207,23 +254,12 @@ export class ChatCompletionService {
           const results = await SearchService.search(message);
 
           if (results) {
-            // Calculate age from DOB for better content filtering
-            let age = 8; // Default age
-            if (childProfile?.dob) {
-              const birthDate = new Date(childProfile.dob);
-              const today = new Date();
-              age = today.getFullYear() - birthDate.getFullYear();
-
-              // Adjust age if birthday hasn't occurred yet this year
-              const m = today.getMonth() - birthDate.getMonth();
-              if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-                age--;
-              }
-            }
-
             // Format search results for the AI
             searchResults = SearchService.formatSearchResults(results, age);
-            console.log("Search results found and formatted");
+            
+            // Enhance search results with age-appropriate safety instructions
+            searchResults = ContentSafetyService.enhanceSearchResultsWithSafeguards(searchResults, age);
+            console.log("Search results found and formatted with safety enhancements");
 
             // Add search results as a system message
             formattedMessages.push({
@@ -235,6 +271,9 @@ export class ChatCompletionService {
           console.error("Error during search:", error);
           // Continue without search results
         }
+      } else if (ContentSafetyService.containsBlockedTopic(message)) {
+        // Skip search for blocked topics
+        console.log("Skipping search due to blocked topic");
       }
 
       // Log the messages we're sending to the API
@@ -290,10 +329,8 @@ export class ChatCompletionService {
         `Chat completion completed in ${performance.now() - startTime}ms`
       );
 
-      // If we performed a search, add a note to the response
-      if (searchResults) {
-        fullResponse += "\n\n(I used web search to find this information)";
-      }
+      // We no longer add a note about search
+      // The AI will provide information directly without mentioning search
 
       return fullResponse;
     } catch (error) {
