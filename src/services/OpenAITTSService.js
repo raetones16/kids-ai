@@ -49,7 +49,7 @@ export class OpenAITTSService {
   }
   
   // Process text chunk for TTS with true streaming
-  async speakChunkStreaming(chunk, voice = 'nova') {
+  async speakChunkStreaming(chunk, voice = 'fable') {
     if (!chunk || chunk.trim() === '') return null;
     
     // Normalize the chunk to ensure consistent handling
@@ -103,7 +103,7 @@ export class OpenAITTSService {
               input: chunk,
               voice: voice, // 'nova' is a female British voice
               response_format: this.responseFormat, // Use wav for lowest latency
-              speed: 1.1 // Slightly faster speech for better responsiveness
+              speed: 1.0 // Normal speech rate for better comprehension
             }),
             signal // Add AbortController signal to allow cancellation
           });
@@ -285,7 +285,7 @@ export class OpenAITTSService {
   }
   
   // Process input and handle prefetching for upcoming chunks
-  async prefetchNextChunks(textChunks, currentIndex, voice = 'nova') {
+  async prefetchNextChunks(textChunks, currentIndex, voice = 'fable') {
     const remainingChunks = textChunks.slice(currentIndex + 1);
     
     // Only prefetch up to maxPrefetchCount chunks
@@ -319,7 +319,7 @@ export class OpenAITTSService {
   }
   
   // Improved streaming speech method with optimized chunking
-  async speakStreamOptimized(text, voice = 'nova') {
+  async speakStreamOptimized(text, voice = 'fable') {
     if (!text || text.trim() === '') return false;
     
     // Clean the text
@@ -420,7 +420,7 @@ export class OpenAITTSService {
   
   // New streaming speech method that processes chunks as they arrive
   // With additional streaming optimizations
-  async speakStream(chunk, isPausePoint, isComplete, voice = 'nova') {
+  async speakStream(chunk, isPausePoint, isComplete, voice = 'fable') {
     // Check if this is an empty or very small chunk
     if (!chunk || chunk.trim().length < 2) {
       return false;
@@ -480,7 +480,7 @@ export class OpenAITTSService {
   }
   
   // Backward compatibility method for full-text speech
-  async speak(text, voice = 'nova') {
+  async speak(text, voice = 'fable') {
     // Cancel any current audio
     this.stop();
     

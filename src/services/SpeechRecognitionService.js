@@ -19,7 +19,7 @@ export class SpeechRecognitionService {
     this.lastResultTime = Date.now();
     
     // Default pause threshold
-    this.pauseThreshold = 2000; // Default to 2 seconds
+    this.pauseThreshold = 1000; // Default to 1 second
     
     // Callbacks
     this.onResultCallback = null;
@@ -27,7 +27,7 @@ export class SpeechRecognitionService {
     this.onErrorCallback = null;
     
     this.setupEventListeners();
-    console.log('Speech recognition service initialized with longer pause threshold');
+    console.log('Speech recognition service initialized with standard pause threshold');
   }
   
   setupEventListeners() {

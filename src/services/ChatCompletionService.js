@@ -80,18 +80,12 @@ export class ChatCompletionService {
       - Use simpler vocabulary suitable for a ${age}-year-old.
       - Use British English in all responses.
       - Never repeat your previous responses.
+      - Do not explicitly ask about interests mentioned in profile info unless the child brings them up first.
+      - Do not start conversations by suggesting topics from the child's interests.
+      - Let the child lead the conversation and choose what to talk about.
+      - Wait for the child to mention their interests before discussing them in depth.
 
-      ${
-        childProfile.customInstructions
-          ? `Context about ${childProfile.name}: ${childProfile.customInstructions}`
-          : ""
-      }
-
-      ${
-        interests.length > 0
-          ? `${childProfile.name} is interested in: ${interests.join(", ")}`
-          : ""
-      }
+      ${childProfile.customInstructions ? `Background context about ${childProfile.name}: ${childProfile.customInstructions}` : ""}
     `;
   }
 

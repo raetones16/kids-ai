@@ -100,7 +100,7 @@ export class ChatTtsService {
   }
   
   // Speak the entire text as a single unit
-  async speak(text, voice = 'nova') {
+  async speak(text, voice = 'fable') {
     if (!text || !text.trim()) return;
     
     if (!this.initialized) {

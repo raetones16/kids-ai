@@ -26,9 +26,9 @@ export function useSpeechRecognition(interfaceState, setInterfaceState, onSpeech
       speechRecognitionRef.current = new SpeechRecognitionService();
       initializedRef.current = true;
       
-      // Set a shorter pause threshold (2 seconds)
+      // Set a shorter pause threshold (1 second)
       if (typeof speechRecognitionRef.current.setPauseThreshold === 'function') {
-        speechRecognitionRef.current.setPauseThreshold(2000); // 2 seconds
+        speechRecognitionRef.current.setPauseThreshold(1000); // 1 second
       }
       
       // Set up speech recognition callbacks

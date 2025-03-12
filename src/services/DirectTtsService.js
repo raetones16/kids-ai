@@ -25,7 +25,7 @@ export class DirectTtsService {
   }
   
   // Speak the text as a single unified utterance
-  async speak(text, voice = 'nova') {
+  async speak(text, voice = 'fable') {
     if (!text || !text.trim()) return;
     
     // Initialize audio context if needed
@@ -50,7 +50,8 @@ export class DirectTtsService {
           model: 'tts-1',
           input: text,
           voice: voice,
-          response_format: 'mp3' // Using mp3 for better quality
+          response_format: 'mp3', // Using mp3 for better quality
+          speed: 1.0 // Normal speech rate
         })
       });
       
