@@ -25,7 +25,6 @@ const ProfileManager = ({ profiles, selectedChildId, onProfileChange, onSelectCh
   const [editMode, setEditMode] = useState(false);
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [currentProfile, setCurrentProfile] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
   
   // Handle profile selection
   const handleSelectProfile = (profileId) => {
@@ -199,7 +198,6 @@ const ProfileManager = ({ profiles, selectedChildId, onProfileChange, onSelectCh
                 value={currentProfile.name}
                 onChange={(e) => setCurrentProfile({...currentProfile, name: e.target.value})}
                 placeholder="Child's name"
-                disabled={isLoading}
                 required
               />
             </div>
@@ -212,7 +210,6 @@ const ProfileManager = ({ profiles, selectedChildId, onProfileChange, onSelectCh
                 value={currentProfile.dob}
                 onChange={(e) => setCurrentProfile({...currentProfile, dob: e.target.value})}
                 max={new Date().toISOString().split('T')[0]} // Can't select future dates
-                disabled={isLoading}
                 required
               />
             </div>
@@ -244,7 +241,6 @@ const ProfileManager = ({ profiles, selectedChildId, onProfileChange, onSelectCh
                 onChange={(e) => setCurrentProfile({...currentProfile, customInstructions: e.target.value})}
                 placeholder="Add any special instructions or information about this child to help the AI provide better responses"
                 rows="4"
-                disabled={isLoading}
               />
               <p className="text-xs text-muted-foreground">Example: "Emma loves science and space. She might sometimes ask about these topics."</p>
             </div>

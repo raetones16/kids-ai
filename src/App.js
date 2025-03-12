@@ -6,6 +6,7 @@ import PinEntryModal from './components/ParentDashboard/PinEntryModal';
 import ChatInterface from './components/ChatInterface';
 import ParentDashboard from './components/ParentDashboard';
 import DebugPanel from './components/DebugPanel';
+import MigrationModal from './components/MigrationModal';
 import { StorageService } from './services/StorageService';
 import { ChatCompletionService } from './services/ChatCompletionService';
 import { MockAssistantService } from './services/MockAssistantService';
@@ -23,6 +24,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [childProfiles, setChildProfiles] = useState([]);
   const [appIsReady, setAppIsReady] = useState(false);
+  const [migrationComplete, setMigrationComplete] = useState(false);
   
   // Store services in refs
   const assistantRef = useRef(null);
@@ -48,29 +50,33 @@ function App() {
           Logger.info('App', 'Using mock AI service');
         }
         
-        // Check for existing session
-        const session = await authService.current.getSession();
-        if (session) {
-          Logger.debug('App', 'Found existing session', session);
-          setUser(session);
-          setShowParentAuth(false); // Don't show auth if we have a session
-        }
+        // Only continue with other initializations if migration has been handled
+        if (migrationComplete) {
+          // Check for existing session
+          const session = await authService.current.getSession();
+          if (session) {
+            Logger.debug('App', 'Found existing session', session);
+            setUser(session);
+            setShowParentAuth(false); // Don't show auth if we have a session
+          }
 
-        // Load child profiles
-        const profiles = await storageService.current.getChildProfiles();
-        Logger.debug('App', `Loaded ${profiles.length} profiles`);
-        setChildProfiles(profiles);
-        
-        // App is ready
-        setAppIsReady(true);
-        Logger.info('App', 'Application initialized successfully');
+          // Load child profiles
+          const profiles = await storageService.current.getChildProfiles();
+          Logger.debug('App', `Loaded ${profiles.length} profiles`);
+          setChildProfiles(profiles);
+          
+          // App is ready
+          setAppIsReady(true);
+          Logger.info('App', 'Application initialized successfully');
+        }
       } catch (error) {
         Logger.error('App', 'Failed to initialize application', error);
+        setAppIsReady(true); // Set app as ready even on error to avoid endless loading
       }
     };
 
     initializeApp();
-  }, []);
+  }, [migrationComplete]); // Re-run when migration status changes
 
   // Handle login for a child profile
   const handleChildLogin = async (childId) => {
@@ -141,11 +147,23 @@ function App() {
     setUser(null);
   };
 
-  if (!appIsReady) {
+  if (!appIsReady && migrationComplete) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="loader"></div>
       </div>
+    );
+  }
+
+  // Show migration modal if needed
+  if (!migrationComplete) {
+    return (
+      <MigrationModal
+        onComplete={(success) => {
+          setMigrationComplete(true);
+          Logger.info('App', `Migration completed with success=${success}`);
+        }}
+      />
     );
   }
 

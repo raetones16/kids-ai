@@ -201,7 +201,12 @@ export function useChat(assistantService, childId, childName) {
         input,
         childProfileRef.current,
         // Process the streaming response with a simplified approach
-        async (chunk, isPausePoint, isComplete, fullText) => {
+        async (chunk, isPausePoint, isComplete, fullText, state) => {
+          // If we receive a state change (e.g., 'searching')
+          if (state) {
+            setInterfaceState(state);
+            return;
+          }
           // Update the complete response with the full text when available
           if (fullText) {
             completeResponse = fullText;

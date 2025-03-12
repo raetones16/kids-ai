@@ -10,6 +10,7 @@ const MainCircle = ({ interfaceState, audioData, onClick }) => {
         {interfaceState === 'listening' && 'Listening...'}
         {interfaceState === 'thinking' && 'Thinking...'}
         {interfaceState === 'speaking' && 'Speaking...'}
+        {interfaceState === 'searching' && 'Searching...'}
       </div>
     </div>
   );

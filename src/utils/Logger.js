@@ -103,7 +103,8 @@ const exportLogs = () => {
   return JSON.stringify(logHistory, null, 2);
 };
 
-export default {
+// Export as a named object
+const Logger = {
   debug,
   info,
   warn,
@@ -114,3 +115,5 @@ export default {
   exportLogs,
   LOG_LEVELS
 };
+
+export default Logger;

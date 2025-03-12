@@ -238,6 +238,60 @@ const CircleAnimation = ({ state = 'idle', audioData = null }) => {
     requestAnimationFrame(animateSpeaking);
   }, [state, audioData]);
 
+  // Create searching animation (simple purple ripples)
+  const createSearchingAnimation = useCallback(() => {
+    if (!sceneRef.current) return;
+    
+    // Create 3 ripples with different delays - similar to listening but purple
+    const createRipple = (radius, delay) => {
+      const rippleGeometry = new THREE.RingGeometry(radius, radius + 0.05, 64);
+      const rippleMaterial = new THREE.MeshBasicMaterial({
+        color: 0x8E24AA, // Purple color
+        transparent: true,
+        opacity: 0.3,
+        side: THREE.DoubleSide
+      });
+      const ripple = new THREE.Mesh(rippleGeometry, rippleMaterial);
+      sceneRef.current.add(ripple);
+      ripplesRef.current.push(ripple);
+
+      // Animate ripple
+      let scale = 1.0;
+      let opacity = 0.3;
+      let time = 0;
+
+      const animateRipple = () => {
+        time += 0.01;
+        if (time > delay) {
+          scale += 0.01;
+          opacity -= 0.005;
+
+          ripple.scale.set(scale, scale, 1);
+          rippleMaterial.opacity = opacity;
+
+          if (opacity <= 0) {
+            // Reset animation
+            scale = 1.0;
+            opacity = 0.3;
+            time = 0;
+          }
+        }
+
+        if (state === 'searching') {
+          requestAnimationFrame(animateRipple);
+        }
+      };
+
+      requestAnimationFrame(animateRipple);
+    };
+
+    // Create ripples with different delays
+    createRipple(1.6, 0);
+    createRipple(1.6, 0.6);
+    createRipple(1.6, 1.2);
+    
+  }, [state]);
+
   // Set up Three.js scene
   useEffect(() => {
     if (!containerRef.current) return;
@@ -340,12 +394,17 @@ const CircleAnimation = ({ state = 'idle', audioData = null }) => {
         circleRef.current.material.color.set(0xDB4437);
         createSpeakingAnimation();
         break;
+      case 'searching':
+        // Purple color for searching state
+        circleRef.current.material.color.set(0x8E24AA);
+        createSearchingAnimation();
+        break;
       default:
         // White color for idle state
         circleRef.current.material.color.set(0xFFFFFF);
         break;
     }
-  }, [state, audioData, clearAnimations, createListeningAnimation, createThinkingAnimation, createSpeakingAnimation]);
+  }, [state, audioData, clearAnimations, createListeningAnimation, createThinkingAnimation, createSpeakingAnimation, createSearchingAnimation]);
 
   return (
     <div ref={containerRef} className="circle-animation" />
