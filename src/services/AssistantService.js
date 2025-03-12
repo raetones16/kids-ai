@@ -133,8 +133,59 @@ export class AssistantService {
     }
   }
 
+  // Sync local conversation history with OpenAI thread
+  async syncConversationHistory(threadId, messages) {
+    try {
+      // Filter out welcome messages and empty messages
+      const filteredMessages = messages.filter(msg => 
+        msg.content && 
+        msg.content.trim() && 
+        !msg.content.includes('Hello! Tap the circle to start talking with me')
+      );
+      
+      // Only sync a reasonable number of previous messages (last 6 messages = 3 exchanges)
+      const messagesToSync = filteredMessages.slice(-6);
+      
+      // If we only have the current message or no messages, just use the original thread
+      if (messagesToSync.length <= 1) {
+        console.log('Not enough meaningful conversation history to sync, using current thread');
+        
+        // Add the current message to the existing thread if there's only one message
+        if (messagesToSync.length === 1) {
+          const msg = messagesToSync[0];
+          await this.client.beta.threads.messages.create(threadId, {
+            role: msg.role,
+            content: msg.content
+          });
+          console.log(`Added single ${msg.role} message to existing thread: "${msg.content.substring(0, 30)}..."`);
+        }
+        
+        return threadId;
+      }
+      
+      // Create a new thread for a clean start
+      const newThreadId = await this.createThread();
+      console.log(`Created new thread ${newThreadId} for history sync with ${messagesToSync.length} messages`);
+      
+      // Add messages in chronological order
+      for (const msg of messagesToSync) {
+        await this.client.beta.threads.messages.create(newThreadId, {
+          role: msg.role,
+          content: msg.content
+        });
+        console.log(`Added ${msg.role} message to thread: "${msg.content.substring(0, 30)}..."`);
+      }
+      
+      return newThreadId;
+    } catch (error) {
+      console.error("Error syncing conversation history:", error);
+      // Fall back to the original thread if sync fails
+      return threadId;
+    }
+  }
+
   // Send a message and get a streaming response
-  async sendMessage(childId, threadId, message, childProfile, onChunk) {
+  async sendMessage(childId, threadId, message, childProfile, onChunk, recentMessages = []) {
     try {
       const startTime = performance.now();
       console.log("Starting sendMessage at", startTime);
@@ -142,32 +193,42 @@ export class AssistantService {
       // Get or create assistant for this child
       const assistant = await this.getAssistantForChild(childId, childProfile);
 
-      // First, verify the thread is in a good state
-      try {
-        // Check if the thread exists and has a valid history
-        const existingMessages = await this.client.beta.threads.messages.list(threadId);
-        console.log(`Thread has ${existingMessages.data.length} existing messages`);
-        
-        // If the thread seems broken (empty or has tons of messages), create a new one
-        if (existingMessages.data.length === 0 || existingMessages.data.length > 20) {
-          console.log('Thread appears to be in a bad state, creating a new one');
+      // If we have recent messages, sync the thread with this history
+      if (recentMessages && recentMessages.length > 0) {
+        console.log(`Syncing ${recentMessages.length} recent messages with thread`);
+        threadId = await this.syncConversationHistory(threadId, recentMessages);
+        // Update the thread ID reference in the calling code
+        if (typeof onChunk === 'function') {
+          onChunk('', false, false, '', threadId); // Use the last parameter to pass back the new thread ID
+        }
+      } else {
+        // Original thread verification code (only needed if we're not syncing)
+        try {
+          // Check if the thread exists and has a valid history
+          const existingMessages = await this.client.beta.threads.messages.list(threadId);
+          console.log(`Thread has ${existingMessages.data.length} existing messages`);
+          
+          // If the thread seems broken (empty or has tons of messages), create a new one
+          if (existingMessages.data.length === 0 || existingMessages.data.length > 20) {
+            console.log('Thread appears to be in a bad state, creating a new one');
+            const newThreadId = await this.createThread();
+            threadId = newThreadId;
+          }
+        } catch (error) {
+          // If error accessing thread, create a new one
+          console.error('Error accessing thread, creating a new one:', error);
           const newThreadId = await this.createThread();
           threadId = newThreadId;
         }
-      } catch (error) {
-        // If error accessing thread, create a new one
-        console.error('Error accessing thread, creating a new one:', error);
-        const newThreadId = await this.createThread();
-        threadId = newThreadId;
-      }
 
-      // Add the user message to the thread
-      await this.client.beta.threads.messages.create(threadId, {
-        role: "user",
-        content: message,
-      });
+        // Add the user message to the thread
+        await this.client.beta.threads.messages.create(threadId, {
+          role: "user",
+          content: message,
+        });
+      }
       
-      console.log(`Message added to thread in ${performance.now() - startTime}ms`);
+      console.log(`Message processing prepared in ${performance.now() - startTime}ms`);
 
       // Run the assistant on the thread
       const run = await this.client.beta.threads.runs.create(threadId, {
@@ -346,35 +407,32 @@ export class AssistantService {
           );
 
           if (textContent) {
-            const currentText = textContent.text.value;
-            
-            // Check for duplicate/repeating response (comparing with lastResponse)
-            if (this.lastResponse && 
-                currentText.startsWith(this.lastResponse.substring(0, 20)) &&
-                this.lastResponse.length > 20) {
-              console.warn("Detected potential repeated response - this shouldn't happen with the optimizations");
-            }
+          const currentText = textContent.text.value;
+          
+          // Check for duplicate/repeating response (comparing with lastResponse)
+          if (this.lastResponse && 
+          currentText.startsWith(this.lastResponse.substring(0, 20)) &&
+          this.lastResponse.length > 20) {
+          console.warn("Detected potential repeated response - this shouldn't happen with the optimizations");
+          }
 
-            // If we have new content, send just the new part to the callback
-            if (currentText.length > fullResponse.length) {
-              const newChunk = currentText.substring(fullResponse.length);
+          // For all message updates, we'll send the full current text to ensure consistency
+          // This prevents issues with partial or mangled updates from the API
+          if (fullResponse !== currentText) {
+                // Send the complete new text rather than just a chunk
+          // This prevents issues when the API changes parts of its response
+          onChunk(
+                  currentText, // Send the complete text as the chunk
+            this.isGoodBreakpoint(currentText),
+            runStatus.status === "completed",
+            currentText,
+          null // Placeholder for thread ID, not needed for regular chunks
+          );
 
-              // Check if the chunk ends with a sentence or reasonable pause point
-              const isPausePoint = this.isGoodBreakpoint(newChunk);
-
-              // Call the chunk callback with the new text and the full text
-              // This way the consumer can choose which one to use
-              onChunk(
-                newChunk,
-                isPausePoint,
-                runStatus.status === "completed",
-                currentText
-              );
-
-              // Update state
-              updateState(latestMessage.id, currentText);
-              return true;
-            }
+          // Update state with the full text
+          updateState(latestMessage.id, currentText);
+          return true;
+              }
           }
         }
 

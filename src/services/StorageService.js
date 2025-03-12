@@ -113,6 +113,17 @@ export class StorageService {
     return this.saveConversation(conversation);
   }
   
+  // Get all messages from a conversation
+  async getConversationMessages(conversationId) {
+    const conversation = await this.getConversationById(conversationId);
+    
+    if (!conversation) {
+      return [];
+    }
+    
+    return conversation.messages || [];
+  }
+  
   // Settings management (including parent PIN)
   async getSettings() {
     const data = localStorage.getItem(`${this.namespace}.settings`);

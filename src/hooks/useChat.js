@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { TextToSpeechService } from '../services/TextToSpeechService';
 import { StorageService } from '../services/StorageService';
-import { OpenAITTSService } from '../services/OpenAITTSService';
+import { ChatTtsService } from '../services/ChatTtsService';
 
 // Configuration flags from environment
 const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
@@ -39,17 +38,9 @@ export function useChat(assistantService, childId, childName) {
         storageRef.current = new StorageService();
         
         // Set up text-to-speech service
-        if (USE_OPENAI_TTS) {
-          textToSpeechRef.current = new OpenAITTSService(OPENAI_API_KEY);
-          // Set to use Opus format for lower latency
-          if (typeof textToSpeechRef.current.setResponseFormat === 'function') {
-            textToSpeechRef.current.setResponseFormat('opus');
-          }
-          console.log('Using OpenAI TTS for voice output with Opus format');
-        } else {
-          textToSpeechRef.current = new TextToSpeechService();
-          console.log('Using browser TTS for voice output');
-        }
+        textToSpeechRef.current = new ChatTtsService(OPENAI_API_KEY);
+        textToSpeechRef.current.initialize();
+        console.log('Using unified TTS service with OpenAI TTS');
         
         // Set up TTS callbacks
         textToSpeechRef.current.onStart(() => {
@@ -60,19 +51,10 @@ export function useChat(assistantService, childId, childName) {
           setInterfaceState('idle');
         });
         
-        if (USE_OPENAI_TTS && textToSpeechRef.current.onError) {
-          textToSpeechRef.current.onError((error) => {
-            console.error('TTS error:', error);
-            setInterfaceState('idle');
-            
-            try {
-              const fallbackTTS = new TextToSpeechService();
-              fallbackTTS.speak('I had a bit of trouble with my voice. Let me try again.');
-            } catch (fallbackError) {
-              console.error('Fallback TTS error:', fallbackError);
-            }
-          });
-        }
+        textToSpeechRef.current.onError((error) => {
+          console.error('TTS error:', error);
+          setInterfaceState('idle');
+        });
         
         // Check if assistant service is available
         if (!assistantRef.current) {
@@ -161,17 +143,15 @@ export function useChat(assistantService, childId, childName) {
     }
     
     try {
-      // IMPORTANT: Clear all existing messages to prevent repeats
+      // Define the new user message
       const userMessage = {
         role: 'user',
         content: input
       };
       
-      // Replace the entire message history with just the previous messages and the new one
+      // Update the messages state with the new user message
       setMessages(prev => {
-        // Filter to get only the most recent context (up to 3 message pairs)
-        const recentMessages = prev.slice(-6); // Keep last 6 messages (3 pairs of exchanges)
-        return [...recentMessages, userMessage];
+        return [...prev, userMessage];
       });
       
       // Save to storage
@@ -183,170 +163,97 @@ export function useChat(assistantService, childId, childName) {
       setInterfaceState('thinking');
       console.log('Setting interface state to thinking');
       
-      // Create a brand new placeholder message for the assistant response
+      // Create a placeholder for the assistant response
       const tempAssistantMessage = {
         role: 'assistant',
         content: '',
-        id: `assistant-${Date.now()}` // Add unique ID to prevent confusion
+        id: `assistant-${Date.now()}` // Add unique ID
       };
       
-      // Add placeholder message
+      // Add placeholder message to the UI
       setMessages(prev => [...prev, tempAssistantMessage]);
       
-      // Ensure audio context is initialized for streaming TTS
+      // Initialize audio context for streaming TTS
       if (USE_OPENAI_TTS && textToSpeechRef.current && 
           typeof textToSpeechRef.current.initAudioContext === 'function') {
         textToSpeechRef.current.initAudioContext();
       }
       
-      // Get streaming response from assistant
-      let fullResponse = '';
-      let isFirstChunk = true;
-      let lastSpeechChunk = '';
+      // Get all conversation messages from storage for context
+      const allMessages = await storageRef.current.getConversationMessages(conversationIdRef.current);
       
-      // Track the current message for updates
+      // Variables for collecting the complete response
+      let completeResponse = '';
       const messageId = tempAssistantMessage.id;
       
       // Start a timer to measure response time
       const startTime = Date.now();
       
-      // Get streaming response from assistant
+      // Initialize audio context for TTS
+      if (textToSpeechRef.current) {
+        textToSpeechRef.current.initAudioContext();
+      }
+      
+      // Process the streaming response from the API
       const response = await assistantRef.current.sendMessage(
         childId,
         threadIdRef.current,
         input,
         childProfileRef.current,
-        // Chunk handler callback
+        // Process the streaming response with a simplified approach
         async (chunk, isPausePoint, isComplete, fullText) => {
-          // Update the accumulated response (for fallback)
-          if (chunk && chunk.trim()) {
-            fullResponse += chunk;
-          }
-          
-          // Create a debug log for tracing
-          if (chunk && chunk.trim()) {
-            console.log(`Received chunk: "${chunk.substring(0, 20)}..." isPausePoint: ${isPausePoint}, isComplete: ${isComplete}`);
-          }
-          
+          // Update the complete response with the full text when available
           if (fullText) {
-            console.log(`Full text provided: ${fullText.length} chars`);
+            completeResponse = fullText;
+          } else if (chunk) {
+            completeResponse += chunk;
           }
           
-          // Use the complete text for message updates
-          const displayText = fullText || fullResponse;
-          
-          // Only update the message if it contains actual content
-          if (displayText && displayText.trim()) {
-            // Update the message in state, ensuring we're updating the correct one
-            setMessages(prev => {
-              const updated = [...prev];
-              // Find the assistant message with our specific ID and update only that one
-              const assistantIndex = updated.findIndex(msg => 
-                msg.role === 'assistant' && msg.id === messageId);
-              
-              if (assistantIndex >= 0) {
-                updated[assistantIndex] = {
-                  ...updated[assistantIndex],
-                  content: displayText
-                };
-              }
-              return updated;
-            });
-          }
-          
-          // Immediately start speaking after receiving the first good chunk
-          if (isFirstChunk && chunk.length > 10) {
-            console.log(`First chunk received in ${Date.now() - startTime}ms: "${chunk}"`);
-            isFirstChunk = false;
-            lastSpeechChunk = chunk;
+          // Update the UI with the latest text
+          setMessages(prev => {
+            const updated = [...prev];
+            const assistantIndex = updated.findIndex(msg => 
+              msg.role === 'assistant' && msg.id === messageId);
             
-            // Switch to speaking state 
-            setInterfaceState('speaking');
-            console.log('Setting interface state to speaking (first chunk)');
-            
-            // For first chunk, use the optimized streaming method if available
-            if (textToSpeechRef.current && typeof textToSpeechRef.current.speakStreamOptimized === 'function') {
-              await textToSpeechRef.current.speakStreamOptimized(chunk, 'nova');
-            } else if (textToSpeechRef.current && typeof textToSpeechRef.current.speakStream === 'function') {
-              await textToSpeechRef.current.speakStream(chunk, isPausePoint, isComplete);
+            if (assistantIndex >= 0) {
+              updated[assistantIndex] = {
+                ...updated[assistantIndex],
+                content: completeResponse
+              };
             }
-          } 
-          // Process additional speech chunks if they're substantial or at a good break point
-          else if (!isFirstChunk && ((chunk.length > 5 && isPausePoint) || isComplete)) {
-            // Skip chunks we've already processed as part of larger chunks
-            if (lastSpeechChunk.includes(chunk)) {
-              console.log('Skipping chunk that was already processed in a larger chunk');
-              return;
-            }
-            
-            lastSpeechChunk = chunk;
-            
-            // For subsequent chunks or when complete, use the normal streaming method
-            if (textToSpeechRef.current && typeof textToSpeechRef.current.speakStream === 'function') {
-              await textToSpeechRef.current.speakStream(chunk, isPausePoint, isComplete);
-            }
-          }
+            return updated;
+          });
           
-          // For the final chunk when complete, process the full response if it's substantial
-          if (isComplete && fullText && fullText.length > 0) {
-            console.log(`Complete response received in ${Date.now() - startTime}ms, length: ${fullText.length} chars`);
+          // Only when the response is complete, speak the entire text
+          if (isComplete && completeResponse.trim()) {
+            console.log(`Complete response received in ${Date.now() - startTime}ms, length: ${completeResponse.length} chars`);
             
-            // If we didn't speak anything yet, speak the full response
-            if (isFirstChunk) {
-              isFirstChunk = false;
-              console.log('Speaking complete response as no chunks were spoken yet');
-              
-              // Use the optimized streaming method for the full response
-              if (textToSpeechRef.current && typeof textToSpeechRef.current.speakStreamOptimized === 'function') {
-                await textToSpeechRef.current.speakStreamOptimized(fullText, 'nova');
-              } else if (textToSpeechRef.current) {
-                await textToSpeechRef.current.speak(fullText);
+            // Use our simplified TTS service to speak the complete response
+            if (textToSpeechRef.current) {
+              setInterfaceState('speaking');
+              try {
+                await textToSpeechRef.current.speak(completeResponse);
+              } catch (error) {
+                console.error('Error speaking text:', error);
+                setInterfaceState('idle');
               }
             }
           }
-        }
+        },
+        // Pass the conversation history for context
+        allMessages
       );
       
       // Log timing information
       console.log(`Total response time: ${Date.now() - startTime}ms`);
       
-      // Save the complete message to storage with the final full response
+      // Save the complete assistant message to storage
       if (storageRef.current && conversationIdRef.current) {
         const assistantMessage = {
           role: 'assistant',
-          content: fullResponse
+          content: completeResponse || response
         };
         await storageRef.current.saveMessage(conversationIdRef.current, assistantMessage);
-        
-        // Make one final update to ensure the UI has the complete message
-        setMessages(prev => {
-          const updated = [...prev];
-          if (updated.length > 0 && updated[updated.length - 1].role === 'assistant') {
-            // Final update with complete response
-            updated[updated.length - 1] = {
-              role: 'assistant',
-              content: fullResponse
-            };
-          }
-          return updated;
-        });
-      }
-      
-      // If we didn't use streaming TTS, fall back to regular TTS
-      if (textToSpeechRef.current && 
-          (!textToSpeechRef.current.speakStream || isFirstChunk === true)) {
-        try {
-          await textToSpeechRef.current.speak(response);
-        } catch (ttsError) {
-          console.error('Error during speech synthesis:', ttsError);
-          // Fallback to browser TTS
-          try {
-            const fallbackTTS = new TextToSpeechService();
-            fallbackTTS.speak(response);
-          } catch (fallbackError) {
-            console.error('Fallback TTS error:', fallbackError);
-          }
-        }
       }
       
       return response;
@@ -388,9 +295,8 @@ export function useChat(assistantService, childId, childName) {
         await storageRef.current.saveMessage(conversationIdRef.current, personalWelcomeMessage);
       }
       
-      // Initialize audio context for OpenAI TTS
-      if (USE_OPENAI_TTS && textToSpeechRef.current && 
-          typeof textToSpeechRef.current.initAudioContext === 'function') {
+      // Initialize audio context for TTS
+      if (textToSpeechRef.current) {
         textToSpeechRef.current.initAudioContext();
       }
       
@@ -400,21 +306,9 @@ export function useChat(assistantService, childId, childName) {
       // Speak the welcome message now that audio context is initialized
       if (textToSpeechRef.current) {
         try {
-          // Use optimized stream if available for welcome message
-          if (typeof textToSpeechRef.current.speakStreamOptimized === 'function') {
-            await textToSpeechRef.current.speakStreamOptimized(personalWelcomeMessage.content, 'nova');
-          } else {
-            await textToSpeechRef.current.speak(personalWelcomeMessage.content);
-          }
+          await textToSpeechRef.current.speak(personalWelcomeMessage.content);
         } catch (err) {
           console.error('Error speaking welcome message:', err);
-          // Fallback to browser TTS if OpenAI TTS fails
-          try {
-            const fallbackTTS = new TextToSpeechService();
-            fallbackTTS.speak(personalWelcomeMessage.content);
-          } catch (fallbackError) {
-            console.error('Fallback TTS error:', fallbackError);
-          }
         }
       }
     } catch (error) {

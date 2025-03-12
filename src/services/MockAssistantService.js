@@ -80,12 +80,9 @@ export class MockAssistantService {
     return threadId;
   }
 
-  // Send a message and get a response
-  async sendMessage(childId, threadId, message, childProfile) {
-    // Simulate a delay for realism
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Add user message to the thread
+  // Send a message and get a streaming response
+  async sendMessage(childId, threadId, message, childProfile, onChunk, recentMessages = []) {
+    // Store the thread and message history (for compatibility with new service)
     this.messages[threadId] = this.messages[threadId] || [];
     this.messages[threadId].push({
       role: "user",
@@ -101,7 +98,50 @@ export class MockAssistantService {
       content: response
     });
     
+    // If onChunk is provided, simulate streaming behavior
+    if (typeof onChunk === "function") {
+      // Simulate a small initial delay
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Break the response into smaller chunks
+      const words = response.split(' ');
+      let streamedText = '';
+      
+      // Stream one word at a time with small delays
+      for (let i = 0; i < words.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        // Add the next word plus a space
+        const chunk = words[i] + (i < words.length - 1 ? ' ' : '');
+        streamedText += chunk;
+        
+        // Determine if this is a good breakpoint
+        const isPausePoint = this.isSimulatedBreakpoint(i, words);
+        const isComplete = i === words.length - 1;
+        
+        // Call the chunk callback
+        onChunk(chunk, isPausePoint, isComplete, streamedText);
+      }
+      
+      return response;
+    }
+    
+    // If no callback provided, just return the full response after a simulated delay
+    await new Promise(resolve => setTimeout(resolve, 1200));
     return response;
+  }
+  
+  // Helper method to determine if this is a good breakpoint for TTS in mock mode
+  isSimulatedBreakpoint(index, words) {
+    // Create natural pauses in the response to simulate punctuation
+    // We'll say every 4-6 words is a good break point
+    return (index + 1) % Math.floor(Math.random() * 3 + 4) === 0;
+  }
+  
+  // Helper method to format messages for compatibility with the Chat API
+  formatMessagesForChatAPI(recentMessages, childProfile) {
+    // This is just a compatibility method to match the interface
+    return recentMessages;
   }
   
   // Generate a mock response

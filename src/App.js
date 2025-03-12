@@ -7,7 +7,7 @@ import ChatInterface from './components/ChatInterface';
 import ParentDashboard from './components/ParentDashboard';
 import DebugPanel from './components/DebugPanel';
 import { StorageService } from './services/StorageService';
-import { AssistantService } from './services/AssistantService';
+import { ChatCompletionService } from './services/ChatCompletionService';
 import { MockAssistantService } from './services/MockAssistantService';
 import { AuthService } from './services/AuthService';
 import Logger from './utils/Logger';
@@ -41,8 +41,8 @@ function App() {
       try {
         // Initialize the real or mock assistant based on flag
         if (USE_REAL_API) {
-          assistantRef.current = new AssistantService(OPENAI_API_KEY);
-          Logger.info('App', 'Using real OpenAI API');
+          assistantRef.current = new ChatCompletionService(OPENAI_API_KEY);
+          Logger.info('App', 'Using real OpenAI API with Chat Completions');
         } else {
           assistantRef.current = new MockAssistantService();
           Logger.info('App', 'Using mock AI service');
