@@ -10,7 +10,11 @@ async function apiRequest(url, options = {}) {
   try {
     // Set a timeout for fetch requests
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    
+    // Longer timeout for search requests
+    const isSearchRequest = url.includes('/search');
+    const timeoutMs = isSearchRequest ? 8000 : 5000; // 8 seconds for search, 5 for others
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     
     // Add session token to headers if available
     const sessionId = localStorage.getItem('kids-ai.sessionId');
@@ -43,12 +47,54 @@ async function apiRequest(url, options = {}) {
     return data;
   } catch (error) {
     console.error(`API request failed for ${url}:`, error);
+    
+    // Add retry logic for search requests
+    const isSearchRequest = url.includes('/search');
+    
+    // For timeout errors on search requests, try once more
+    if (isSearchRequest && (error.name === 'AbortError' || 
+        error.code === 'ECONNRESET' || 
+        error.message?.includes('ECONNRESET'))) {
+      
+      console.warn('Search request failed, attempting retry...');
+      
+      try {
+        // Create new controller for retry
+        const retryController = new AbortController();
+        const retryTimeoutId = setTimeout(() => retryController.abort(), 8000);
+        
+        const retryResponse = await fetch(url, {
+          ...options,
+          headers: options.headers,
+          signal: retryController.signal
+        });
+        
+        clearTimeout(retryTimeoutId);
+        
+        // Parse JSON response
+        const retryData = await retryResponse.json();
+        
+        // Check if the response was successful
+        if (!retryResponse.ok) {
+          throw new Error(retryData.error || `API error on retry: ${retryResponse.status}`);
+        }
+        
+        console.log('Search retry successful');
+        return retryData;
+      } catch (retryError) {
+        console.error(`Search retry failed for ${url}:`, retryError);
+        console.warn('Both original request and retry failed, falling back to local storage');
+        throw retryError;
+      }
+    }
+    
     // Add more specific error message for timeouts and connection resets
     if (error.name === 'AbortError') {
       console.warn('Request timed out, falling back to local storage');
     } else if (error.code === 'ECONNRESET' || error.message?.includes('ECONNRESET')) {
       console.warn('Connection reset by server, falling back to local storage');
     }
+    
     throw error;
   }
 }

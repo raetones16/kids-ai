@@ -77,8 +77,8 @@ export class ChatCompletionService {
       console.log(`No DOB or age found, using default age: ${age}`);
     }
 
-    // Parse custom instructions to identify interests
-    let interests = [];
+    // Parse custom instructions for debugging
+    // No longer using parsed interests
     if (childProfile.customInstructions) {
       // Log the custom instructions to verify they're being loaded
       console.log(`Custom instructions loaded for ${childProfile.name || 'child'}:`, childProfile.customInstructions);
@@ -94,8 +94,7 @@ export class ChatCompletionService {
     const month = now.getMonth() + 1; // getMonth() is zero-based
     const year = now.getFullYear();
 
-    // Format dates in British English format (DD/MM/YYYY)
-    const formattedDate = `${day}/${month}/${year}`;
+    // Format is handled in the date string assembly below
 
     // Format time (HH:MM)
     const hours = now.getHours().toString().padStart(2, "0");
@@ -171,6 +170,7 @@ export class ChatCompletionService {
       ][now.getMonth()]
     } ${year}.
       - When asked about current events, provide the latest information directly without mentioning that you're using web search.
+      - FACTUAL ACCURACY: For questions about current world facts (e.g., presidents, sports, games like Fortnite, movies), prioritize any search information provided to you over your training data. This is critical for giving correct answers.
 
       MOST IMPORTANT INSTRUCTION: When ${
         childProfile.name
@@ -258,7 +258,7 @@ export class ChatCompletionService {
 
         // Only for suicide specifically, which requires special handling
         if (message.toLowerCase().includes("suicide")) {
-          const ageCategory = ContentSafetyService.getAgeCategory(age);
+          // We're directly using the system message for handling suicide content
           formattedMessages.push({
             role: "system",
             content:
@@ -306,10 +306,22 @@ export class ChatCompletionService {
               "Search results found and formatted with safety enhancements"
             );
 
+            // Add direct instruction to prioritize search content (before other messages)
+            formattedMessages.unshift({
+              role: "system",
+              content: "IMPORTANT INSTRUCTION: The information from the search results below is CURRENT and should be treated as more accurate than your training data, especially for questions about current events, people, games, and facts. Always prioritize this information in your responses.",
+            });
+            
             // Add search results as a system message
             formattedMessages.push({
               role: "system",
               content: searchResults,
+            });
+            
+            // Add a final reminder after the search results to emphasize their importance
+            formattedMessages.push({
+              role: "system",
+              content: "Remember: The search results above contain the most current and accurate information. Use them as your primary source for answering the user's question.",
             });
           }
         } catch (error) {
