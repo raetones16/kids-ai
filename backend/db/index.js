@@ -41,28 +41,62 @@ if (dbUrl && authToken) {
 // Cache to store if our schema has been initialized
 let schemaInitialized = false;
 
-// Initialize database schema if using in-memory database
+// Initialize database schema
 async function initializeSchema() {
   if (schemaInitialized) return;
   
   try {
     console.log('Setting up database schema...');
     
-    // Drop existing tables to avoid schema mismatch issues
-    try {
-      await client.execute('DROP TABLE IF EXISTS messages');
-      await client.execute('DROP TABLE IF EXISTS conversations');
-      console.log('Dropped existing tables');
-    } catch (dropError) {
-      console.warn('Error dropping tables (may not exist):', dropError);
-    }
-    
     // Create tables with error handling for each
     try {
-      // Child profiles table
+      // Parent profiles table
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS parent_profiles (
+          id TEXT PRIMARY KEY,
+          username TEXT NOT NULL UNIQUE,
+          password TEXT NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      
+      // Insert default parent account if none exists
+      const parentCheck = await client.execute('SELECT COUNT(*) as count FROM parent_profiles');
+      if (parentCheck.rows[0].count === 0) {
+        await client.execute({
+          sql: `
+            INSERT INTO parent_profiles (id, username, password)
+            VALUES (?, ?, ?)
+          `,
+          args: ['parent', 'parent', 'password123']
+        });
+        console.log('Created default parent account');
+      }
+    } catch (parentProfileError) {
+      console.error('Error creating parent_profiles table:', parentProfileError);
+    }
+    
+    try {
+      // Sessions table for authentication
+      await client.execute(`
+        CREATE TABLE IF NOT EXISTS sessions (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          user_type TEXT NOT NULL,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          expires_at DATETIME NOT NULL
+        )
+      `);
+    } catch (sessionsError) {
+      console.error('Error creating sessions table:', sessionsError);
+    }
+    
+    try {
+      // Child profiles table - updated to use string IDs
       await client.execute(`
         CREATE TABLE IF NOT EXISTS child_profiles (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          id TEXT PRIMARY KEY,
           name TEXT NOT NULL,
           dob TEXT NOT NULL,
           color TEXT,
@@ -76,14 +110,15 @@ async function initializeSchema() {
     }
     
     try {
-      // Conversations table
+      // Conversations table - update to use string IDs throughout
       await client.execute(`
         CREATE TABLE IF NOT EXISTS conversations (
           id TEXT PRIMARY KEY,
-          child_id INTEGER NOT NULL,
+          child_id TEXT NOT NULL,
           thread_id TEXT NOT NULL,
           started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          last_activity_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          last_activity_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (child_id) REFERENCES child_profiles(id)
         )
       `);
     } catch (convError) {
@@ -98,7 +133,8 @@ async function initializeSchema() {
           conversation_id TEXT NOT NULL,
           role TEXT NOT NULL,
           content TEXT NOT NULL,
-          timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+          timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (conversation_id) REFERENCES conversations(id)
         )
       `);
     } catch (msgError) {
@@ -123,7 +159,7 @@ async function initializeSchema() {
       console.error('Error creating settings table:', settingsError);
     }
     
-    console.log('In-memory database schema initialized successfully');
+    console.log('Database schema initialized successfully');
     schemaInitialized = true;
   } catch (error) {
     console.error('Failed to initialize database schema:', error);
@@ -131,12 +167,6 @@ async function initializeSchema() {
     schemaInitialized = true; // Mark as initialized anyway to avoid repeated attempts
   }
 }
-
-// Force schema initialization on module import (even for Turso DB) for initial setup
-initializeSchema().catch(err => {
-  console.error('Database initialization error:', err);
-  process.exit(1);
-});
 
 module.exports = {
   db: client,

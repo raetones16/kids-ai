@@ -1,33 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const { db } = require('../db');
+const crypto = require('crypto');
 
-// Helper to create a new conversation with a string ID
-async function createConversationWithStringId(childId, threadId, conversationId) {
-  try {
-    // Ensure childId is a number
-    const numericChildId = parseInt(childId, 10);
-    if (isNaN(numericChildId)) {
-      throw new Error(`Invalid child ID format: ${childId}`);
-    }
-    
-    console.log(`Creating conversation with ID ${conversationId} for child ${numericChildId}`);
-    
-    // Insert conversation with the string ID directly
-    await db.execute({
-      sql: `
-        INSERT INTO conversations (id, child_id, thread_id)
-        VALUES (?, ?, ?)
-      `,
-      args: [conversationId, numericChildId, threadId]
-    });
-    
-    console.log(`Successfully created conversation with ID ${conversationId} for child ${numericChildId}`);
-    return conversationId;
-  } catch (error) {
-    console.error('Error creating conversation with string ID:', error);
-    throw error;
-  }
+// Helper to generate a unique conversation ID
+function generateConversationId() {
+  return `conv-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+}
+
+// Helper to generate a unique message ID
+function generateMessageId() {
+  return `msg-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
 }
 
 // GET /api/conversations/child/:childId - Get all conversations for a child
@@ -36,24 +19,27 @@ router.get('/child/:childId', async (req, res, next) => {
     const { childId } = req.params;
     console.log(`Fetching conversations for child ID: ${childId}`);
 
-    // Ensure childId is properly handled as a number
-    const numericChildId = parseInt(childId, 10);
-    if (isNaN(numericChildId)) {
-      console.error(`Invalid child ID: ${childId}`);
-      return res.status(400).json({ error: 'Invalid child ID format' });
+    // Check if child exists
+    const childCheck = await db.execute({
+      sql: 'SELECT id FROM child_profiles WHERE id = ?',
+      args: [childId]
+    });
+
+    if (childCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Child profile not found' });
     }
 
-    console.log(`Searching database for child_id = ${numericChildId}`);
+    console.log(`Searching database for child_id = ${childId}`);
     const result = await db.execute({
       sql: `
         SELECT * FROM conversations 
         WHERE child_id = ? 
         ORDER BY last_activity_at DESC
       `,
-      args: [numericChildId]
+      args: [childId]
     });
 
-    console.log(`Found ${result.rows.length} conversations for child ${numericChildId}`);
+    console.log(`Found ${result.rows.length} conversations for child ${childId}`);
     res.json(result.rows);
   } catch (error) {
     console.error('Error getting conversations:', error);
@@ -66,17 +52,10 @@ router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Try exact match first (string ID)
-    let result = await db.execute({
+    const result = await db.execute({
       sql: 'SELECT * FROM conversations WHERE id = ?',
       args: [id]
     });
-
-    // If not found and ID looks like a string ID pattern
-    if (result.rows.length === 0 && id.includes('-')) {
-      console.log(`Conversation with exact ID ${id} not found`);
-      return res.status(404).json({ error: 'Conversation not found' });
-    }
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Conversation not found' });
@@ -94,7 +73,7 @@ router.get('/:id/messages', async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Check if conversation exists with exact ID
+    // Check if conversation exists
     let convCheck = await db.execute({
       sql: 'SELECT id FROM conversations WHERE id = ?',
       args: [id]
@@ -133,16 +112,10 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({ error: 'Child ID and thread ID are required' });
     }
 
-    // Ensure childId is a number
-    const numericChildId = parseInt(childId, 10);
-    if (isNaN(numericChildId)) {
-      return res.status(400).json({ error: 'Invalid child ID format' });
-    }
-
     // Check if child exists
     const childCheck = await db.execute({
       sql: 'SELECT id FROM child_profiles WHERE id = ?',
-      args: [numericChildId]
+      args: [childId]
     });
 
     if (childCheck.rows.length === 0) {
@@ -150,21 +123,25 @@ router.post('/', async (req, res, next) => {
     }
 
     // Use provided ID or generate conversation ID
-    let conversationId = id || `conv-${Date.now()}`;
+    const conversationId = id || generateConversationId();
     
     try {
-      // Try to create the conversation
-      await createConversationWithStringId(numericChildId, threadId, conversationId);
-      
-      const now = new Date().toISOString();
-      
-      res.status(201).json({
-        id: conversationId,
-        child_id: numericChildId,
-        thread_id: threadId,
-        started_at: now,
-        last_activity_at: now
+      // Create the conversation
+      await db.execute({
+        sql: `
+          INSERT INTO conversations (id, child_id, thread_id)
+          VALUES (?, ?, ?)
+        `,
+        args: [conversationId, childId, threadId]
       });
+      
+      // Get the created conversation
+      const result = await db.execute({
+        sql: 'SELECT * FROM conversations WHERE id = ?',
+        args: [conversationId]
+      });
+      
+      res.status(201).json(result.rows[0]);
     } catch (createError) {
       console.error('Failed to create conversation:', createError);
       res.status(500).json({ error: 'Failed to create conversation' });
@@ -190,7 +167,7 @@ router.post('/:id/messages', async (req, res, next) => {
       return res.status(400).json({ error: 'Role must be "user" or "assistant"' });
     }
 
-    // Check if conversation exists with exact ID
+    // Check if conversation exists
     let convCheck = await db.execute({
       sql: 'SELECT child_id, id FROM conversations WHERE id = ?',
       args: [id]
@@ -201,7 +178,7 @@ router.post('/:id/messages', async (req, res, next) => {
     }
 
     // Add message
-    const messageId = `msg-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const messageId = generateMessageId();
     await db.execute({
       sql: `
         INSERT INTO messages (id, conversation_id, role, content)
@@ -220,15 +197,13 @@ router.post('/:id/messages', async (req, res, next) => {
       args: [id]
     });
 
-    const now = new Date().toISOString();
-
-    res.status(201).json({
-      id: messageId,
-      conversationId: id,
-      role,
-      content,
-      timestamp: now
+    // Get the created message
+    const result = await db.execute({
+      sql: 'SELECT * FROM messages WHERE id = ?',
+      args: [messageId]
     });
+
+    res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error('Error adding message:', error);
     next(error);
@@ -276,7 +251,13 @@ router.delete('/:id', async (req, res, next) => {
       return res.status(404).json({ error: 'Conversation not found' });
     }
 
-    // Delete conversation (cascading delete will remove messages)
+    // Delete all messages for this conversation first
+    await db.execute({
+      sql: 'DELETE FROM messages WHERE conversation_id = ?',
+      args: [id]
+    });
+
+    // Delete conversation
     await db.execute({
       sql: 'DELETE FROM conversations WHERE id = ?',
       args: [id]

@@ -10,11 +10,15 @@ dotenv.config();
 const { db, initializeSchema } = require('./db');
 
 // Initialize database schema with error handling
-initializeSchema().catch(err => {
-  console.error('Database initialization warning:', err);
-  console.log('Continuing without full database initialization...');
-  // Don't exit process, allow server to start anyway with limited functionality
-});
+(async () => {
+  try {
+    await initializeSchema();
+    console.log('Database schema initialized successfully');
+  } catch (err) {
+    console.error('Database initialization warning:', err);
+    console.log('Continuing without full database initialization...');
+  }
+})();
 
 // Import route handlers
 const searchRoutes = require('./routes/search');
@@ -22,6 +26,7 @@ const profilesRoutes = require('./routes/profiles');
 const conversationsRoutes = require('./routes/conversations');
 const settingsRoutes = require('./routes/settings');
 const migrationRoutes = require('./routes/migration');
+const authRoutes = require('./routes/auth');
 
 // Create Express app
 const app = express();
@@ -48,6 +53,7 @@ app.use('/api/profiles', profilesRoutes);
 app.use('/api/conversations', conversationsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/migration', migrationRoutes);
+app.use('/api/auth', authRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

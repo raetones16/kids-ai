@@ -21,22 +21,62 @@ const USE_REAL_API = true;
 const DEBUG_MODE = true;
 
 function App() {
+  // Main state
   const [user, setUser] = useState(null);
+  const [parentAuthenticated, setParentAuthenticated] = useState(false);
   const [childProfiles, setChildProfiles] = useState([]);
   const [appIsReady, setAppIsReady] = useState(false);
-  const [migrationComplete, setMigrationComplete] = useState(false);
+  const [isSessionChecking, setIsSessionChecking] = useState(true);
   
   // Store services in refs
   const assistantRef = useRef(null);
   const storageService = useRef(new StorageService());
   const authService = useRef(new AuthService());
   
-  // State for authentication modals
-  const [showParentAuth, setShowParentAuth] = useState(true); // Start with parent auth
+  // UI state
+  const [showParentAuth, setShowParentAuth] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
+
+  // Check for existing session on mount
+  useEffect(() => {
+    const checkExistingSession = async () => {
+      try {
+        Logger.info('App', 'Checking for existing session');
+        
+        // Force backend availability check
+        await storageService.current.checkBackendAvailability();
+        
+        const session = await authService.current.getSession();
+        
+        if (session) {
+          Logger.info('App', 'Found existing session', session);
+          
+          // If it's a parent session, we're authenticated
+          if (session.type === 'parent') {
+            setParentAuthenticated(true);
+            loadChildProfiles();
+          }
+          
+          // Set the user in state
+          setUser(session);
+        }
+        
+        setIsSessionChecking(false);
+      } catch (error) {
+        Logger.error('App', 'Error checking existing session', error);
+        setIsSessionChecking(false);
+      }
+    };
+    
+    checkExistingSession();
+  }, []);
 
   // Initialize app
   useEffect(() => {
+    if (isSessionChecking) {
+      return; // Wait until session check is complete
+    }
+    
     Logger.info('App', 'Application initializing');
     
     const initializeApp = async () => {
@@ -50,35 +90,54 @@ function App() {
           Logger.info('App', 'Using mock AI service');
         }
         
-        // Only continue with other initializations if migration has been handled
-        if (migrationComplete) {
-          // Check for existing session
-          const session = await authService.current.getSession();
-          if (session) {
-            Logger.debug('App', 'Found existing session', session);
-            setUser(session);
-            setShowParentAuth(false); // Don't show auth if we have a session
-          }
-
-          // Load child profiles
-          const profiles = await storageService.current.getChildProfiles();
-          Logger.debug('App', `Loaded ${profiles.length} profiles`);
-          setChildProfiles(profiles);
-          
-          // App is ready
-          setAppIsReady(true);
-          Logger.info('App', 'Application initialized successfully');
-        }
+        // App is ready
+        setAppIsReady(true);
+        Logger.info('App', 'Application initialized successfully');
       } catch (error) {
         Logger.error('App', 'Failed to initialize application', error);
-        setAppIsReady(true); // Set app as ready even on error to avoid endless loading
+        setAppIsReady(true); // Set app as ready even on error
       }
     };
 
     initializeApp();
-  }, [migrationComplete]); // Re-run when migration status changes
+  }, [isSessionChecking]);
 
-  // Handle login for a child profile
+  // Load child profiles
+  const loadChildProfiles = async () => {
+    try {
+      const profiles = await storageService.current.getChildProfiles();
+      Logger.debug('App', `Loaded ${profiles.length} profiles`, profiles);
+      setChildProfiles(profiles);
+    } catch (error) {
+      Logger.error('App', 'Failed to load profiles', error);
+    }
+  };
+
+  // Handle parent login
+  const handleParentLogin = () => {
+    setShowParentAuth(true);
+  };
+  
+  // Handle successful parent login
+  const handleParentLoginSuccess = async (session) => {
+    Logger.info('App', 'Parent login successful');
+    
+    // Set parent authentication state
+    setParentAuthenticated(true);
+    
+    // Load child profiles
+    await loadChildProfiles();
+    
+    // Hide login screen
+    setShowParentAuth(false);
+  };
+  
+  // Handle parent login cancel
+  const handleParentLoginCancel = () => {
+    setShowParentAuth(false);
+  };
+  
+  // Handle child login
   const handleChildLogin = async (childId) => {
     Logger.info('App', `Login attempt for child ID: ${childId}`);
     
@@ -95,26 +154,13 @@ function App() {
       Logger.error('App', `Login failed: Child profile not found for ID: ${childId}`);
     }
   };
-
-  // Handle parent login button click
-  const handleParentLoginClick = () => {
-    Logger.info('App', 'Parent dashboard access requested');
+  
+  // Handle parent dashboard access
+  const handleParentDashboardAccess = () => {
     setShowPinModal(true);
   };
   
-  // Handle successful parent login
-  const handleParentLoginSuccess = (session) => {
-    Logger.info('App', 'Parent login successful');
-    setUser(session);
-    setShowParentAuth(false);
-  };
-  
-  // Handle parent login cancel
-  const handleParentLoginCancel = () => {
-    setShowParentAuth(false);
-  };
-  
-  // Handle successful PIN entry
+  // Handle successful PIN verification
   const handlePinSuccess = async (pin) => {
     try {
       // Verify PIN
@@ -140,14 +186,32 @@ function App() {
     }
   };
 
-  // Handle logout
-  const handleLogout = async () => {
-    Logger.info('App', `Logout for user: ${user?.name || 'unknown'}`);
-    await authService.current.logout();
+  // Handle logout from child chat interface
+  const handleChildLogout = async () => {
+    Logger.info('App', `Logged out from child chat: ${user?.name || 'unknown'}`);
+    // Just reset the user without clearing parent authentication
     setUser(null);
   };
 
-  if (!appIsReady && migrationComplete) {
+  // Handle logout from parent dashboard
+  const handleParentDashboardLogout = () => {
+    Logger.info('App', 'Logged out from parent dashboard');
+    // Just reset the user, but keep parent authentication
+    setUser(null);
+  };
+
+  // Handle complete logout
+  const handleCompleteLogout = async () => {
+    Logger.info('App', 'Complete logout');
+    // Logout using auth service
+    await authService.current.logout();
+    // Reset all authentication state
+    setUser(null);
+    setParentAuthenticated(false);
+  };
+
+  // Loading screen
+  if (!appIsReady || isSessionChecking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="loader"></div>
@@ -155,53 +219,73 @@ function App() {
     );
   }
 
-  // Show migration modal if needed
-  if (!migrationComplete) {
+  // Parent login screen
+  if (showParentAuth) {
     return (
-      <MigrationModal
-        onComplete={(success) => {
-          setMigrationComplete(true);
-          Logger.info('App', `Migration completed with success=${success}`);
-        }}
+      <ParentLogin
+        onLoginSuccess={handleParentLoginSuccess}
+        onCancel={handleParentLoginCancel}
       />
+    );
+  }
+
+  // Determine what to show
+  let content;
+  
+  if (user) {
+    // User is logged in
+    if (user.type === 'child') {
+      // Child is logged in - show chat interface
+      content = (
+        <ChatInterface 
+          childId={user.id} 
+          childName={user.name} 
+          onLogout={handleChildLogout}
+          assistantRef={assistantRef.current}
+          useMockApi={!USE_REAL_API}
+        />
+      );
+    } else if (user.type === 'parent') {
+      // Parent dashboard is active
+      content = (
+        <ParentDashboard 
+          onLogout={handleParentDashboardLogout}
+        />
+      );
+    }
+  } else if (parentAuthenticated) {
+    // Parent is authenticated but no user is set - show profile selection
+    content = (
+      <LoginScreen 
+        childProfiles={childProfiles} 
+        onChildLogin={handleChildLogin}
+        onParentLogin={handleParentDashboardAccess}
+        onCompleteLogout={handleCompleteLogout}
+        reloadProfiles={loadChildProfiles}
+        showCompleteLogout={true}
+      />
+    );
+  } else {
+    // No authentication - show initial parent login button
+    content = (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold mb-2">Kids AI</h1>
+          <p className="text-gray-500">A child-friendly AI assistant</p>
+        </div>
+        <button
+          onClick={handleParentLogin}
+          className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+        >
+          Parent Login
+        </button>
+      </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Show parent login if no session exists */}
-      {showParentAuth ? (
-        <ParentLogin
-          onLoginSuccess={handleParentLoginSuccess}
-          onCancel={handleParentLoginCancel}
-        />
-      ) : user ? (
-        user.type === 'child' ? (
-          <ChatInterface 
-            childId={user.id} 
-            childName={user.name} 
-            onLogout={handleLogout}
-            assistantRef={assistantRef.current}
-            useMockApi={!USE_REAL_API}
-          />
-        ) : user.type === 'parent' ? (
-          <ParentDashboard 
-            onLogout={handleLogout}
-          />
-        ) : (
-          <LoginScreen 
-            childProfiles={childProfiles} 
-            onChildLogin={handleChildLogin}
-            onParentLogin={handleParentLoginClick}
-          />
-        )
-      ) : (
-        <LoginScreen 
-          childProfiles={childProfiles} 
-          onChildLogin={handleChildLogin}
-          onParentLogin={handleParentLoginClick}
-        />
-      )}
+      {content}
       
       {/* PIN Entry Modal */}
       {showPinModal && (

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
-import { User } from 'lucide-react';
+import { User, LogOut } from 'lucide-react';
 
 // Default colors if no color is stored with the profile
 const DEFAULT_COLORS = [
@@ -12,7 +12,14 @@ const DEFAULT_COLORS = [
   'bg-purple-500', // Purple
 ];
 
-const LoginScreen = ({ childProfiles, onChildLogin, onParentLogin }) => {
+const LoginScreen = ({ 
+  childProfiles, 
+  onChildLogin, 
+  onParentLogin, 
+  onCompleteLogout, 
+  reloadProfiles,
+  showCompleteLogout = false
+}) => {
   // Get profile color, with fallback to a consistent color based on name
   const getProfileColor = (profile) => {
     // If profile has a stored color preference, use it
@@ -25,6 +32,13 @@ const LoginScreen = ({ childProfiles, onChildLogin, onParentLogin }) => {
     return DEFAULT_COLORS[charCode % DEFAULT_COLORS.length];
   };
 
+  // Reload profiles if refresh button is clicked
+  const handleRefresh = async () => {
+    if (typeof reloadProfiles === 'function') {
+      await reloadProfiles();
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background">
       <div className="text-3xl font-bold mb-8">Kids AI</div>
@@ -32,14 +46,26 @@ const LoginScreen = ({ childProfiles, onChildLogin, onParentLogin }) => {
       <div className="w-full max-w-3xl">
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-2xl font-semibold">Who's talking today?</h2>
-          <Button 
-            variant="outline" 
-            onClick={onParentLogin}
-            className="gap-2"
-          >
-            <User className="h-4 w-4" />
-            <span>Parent</span>
-          </Button>
+          <div className="flex gap-2">
+            {showCompleteLogout && (
+              <Button 
+                variant="outline" 
+                onClick={onCompleteLogout} 
+                className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Log Out</span>
+              </Button>
+            )}
+            <Button 
+              variant="outline" 
+              onClick={onParentLogin}
+              className="gap-2"
+            >
+              <User className="h-4 w-4" />
+              <span>Parent</span>
+            </Button>
+          </div>
         </div>
         
         {childProfiles.length > 0 ? (

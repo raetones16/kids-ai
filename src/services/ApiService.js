@@ -12,12 +12,20 @@ async function apiRequest(url, options = {}) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
     
+    // Add session token to headers if available
+    const sessionId = localStorage.getItem('kids-ai.sessionId');
+    const headers = {
+      'Content-Type': 'application/json',
+      ...options.headers
+    };
+    
+    if (sessionId) {
+      headers['Authorization'] = `Bearer ${sessionId}`;
+    }
+    
     const response = await fetch(url, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-      },
+      headers,
       signal: controller.signal
     });
     
@@ -44,6 +52,40 @@ async function apiRequest(url, options = {}) {
     throw error;
   }
 }
+
+/**
+ * Authentication API methods
+ */
+export const AuthApi = {
+  // Parent login
+  async login(username, password) {
+    return apiRequest(`${API_URL}/auth/login`, {
+      method: 'POST',
+      body: JSON.stringify({ username, password })
+    });
+  },
+  
+  // Child login
+  async childLogin(childId) {
+    return apiRequest(`${API_URL}/auth/child-login`, {
+      method: 'POST',
+      body: JSON.stringify({ childId })
+    });
+  },
+  
+  // Validate session
+  async validateSession(sessionId) {
+    return apiRequest(`${API_URL}/auth/session/${sessionId}`);
+  },
+  
+  // Logout
+  async logout(sessionId) {
+    return apiRequest(`${API_URL}/auth/logout`, {
+      method: 'POST',
+      body: JSON.stringify({ sessionId })
+    });
+  }
+};
 
 /**
  * Child profile API methods

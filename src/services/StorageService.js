@@ -14,7 +14,7 @@ export class StorageService {
   constructor(namespace = 'kids-ai') {
     this.namespace = namespace;
     this.isBackendAvailable = false;
-    this.checkBackendAvailability();
+    this.backendAvailabilityPromise = this.checkBackendAvailability();
     
     // Initialize parent PIN if it doesn't exist in localStorage
     this.initializeParentPin();
@@ -24,9 +24,6 @@ export class StorageService {
   mapProfileFromBackend(profile) {
     if (!profile) return null;
     
-    // Log the original profile from backend for debugging
-    console.log('Original profile from backend:', profile);
-    
     // Create a mapped profile with proper field names
     const mappedProfile = {
       ...profile,
@@ -34,20 +31,12 @@ export class StorageService {
       createdAt: profile.created_at,
       updatedAt: profile.updated_at
     };
-
-    // Convert DOB to correct format if needed
-    if (mappedProfile.dob && mappedProfile.dob.includes('-')) {
-      // Keep it as is for now, the format will be handled in ChatCompletionService
-      console.log(`Profile DOB in ISO format (${mappedProfile.dob}) - will be handled during processing`);
-    }
     
     // Ensure customInstructions are loaded
     if (!mappedProfile.customInstructions && profile.custom_instructions) {
       mappedProfile.customInstructions = profile.custom_instructions;
-      console.log(`Fixed customInstructions mapping for profile ID ${profile.id}`);
     }
     
-    console.log('Final mapped profile:', mappedProfile);
     return mappedProfile;
   }
   
@@ -86,26 +75,26 @@ export class StorageService {
   // Check if backend API is available
   async checkBackendAvailability() {
     try {
-      // Set a timeout for the availability check
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
-      
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/health`, {
-        signal: controller.signal
-      });
-      
-      // Clear the timeout
-      clearTimeout(timeoutId);
-      
-      this.isBackendAvailable = response.ok;
+      this.isBackendAvailable = await checkBackendAvailability();
       console.log(`Backend API ${this.isBackendAvailable ? 'is' : 'is not'} available`);
+      
+      // Force backend usage in development mode
+      if (process.env.NODE_ENV === 'development' && !this.isBackendAvailable) {
+        console.error('BACKEND IS NOT AVAILABLE! Please start the backend server.');
+        alert('Backend server is not available. Please start the backend server and refresh the page.');
+      }
+      
       return this.isBackendAvailable;
     } catch (error) {
       console.error('Error checking backend availability:', error);
-      if (error.name === 'AbortError') {
-        console.warn('Backend availability check timed out');
-      }
       this.isBackendAvailable = false;
+      
+      // Force backend usage in development mode
+      if (process.env.NODE_ENV === 'development') {
+        console.error('BACKEND IS NOT AVAILABLE! Please start the backend server.');
+        alert('Backend server is not available. Please start the backend server and refresh the page.');
+      }
+      
       return false;
     }
   }
@@ -156,40 +145,69 @@ export class StorageService {
   // Save a child profile
   async saveChildProfile(profile) {
     try {
+      // Ensure profile has an ID
+      if (!profile.id) {
+        profile.id = `profile-${Date.now()}`;
+      }
+      
+      // Wait for backend availability check
+      await this.backendAvailabilityPromise;
+      
       if (this.isBackendAvailable) {
         // Use backend API
-        if (profile.id) {
-          // Update existing profile
-          const updatedProfile = await ProfileApi.updateProfile(profile.id, this.mapProfileToBackend(profile));
-          return this.mapProfileFromBackend(updatedProfile);
-        } else {
-          // Create new profile
-          const newProfile = await ProfileApi.createProfile(this.mapProfileToBackend(profile));
-          return this.mapProfileFromBackend(newProfile);
+        try {
+          if (profile.id && profile.id !== 'new') {
+            // Update existing profile
+            const updatedProfile = await ProfileApi.updateProfile(profile.id, this.mapProfileToBackend(profile));
+            return this.mapProfileFromBackend(updatedProfile);
+          } else {
+            // Create new profile
+            const newProfile = await ProfileApi.createProfile(this.mapProfileToBackend(profile));
+            return this.mapProfileFromBackend(newProfile);
+          }
+        } catch (apiError) {
+          console.error('API error saving profile:', apiError);
+          // Fall back to localStorage
+          return this._saveProfileToLocalStorage(profile);
         }
       } else {
         // Fallback to localStorage
-        const profiles = await this.getChildProfiles();
-        const existingIndex = profiles.findIndex(p => p.id === profile.id);
-        
-        if (existingIndex >= 0) {
-          profiles[existingIndex] = { ...profiles[existingIndex], ...profile, updatedAt: new Date() };
-        } else {
-          // Generate an ID for new profiles
-          const newProfile = { 
-            ...profile, 
-            id: profile.id || `profile-${Date.now()}`, 
-            createdAt: new Date(), 
-            updatedAt: new Date() 
-          };
-          profiles.push(newProfile);
-        }
-        
-        localStorage.setItem(`${this.namespace}.profiles`, JSON.stringify(profiles));
-        return profile;
+        return this._saveProfileToLocalStorage(profile);
       }
     } catch (error) {
       console.error('Error saving profile:', error);
+      // Try localStorage as last resort
+      return this._saveProfileToLocalStorage(profile);
+    }
+  }
+  
+  // Helper to save profile to localStorage
+  _saveProfileToLocalStorage(profile) {
+    try {
+      const profiles = JSON.parse(localStorage.getItem(`${this.namespace}.profiles`) || '[]');
+      const existingIndex = profiles.findIndex(p => p.id === profile.id);
+      
+      if (existingIndex >= 0) {
+        profiles[existingIndex] = { 
+          ...profiles[existingIndex], 
+          ...profile, 
+          updatedAt: new Date().toISOString() 
+        };
+      } else {
+        // Generate an ID for new profiles if needed
+        const newProfile = { 
+          ...profile, 
+          id: profile.id || `profile-${Date.now()}`, 
+          createdAt: new Date().toISOString(), 
+          updatedAt: new Date().toISOString() 
+        };
+        profiles.push(newProfile);
+      }
+      
+      localStorage.setItem(`${this.namespace}.profiles`, JSON.stringify(profiles));
+      return profile;
+    } catch (error) {
+      console.error('Error saving profile to localStorage:', error);
       throw error;
     }
   }
@@ -197,10 +215,20 @@ export class StorageService {
   // Get all child profiles
   async getChildProfiles() {
     try {
+      // Wait for backend availability check
+      await this.backendAvailabilityPromise;
+      
       if (this.isBackendAvailable) {
-        const profiles = await ProfileApi.getProfiles();
-        // Map backend field names to frontend field names
-        return profiles.map(profile => this.mapProfileFromBackend(profile));
+        try {
+          const profiles = await ProfileApi.getProfiles();
+          // Map backend field names to frontend field names
+          return profiles.map(profile => this.mapProfileFromBackend(profile));
+        } catch (apiError) {
+          console.error('API error getting profiles:', apiError);
+          // Fall back to localStorage
+          const data = localStorage.getItem(`${this.namespace}.profiles`);
+          return data ? JSON.parse(data) : [];
+        }
       } else {
         const data = localStorage.getItem(`${this.namespace}.profiles`);
         return data ? JSON.parse(data) : [];
@@ -216,13 +244,13 @@ export class StorageService {
   // Get a specific child profile
   async getChildProfileById(id) {
     try {
+      // Wait for backend availability check
+      await this.backendAvailabilityPromise;
+      
       if (this.isBackendAvailable) {
         try {
           const profile = await ProfileApi.getProfile(id);
-          const mappedProfile = this.mapProfileFromBackend(profile);
-          console.log('Backend profile loaded:', profile);
-          console.log('Mapped profile:', mappedProfile);
-          return mappedProfile;
+          return this.mapProfileFromBackend(profile);
         } catch (apiError) {
           console.error(`Error getting profile ${id} from API:`, apiError);
           // Fall back to localStorage
@@ -244,27 +272,42 @@ export class StorageService {
   // Delete a child profile
   async deleteChildProfile(id) {
     try {
+      // Wait for backend availability check
+      await this.backendAvailabilityPromise;
+      
       if (this.isBackendAvailable) {
-        await ProfileApi.deleteProfile(id);
-        return true;
+        try {
+          await ProfileApi.deleteProfile(id);
+          return true;
+        } catch (apiError) {
+          console.error(`Error deleting profile ${id} from API:`, apiError);
+          // Fall back to localStorage
+          return this._deleteProfileFromLocalStorage(id);
+        }
       } else {
-        const profiles = await this.getChildProfiles();
-        const updatedProfiles = profiles.filter(p => p.id !== id);
-        
-        localStorage.setItem(`${this.namespace}.profiles`, JSON.stringify(updatedProfiles));
-        
-        // Also delete all conversations for this child
-        const conversations = await this.getConversations();
-        const updatedConversations = conversations.filter(c => c.childId !== id);
-        
-        localStorage.setItem(`${this.namespace}.conversations`, JSON.stringify(updatedConversations));
-        
-        return true;
+        return this._deleteProfileFromLocalStorage(id);
       }
     } catch (error) {
       console.error(`Error deleting profile ${id}:`, error);
-      throw error;
+      // Try localStorage as last resort
+      return this._deleteProfileFromLocalStorage(id);
     }
+  }
+  
+  // Helper to delete profile from localStorage
+  _deleteProfileFromLocalStorage(id) {
+    const profiles = JSON.parse(localStorage.getItem(`${this.namespace}.profiles`) || '[]');
+    const updatedProfiles = profiles.filter(p => p.id !== id);
+    
+    localStorage.setItem(`${this.namespace}.profiles`, JSON.stringify(updatedProfiles));
+    
+    // Also delete all conversations for this child
+    const conversations = JSON.parse(localStorage.getItem(`${this.namespace}.conversations`) || '[]');
+    const updatedConversations = conversations.filter(c => c.childId !== id);
+    
+    localStorage.setItem(`${this.namespace}.conversations`, JSON.stringify(updatedConversations));
+    
+    return true;
   }
   
   /*
@@ -274,112 +317,86 @@ export class StorageService {
   // Save a conversation
   async saveConversation(conversation) {
     try {
-      console.log('Attempting to save conversation:', conversation);
+      // Ensure conversation has required fields
+      if (!conversation.id) {
+        conversation.id = `conv-${Date.now()}`;
+      }
+      
+      if (!conversation.childId && !conversation.child_id) {
+        throw new Error('Missing childId for conversation');
+      }
+      
+      if (!conversation.threadId && !conversation.thread_id) {
+        conversation.threadId = `thread-${Date.now()}`;
+      }
+      
+      const conversationToSave = {
+        ...conversation,
+        childId: conversation.childId || conversation.child_id,
+        threadId: conversation.threadId || conversation.thread_id,
+        messages: conversation.messages || []
+      };
+      
+      // Wait for backend availability check
+      await this.backendAvailabilityPromise;
+      
       if (this.isBackendAvailable) {
         try {
-          if (conversation.id) {
-            // Check if conversation exists in the backend
-            try {
-              const existingConversation = await ConversationApi.getConversation(conversation.id);
-              // Conversation exists, no need to create it
-              console.log(`Conversation ${conversation.id} already exists in backend`);
-            } catch (notFoundError) {
-              // Conversation doesn't exist in backend, create it
-              console.log(`Conversation ${conversation.id} not found in backend, creating it...`);
-              
-              // Make sure we have the required fields
-              if (!conversation.childId && !conversation.child_id) {
-                console.error('Missing childId for conversation creation', conversation);
-                throw new Error('Missing childId for conversation creation');
-              }
-              
-              const threadId = conversation.threadId || conversation.thread_id || `thread-${Date.now()}`;
-              const childId = conversation.childId || conversation.child_id;
-              
-              try {
-                // Create new conversation in backend
-                await ConversationApi.createConversation(
-                  childId,
-                  threadId,
-                  conversation.id
-                );
-                
-                console.log(`Successfully created conversation ${conversation.id} in backend`);
-                
-                // If the conversation has messages, save them too
-                if (conversation.messages && conversation.messages.length > 0) {
-                  console.log(`Saving ${conversation.messages.length} messages to conversation ${conversation.id}`);
-                  for (const message of conversation.messages) {
-                    try {
-                      await ConversationApi.addMessage(
-                        conversation.id,
-                        message.role,
-                        message.content
-                      );
-                    } catch (msgError) {
-                      console.error(`Failed to add message to backend conversation ${conversation.id}:`, msgError);
-                      // Continue with other messages
-                    }
-                  }
+          // Check if conversation exists in backend
+          try {
+            await ConversationApi.getConversation(conversationToSave.id);
+            // Conversation exists, no action needed
+          } catch (notFoundError) {
+            // Conversation doesn't exist, create it
+            console.log(`Creating conversation ${conversationToSave.id} in backend`);
+            await ConversationApi.createConversation(
+              conversationToSave.childId,
+              conversationToSave.threadId,
+              conversationToSave.id
+            );
+            
+            // If the conversation has messages, save them too
+            if (conversationToSave.messages && conversationToSave.messages.length > 0) {
+              for (const message of conversationToSave.messages) {
+                try {
+                  await ConversationApi.addMessage(
+                    conversationToSave.id,
+                    message.role,
+                    message.content
+                  );
+                } catch (msgError) {
+                  console.error(`Failed to add message to backend conversation:`, msgError);
                 }
-              } catch (createError) {
-                console.error(`Error creating conversation in backend:`, createError);
-                // Always save to localStorage as fallback
-                this._saveConversationToLocalStorage(conversation);
               }
-            }
-            
-            // Always save to localStorage as well for redundancy
-            this._saveConversationToLocalStorage(conversation);
-            
-            // Return the conversation as is
-            return conversation;
-          } else {
-            // Create new conversation
-            try {
-              const savedConversation = await ConversationApi.createConversation(
-                conversation.childId, 
-                conversation.threadId
-              );
-              console.log('Successfully created new conversation in backend:', savedConversation);
-              
-              // Also save to localStorage
-              this._saveConversationToLocalStorage(savedConversation);
-              
-              return this.mapConversationFromBackend(savedConversation);
-            } catch (createError) {
-              console.error('Error creating new conversation in backend:', createError);
-              // Fall back to localStorage
-              return this._saveConversationToLocalStorage(conversation);
             }
           }
+          
+          // Always save to localStorage for redundancy
+          this._saveConversationToLocalStorage(conversationToSave);
+          
+          return conversationToSave;
         } catch (apiError) {
-          console.error(`Error saving conversation to backend:`, apiError);
+          console.error('API error saving conversation:', apiError);
           // Fall back to localStorage
-          return this._saveConversationToLocalStorage(conversation);
+          return this._saveConversationToLocalStorage(conversationToSave);
         }
       } else {
         // Fallback to localStorage
-        return this._saveConversationToLocalStorage(conversation);
+        return this._saveConversationToLocalStorage(conversationToSave);
       }
     } catch (error) {
       console.error('Error saving conversation:', error);
-      // Always try to save to localStorage as last resort
-      try {
+      // Try localStorage as last resort
+      if (conversation) {
         return this._saveConversationToLocalStorage(conversation);
-      } catch (finalError) {
-        console.error('Final attempt to save conversation failed:', finalError);
-        throw error; // Re-throw the original error
       }
+      throw error;
     }
   }
   
   // Helper method to save conversation to localStorage
   _saveConversationToLocalStorage(conversation) {
-    // Fallback to localStorage
     try {
-      console.log('Saving conversation to localStorage:', conversation);
-      
       // Get all conversations from localStorage
       const conversations = JSON.parse(localStorage.getItem(`${this.namespace}.conversations`) || '[]');
       
@@ -422,15 +439,24 @@ export class StorageService {
   // Get all conversations
   async getConversations() {
     try {
+      // Wait for backend availability check
+      await this.backendAvailabilityPromise;
+      
       if (this.isBackendAvailable) {
-        // Backend doesn't have a "get all conversations" endpoint,
-        // but we'll keep this for consistency with localStorage approach
+        // Get all child profiles
         const profiles = await this.getChildProfiles();
         const allConversations = [];
         
+        // Get conversations for each child
         for (const profile of profiles) {
-          const conversations = await ConversationApi.getConversationsByChildId(profile.id);
-          allConversations.push(...conversations);
+          try {
+            const conversations = await ConversationApi.getConversationsByChildId(profile.id);
+            // Map to frontend format
+            const mappedConversations = conversations.map(conv => this.mapConversationFromBackend(conv));
+            allConversations.push(...mappedConversations);
+          } catch (error) {
+            console.error(`Error getting conversations for child ${profile.id}:`, error);
+          }
         }
         
         return allConversations;
@@ -448,67 +474,58 @@ export class StorageService {
   
   // Get conversations for a specific child
   async getConversationsByChildId(childId) {
-    console.log(`Fetching conversations for child ID: ${childId}`);
     try {
+      // Wait for backend availability check
+      await this.backendAvailabilityPromise;
+      
       if (this.isBackendAvailable) {
         try {
           const conversations = await ConversationApi.getConversationsByChildId(childId);
-          console.log(`Received ${conversations.length} conversations from backend for child ${childId}:`, conversations);
+          
+          // Map to frontend format
+          const mappedConversations = conversations.map(conv => this.mapConversationFromBackend(conv));
           
           // If no conversations in backend, check localStorage as fallback
-          if (conversations.length === 0) {
-            console.log(`No conversations found in backend for child ${childId}, checking localStorage...`);
+          if (mappedConversations.length === 0) {
             const localConversations = JSON.parse(localStorage.getItem(`${this.namespace}.conversations`) || '[]');
             const filteredLocalConversations = localConversations.filter(c => c.childId === childId);
             
             if (filteredLocalConversations.length > 0) {
-              console.log(`Found ${filteredLocalConversations.length} conversations in localStorage for child ${childId}`);
               return filteredLocalConversations;
             }
           }
-          
-          // Map backend field names to frontend field names
-          const mappedConversations = conversations.map(conversation => this.mapConversationFromBackend(conversation));
-          console.log('Mapped conversations:', mappedConversations);
           
           return mappedConversations;
         } catch (apiError) {
           console.error(`Error getting backend conversations for child ${childId}:`, apiError);
           // Fall back to localStorage on API error
           const conversations = JSON.parse(localStorage.getItem(`${this.namespace}.conversations`) || '[]');
-          const filteredConversations = conversations.filter(c => c.childId === childId);
-          console.log(`Found ${filteredConversations.length} conversations in localStorage for child ${childId}`);
-          return filteredConversations;
+          return conversations.filter(c => c.childId === childId);
         }
       } else {
         // Use localStorage directly
         const conversations = JSON.parse(localStorage.getItem(`${this.namespace}.conversations`) || '[]');
-        const filteredConversations = conversations.filter(c => c.childId === childId);
-        console.log(`Found ${filteredConversations.length} conversations in localStorage for child ${childId}`);
-        return filteredConversations;
+        return conversations.filter(c => c.childId === childId);
       }
     } catch (error) {
       console.error(`Error getting conversations for child ${childId}:`, error);
       // As a last resort, try to parse from localStorage
-      try {
-        const conversations = JSON.parse(localStorage.getItem(`${this.namespace}.conversations`) || '[]');
-        const filteredConversations = conversations.filter(c => c.childId === childId);
-        console.log(`Found ${filteredConversations.length} conversations in localStorage for child ${childId} (fallback)`);
-        return filteredConversations;
-      } catch (localError) {
-        console.error('Could not retrieve conversations from localStorage:', localError);
-        return [];
-      }
+      const conversations = JSON.parse(localStorage.getItem(`${this.namespace}.conversations`) || '[]');
+      return conversations.filter(c => c.childId === childId);
     }
   }
   
   // Get a specific conversation
   async getConversationById(id) {
     try {
+      // Wait for backend availability check
+      await this.backendAvailabilityPromise;
+      
       if (this.isBackendAvailable) {
         try {
           // Get the conversation
           const conversation = await ConversationApi.getConversation(id);
+          
           // Map to frontend format
           const mappedConversation = this.mapConversationFromBackend(conversation);
           
@@ -534,19 +551,17 @@ export class StorageService {
     } catch (error) {
       console.error(`Error getting conversation ${id}:`, error);
       // Fall back to localStorage as last resort
-      try {
-        const conversations = JSON.parse(localStorage.getItem(`${this.namespace}.conversations`) || '[]');
-        return conversations.find(c => c.id === id);
-      } catch (localError) {
-        console.error('Error getting conversation from localStorage:', localError);
-        return null;
-      }
+      const conversations = JSON.parse(localStorage.getItem(`${this.namespace}.conversations`) || '[]');
+      return conversations.find(c => c.id === id);
     }
   }
   
   // Save a message to a conversation
   async saveMessage(conversationId, message) {
     try {
+      // Wait for backend availability check
+      await this.backendAvailabilityPromise;
+      
       if (this.isBackendAvailable) {
         try {
           // Make sure message has a timestamp
@@ -555,13 +570,17 @@ export class StorageService {
             timestamp: message.timestamp || new Date().toISOString()
           };
           
-          const savedMessage = await ConversationApi.addMessage(
+          // Add message to backend
+          await ConversationApi.addMessage(
             conversationId,
             messageWithTimestamp.role,
             messageWithTimestamp.content
           );
           
-          return savedMessage;
+          // Also add to localStorage
+          await this._saveMessageToLocalStorage(conversationId, messageWithTimestamp);
+          
+          return messageWithTimestamp;
         } catch (apiError) {
           console.error(`Error saving message to backend for conversation ${conversationId}:`, apiError);
           // Fall back to localStorage
@@ -580,10 +599,22 @@ export class StorageService {
   async _saveMessageToLocalStorage(conversationId, message) {
     try {
       // First, try to get the existing conversation
-      const conversation = await this.getConversationById(conversationId);
+      let conversation = await this.getConversationById(conversationId);
       
+      // If conversation doesn't exist, create it
       if (!conversation) {
-        throw new Error(`Conversation with ID ${conversationId} not found`);
+        // This should not happen normally, but we'll handle it gracefully
+        console.warn(`Conversation with ID ${conversationId} not found, creating a new one`);
+        
+        // We need a childId to create a conversation
+        const childId = message.childId || 'unknown-child';
+        
+        conversation = {
+          id: conversationId,
+          childId,
+          threadId: `thread-${Date.now()}`,
+          messages: []
+        };
       }
       
       // Ensure message has a timestamp
@@ -600,9 +631,6 @@ export class StorageService {
       return this.saveConversation(conversation);
     } catch (error) {
       console.error(`Error in _saveMessageToLocalStorage for ${conversationId}:`, error);
-      
-      // If the conversation wasn't found, let the error propagate up
-      // so the useChat hook can handle it by creating a new conversation
       throw error;
     }
   }
@@ -610,21 +638,18 @@ export class StorageService {
   // Get all messages from a conversation
   async getConversationMessages(conversationId) {
     try {
+      // Wait for backend availability check
+      await this.backendAvailabilityPromise;
+      
       if (this.isBackendAvailable) {
         try {
           const messages = await ConversationApi.getConversationMessages(conversationId);
           
-          // Check if we received actual messages
-          if (messages && Array.isArray(messages)) {
-            // Ensure all messages have proper timestamp formatting
-            return messages.map(msg => ({
-              ...msg,
-              timestamp: msg.timestamp || new Date().toISOString()
-            }));
-          } else {
-            console.warn(`No valid messages returned for conversation ${conversationId}`);
-            return [];
-          }
+          // Ensure all messages have proper timestamp formatting
+          return messages.map(msg => ({
+            ...msg,
+            timestamp: msg.timestamp || new Date().toISOString()
+          }));
         } catch (apiError) {
           console.error(`Error getting backend messages for conversation ${conversationId}:`, apiError);
           // Fall back to localStorage
@@ -646,89 +671,9 @@ export class StorageService {
     } catch (error) {
       console.error(`Error getting messages for conversation ${conversationId}:`, error);
       // Final fallback
-      try {
-        const conversations = JSON.parse(localStorage.getItem(`${this.namespace}.conversations`) || '[]');
-        const conversation = conversations.find(c => c.id === conversationId);
-        return conversation ? (conversation.messages || []) : [];
-      } catch (localError) {
-        console.error('Could not retrieve messages from localStorage:', localError);
-        return [];
-      }
-    }
-  }
-  
-  /*
-   * Settings Methods
-   */
-  
-  // Get application settings
-  async getSettings() {
-    try {
-      if (this.isBackendAvailable) {
-        return await SettingsApi.getSettings();
-      } else {
-        const data = localStorage.getItem(`${this.namespace}.settings`);
-        return data ? JSON.parse(data) : {};
-      }
-    } catch (error) {
-      console.error('Error getting settings:', error);
-      // Fall back to localStorage on API error
-      const data = localStorage.getItem(`${this.namespace}.settings`);
-      return data ? JSON.parse(data) : {};
-    }
-  }
-  
-  // Save application settings
-  async saveSettings(settings) {
-    try {
-      if (this.isBackendAvailable) {
-        // Only PIN updates are supported via API
-        if (settings.parentPin) {
-          await SettingsApi.updateParentPin(settings.parentPin);
-        }
-        return settings;
-      } else {
-        localStorage.setItem(`${this.namespace}.settings`, JSON.stringify(settings));
-        return settings;
-      }
-    } catch (error) {
-      console.error('Error saving settings:', error);
-      throw error;
-    }
-  }
-  
-  // Verify parent PIN
-  async verifyParentPin(pin) {
-    try {
-      if (this.isBackendAvailable) {
-        const result = await SettingsApi.verifyParentPin(pin);
-        return result.valid;
-      } else {
-        const settings = await this.getSettings();
-        return settings.parentPin === pin;
-      }
-    } catch (error) {
-      console.error('Error verifying PIN:', error);
-      // Fall back to localStorage on API error
-      const settings = JSON.parse(localStorage.getItem(`${this.namespace}.settings`) || '{}');
-      return settings.parentPin === pin;
-    }
-  }
-  
-  // Update parent PIN
-  async updateParentPin(pin) {
-    try {
-      if (this.isBackendAvailable) {
-        await SettingsApi.updateParentPin(pin);
-        return true;
-      } else {
-        const settings = await this.getSettings();
-        settings.parentPin = pin;
-        return this.saveSettings(settings);
-      }
-    } catch (error) {
-      console.error('Error updating PIN:', error);
-      throw error;
+      const conversations = JSON.parse(localStorage.getItem(`${this.namespace}.conversations`) || '[]');
+      const conversation = conversations.find(c => c.id === conversationId);
+      return conversation ? (conversation.messages || []) : [];
     }
   }
   
@@ -739,8 +684,10 @@ export class StorageService {
   // Get usage statistics for a child
   async getChildUsageStats(childId) {
     try {
-      // TODO: Implement backend API for usage statistics
-      // For now, we calculate them from the conversations
+      // Wait for backend availability check
+      await this.backendAvailabilityPromise;
+      
+      // Get all conversations for this child
       const conversations = await this.getConversationsByChildId(childId);
       
       // Process conversations to ensure they all have messages
@@ -797,20 +744,131 @@ export class StorageService {
   }
   
   /*
-   * Search Methods
+   * Settings Methods
    */
   
-  // Perform a search query
-  async search(query, count = 5) {
+  // Get application settings
+  async getSettings() {
     try {
+      // Wait for backend availability check
+      await this.backendAvailabilityPromise;
+      
       if (this.isBackendAvailable) {
-        const { SearchApi } = await import('./ApiService');
-        return await SearchApi.search(query, count);
+        try {
+          return await SettingsApi.getSettings();
+        } catch (apiError) {
+          console.error('Error getting settings from API:', apiError);
+          // Fall back to localStorage
+          const data = localStorage.getItem(`${this.namespace}.settings`);
+          return data ? JSON.parse(data) : {};
+        }
       } else {
-        throw new Error('Search is only available when backend is connected');
+        const data = localStorage.getItem(`${this.namespace}.settings`);
+        return data ? JSON.parse(data) : {};
       }
     } catch (error) {
-      console.error('Search error:', error);
+      console.error('Error getting settings:', error);
+      // Fall back to localStorage on API error
+      const data = localStorage.getItem(`${this.namespace}.settings`);
+      return data ? JSON.parse(data) : {};
+    }
+  }
+  
+  // Save application settings
+  async saveSettings(settings) {
+    try {
+      // Wait for backend availability check
+      await this.backendAvailabilityPromise;
+      
+      if (this.isBackendAvailable) {
+        try {
+          // Only PIN updates are supported via API
+          if (settings.parentPin) {
+            await SettingsApi.updateParentPin(settings.parentPin);
+          }
+          
+          // Also save to localStorage for redundancy
+          localStorage.setItem(`${this.namespace}.settings`, JSON.stringify(settings));
+          
+          return settings;
+        } catch (apiError) {
+          console.error('Error saving settings to API:', apiError);
+          // Fall back to localStorage
+          localStorage.setItem(`${this.namespace}.settings`, JSON.stringify(settings));
+          return settings;
+        }
+      } else {
+        localStorage.setItem(`${this.namespace}.settings`, JSON.stringify(settings));
+        return settings;
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      // Try localStorage as last resort
+      localStorage.setItem(`${this.namespace}.settings`, JSON.stringify(settings));
+      return settings;
+    }
+  }
+  
+  // Verify parent PIN
+  async verifyParentPin(pin) {
+    try {
+      // Wait for backend availability check
+      await this.backendAvailabilityPromise;
+      
+      if (this.isBackendAvailable) {
+        try {
+          const result = await SettingsApi.verifyParentPin(pin);
+          return result.valid;
+        } catch (apiError) {
+          console.error('Error verifying PIN with API:', apiError);
+          // Fall back to localStorage
+          const settings = await this.getSettings();
+          return settings.parentPin === pin;
+        }
+      } else {
+        const settings = await this.getSettings();
+        return settings.parentPin === pin;
+      }
+    } catch (error) {
+      console.error('Error verifying PIN:', error);
+      // Fall back to localStorage on API error
+      const settings = JSON.parse(localStorage.getItem(`${this.namespace}.settings`) || '{}');
+      return settings.parentPin === pin;
+    }
+  }
+  
+  // Update parent PIN
+  async updateParentPin(pin) {
+    try {
+      // Wait for backend availability check
+      await this.backendAvailabilityPromise;
+      
+      if (this.isBackendAvailable) {
+        try {
+          await SettingsApi.updateParentPin(pin);
+          
+          // Also update localStorage
+          const settings = await this.getSettings();
+          settings.parentPin = pin;
+          localStorage.setItem(`${this.namespace}.settings`, JSON.stringify(settings));
+          
+          return true;
+        } catch (apiError) {
+          console.error('Error updating PIN with API:', apiError);
+          // Fall back to localStorage
+          const settings = await this.getSettings();
+          settings.parentPin = pin;
+          localStorage.setItem(`${this.namespace}.settings`, JSON.stringify(settings));
+          return true;
+        }
+      } else {
+        const settings = await this.getSettings();
+        settings.parentPin = pin;
+        localStorage.setItem(`${this.namespace}.settings`, JSON.stringify(settings));
+        return true;
+      }
+    } catch (error) {
+      console.error('Error updating PIN:', error);
       throw error;
     }
   }

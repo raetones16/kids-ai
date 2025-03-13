@@ -1,6 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const { db } = require('../db');
+const crypto = require('crypto');
+
+// Helper to generate a unique profile ID
+function generateProfileId() {
+  return `profile-${crypto.randomBytes(8).toString('hex')}`;
+}
 
 // GET /api/profiles - Get all child profiles
 router.get('/', async (req, res, next) => {
@@ -49,25 +55,28 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({ error: 'Name and date of birth are required' });
     }
     
+    // Generate a unique ID for the profile
+    const profileId = req.body.id || generateProfileId();
+    
     // Create profile
-    const result = await db.execute({
+    await db.execute({
       sql: `
-        INSERT INTO child_profiles (name, dob, color, custom_instructions)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO child_profiles (id, name, dob, color, custom_instructions)
+        VALUES (?, ?, ?, ?, ?)
       `,
-      args: [name, dob, color || null, customInstructions || null]
+      args: [profileId, name, dob, color || null, customInstructions || null]
     });
 
-    // Return the created profile with ID
-    const profileId = result.lastInsertRowid.toString();
+    // Return the created profile
+    const now = new Date().toISOString();
     res.status(201).json({
       id: profileId,
       name,
       dob,
       color,
-      customInstructions,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      custom_instructions: customInstructions,
+      created_at: now,
+      updated_at: now
     });
   } catch (error) {
     console.error('Error creating profile:', error);
