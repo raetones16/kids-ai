@@ -74,7 +74,16 @@ const ChatInterface = ({ childId, childName, onLogout, assistantRef, useMockApi 
         // Show a loading state during initialization
         setInterfaceState('thinking');
         
-        await initializeWelcomeMessage();
+        // IMPORTANT: Wait for a moment to allow the conversation creation to fully complete in the database
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Only play the welcome message if there are no existing messages
+        if (messages.length <= 1) {
+          await initializeWelcomeMessage();
+        } else {
+          // Just set the state back to idle if we already have conversation history
+          setInterfaceState('idle');
+        }
         return; // Don't start listening on the first click
       } catch (error) {
         console.error('Error initializing conversation:', error);

@@ -31,42 +31,59 @@ export class ChatCompletionService {
   // Generate custom instructions based on child profile
   generateSystemPrompt(childProfile) {
     // Calculate age based on date of birth
-    let age = "";
+    let age = 8; // Default age if calculation fails
     if (childProfile.dob) {
-      const birthDate = new Date(childProfile.dob);
-      const today = new Date();
-      age = today.getFullYear() - birthDate.getFullYear();
+      try {
+        // Log the DOB to help with debugging
+        console.log(`Calculating age from DOB: ${childProfile.dob}`);
+        
+        // Handle different date formats consistently
+        let birthDate;
+        // Check if the date is in DD/MM/YYYY format
+        if (childProfile.dob.includes('/')) {
+          const [day, month, year] = childProfile.dob.split('/');
+          birthDate = new Date(year, month - 1, day); // Month is 0-based in JS Date
+        } else {
+          // Assume ISO format (YYYY-MM-DD)
+          birthDate = new Date(childProfile.dob);
+        }
+        
+        const today = new Date();
+        
+        // Check if the date is valid
+        if (isNaN(birthDate.getTime())) {
+          console.error('Invalid date format for DOB:', childProfile.dob);
+        } else {
+          // Calculate age
+          age = today.getFullYear() - birthDate.getFullYear();
 
-      // Adjust age if birthday hasn't occurred yet this year
-      const m = today.getMonth() - birthDate.getMonth();
-      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-        age--;
+          // Adjust age if birthday hasn't occurred yet this year
+          const m = today.getMonth() - birthDate.getMonth();
+          if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
+          }
+          
+          console.log(`Calculated age: ${age} (DOB: ${childProfile.dob})`);
+        }
+      } catch (err) {
+        console.error('Error calculating age:', err);
+        // Keep the default age of 8
       }
     } else if (childProfile.age) {
       // Fallback to age field for backward compatibility
       age = childProfile.age;
+      console.log(`Using explicit age from profile: ${age}`);
     } else {
-      age = 8; // Default age if neither is provided
+      console.log(`No DOB or age found, using default age: ${age}`);
     }
 
     // Parse custom instructions to identify interests
     let interests = [];
     if (childProfile.customInstructions) {
-      // Look for key phrases like "loves X" or "interested in Y"
-      const interestPatterns = [
-        /loves? (.*?)\./i,
-        /enjoys? (.*?)\./i,
-        /interested in (.*?)\./i,
-        /likes? (.*?)\./i,
-        /fan of (.*?)\./i,
-      ];
-
-      for (const pattern of interestPatterns) {
-        const match = childProfile.customInstructions.match(pattern);
-        if (match && match[1]) {
-          interests.push(match[1].trim());
-        }
-      }
+      // Log the custom instructions to verify they're being loaded
+      console.log(`Custom instructions loaded for ${childProfile.name || 'child'}:`, childProfile.customInstructions);
+    } else {
+      console.log(`No custom instructions found for ${childProfile.name || 'child'}`);
     }
 
     // Add current date and time for better contextual awareness
@@ -117,25 +134,26 @@ export class ChatCompletionService {
     // More concise instructions for faster processing
     let basePrompt = `
       You are a friendly, helpful assistant for ${
-        childProfile.name
+        childProfile.name || "the child"
       }, age ${age}.
 
       ${dateTimeInfo}
 
-      IMPORTANT INSTRUCTIONS FOR SPEED AND PERFORMANCE:
+      CRITICAL PERSONAL INFORMATION YOU MUST REMEMBER:
+      - ${childProfile.name}'s name is ${childProfile.name}.
+      - ${childProfile.name} is ${age} years old.
+      ${childProfile.customInstructions ? `- Personal details: ${childProfile.customInstructions}` : ""}
+
+      IMPORTANT INSTRUCTIONS FOR INTERACTIONS:
       - Keep responses very short and direct.
-      - Aim for 1-4 sentences in most responses.
+      - Aim for 1-3 sentences in most responses.
       - Get to the point immediately without excess context.
       - Response time is critical - be brief but helpful.
       - Start speaking without preamble or thinking time.
       - Use simpler vocabulary suitable for a ${age}-year-old.
       - Use British English in all responses.
       - Never repeat your previous responses.
-      - Do not explicitly ask about interests mentioned in profile info unless the child brings them up first.
-      - Do not start conversations by suggesting topics from the child's interests.
-      - Let the child lead the conversation and choose what to talk about.
-      - Wait for the child to mention their interests before discussing them in depth.
-      - If asked about the current date, time, or day of the week, always use the accurate information provided above. Never make up a date or time.
+      - If asked about the current date, time, or day of the week, always use the accurate information provided above.
       - IMPORTANT: Today's date is exactly ${day} ${
       [
         "January",
@@ -154,15 +172,16 @@ export class ChatCompletionService {
     } ${year}.
       - When asked about current events, provide the latest information directly without mentioning that you're using web search.
 
-      ${
-        childProfile.customInstructions
-          ? `Background context about ${childProfile.name}: ${childProfile.customInstructions}`
-          : ""
-      }
+      MOST IMPORTANT INSTRUCTION: When ${
+        childProfile.name
+      } asks any personal question about themselves, their name, their family, their hobbies, or where they live, ALWAYS answer using the personal information provided above. NEVER say you don't know this information.
     `;
-    
+
     // Enhance the system prompt with age-appropriate safety instructions
-    return ContentSafetyService.enhanceSystemPromptWithSafeguards(basePrompt, age);
+    return ContentSafetyService.enhanceSystemPromptWithSafeguards(
+      basePrompt,
+      age
+    );
   }
 
   // Send a message and get a streaming response
@@ -183,32 +202,48 @@ export class ChatCompletionService {
         recentMessages,
         childProfile
       );
-      
+
+      // Debug log the child profile and system prompt
+      console.log("Using child profile:", childProfile);
+      console.log("Full system prompt:\n", formattedMessages[0]?.content);
+
       // Calculate age for content filtering
       let age = 8; // Default age
       if (childProfile?.dob) {
-        const birthDate = new Date(childProfile.dob);
+        // Use the same date parsing logic as in generateSystemPrompt
+        let birthDate;
+        if (childProfile.dob.includes('/')) {
+          const [day, month, year] = childProfile.dob.split('/');
+          birthDate = new Date(year, month - 1, day);
+        } else {
+          birthDate = new Date(childProfile.dob);
+        }
+        
         const today = new Date();
         age = today.getFullYear() - birthDate.getFullYear();
-        
+
         // Adjust age if birthday hasn't occurred yet this year
         const m = today.getMonth() - birthDate.getMonth();
         if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
           age--;
         }
+        
+        console.log(`Content filtering age calculated: ${age} (DOB: ${childProfile.dob})`);
       } else if (childProfile?.age) {
         age = childProfile.age;
+        console.log(`Using explicit age from profile for filtering: ${age}`);
       }
-      
+
       // Only screen for completely inappropriate content
       if (ContentSafetyService.containsBlockedTopic(message)) {
-        console.log('Blocked topic detected in user message');
+        console.log("Blocked topic detected in user message");
         // Instead of performing a search, provide a safe alternative response
         formattedMessages.push({
           role: "system",
-          content: "The user has asked about an inappropriate topic. Respond with a gentle redirection without specifically repeating any inappropriate terms they used."
+          content:
+            "The user has asked about an inappropriate topic. Respond with a gentle redirection without specifically repeating any inappropriate terms they used.",
         });
-        
+
         // Add the original message for context, but we've added instructions above
         formattedMessages.push({
           role: "user",
@@ -220,13 +255,14 @@ export class ChatCompletionService {
           role: "user",
           content: message,
         });
-        
+
         // Only for suicide specifically, which requires special handling
-        if (message.toLowerCase().includes('suicide')) {
+        if (message.toLowerCase().includes("suicide")) {
           const ageCategory = ContentSafetyService.getAgeCategory(age);
           formattedMessages.push({
             role: "system",
-            content: "If the user is asking about suicide, provide an age-appropriate, thoughtful response that emphasizes the importance of talking to trusted adults about such serious topics."
+            content:
+              "If the user is asking about suicide, provide an age-appropriate, thoughtful response that emphasizes the importance of talking to trusted adults about such serious topics.",
           });
         }
       }
@@ -242,8 +278,11 @@ export class ChatCompletionService {
       );
 
       // Only perform search if there are no blocked topics detected - we're much less strict now
-      if (searchEnabled && SearchService.shouldSearch(message) && 
-          !ContentSafetyService.containsBlockedTopic(message)) {
+      if (
+        searchEnabled &&
+        SearchService.shouldSearch(message) &&
+        !ContentSafetyService.containsBlockedTopic(message)
+      ) {
         try {
           // Set the UI state to 'searching' if supported
           if (onChunk) {
@@ -256,10 +295,16 @@ export class ChatCompletionService {
           if (results) {
             // Format search results for the AI
             searchResults = SearchService.formatSearchResults(results, age);
-            
+
             // Enhance search results with age-appropriate safety instructions
-            searchResults = ContentSafetyService.enhanceSearchResultsWithSafeguards(searchResults, age);
-            console.log("Search results found and formatted with safety enhancements");
+            searchResults =
+              ContentSafetyService.enhanceSearchResultsWithSafeguards(
+                searchResults,
+                age
+              );
+            console.log(
+              "Search results found and formatted with safety enhancements"
+            );
 
             // Add search results as a system message
             formattedMessages.push({

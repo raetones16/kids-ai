@@ -6,6 +6,16 @@ const dotenv = require('dotenv');
 // Load environment variables
 dotenv.config();
 
+// Initialize the database
+const { db, initializeSchema } = require('./db');
+
+// Initialize database schema with error handling
+initializeSchema().catch(err => {
+  console.error('Database initialization warning:', err);
+  console.log('Continuing without full database initialization...');
+  // Don't exit process, allow server to start anyway with limited functionality
+});
+
 // Import route handlers
 const searchRoutes = require('./routes/search');
 const profilesRoutes = require('./routes/profiles');

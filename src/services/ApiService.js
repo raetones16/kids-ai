@@ -8,13 +8,21 @@ const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 // Helper for making API requests with error handling
 async function apiRequest(url, options = {}) {
   try {
+    // Set a timeout for fetch requests
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    
     const response = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
         ...options.headers
-      }
+      },
+      signal: controller.signal
     });
+    
+    // Clear the timeout
+    clearTimeout(timeoutId);
 
     // Parse JSON response
     const data = await response.json();
@@ -27,6 +35,12 @@ async function apiRequest(url, options = {}) {
     return data;
   } catch (error) {
     console.error(`API request failed for ${url}:`, error);
+    // Add more specific error message for timeouts and connection resets
+    if (error.name === 'AbortError') {
+      console.warn('Request timed out, falling back to local storage');
+    } else if (error.code === 'ECONNRESET' || error.message?.includes('ECONNRESET')) {
+      console.warn('Connection reset by server, falling back to local storage');
+    }
     throw error;
   }
 }
@@ -89,10 +103,17 @@ export const ConversationApi = {
   },
 
   // Create a new conversation
-  async createConversation(childId, threadId) {
+  async createConversation(childId, threadId, id = null) {
+    const data = { childId, threadId };
+    
+    // If ID is provided, include it in the request
+    if (id) {
+      data.id = id;
+    }
+    
     return apiRequest(`${API_URL}/conversations`, {
       method: 'POST',
-      body: JSON.stringify({ childId, threadId })
+      body: JSON.stringify(data)
     });
   },
 

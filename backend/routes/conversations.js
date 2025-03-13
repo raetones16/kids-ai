@@ -5,7 +5,13 @@ const { db } = require('../db');
 // Helper to create a new conversation with a string ID
 async function createConversationWithStringId(childId, threadId, conversationId) {
   try {
-    console.log(`Creating conversation with ID ${conversationId}`);
+    // Ensure childId is a number
+    const numericChildId = parseInt(childId, 10);
+    if (isNaN(numericChildId)) {
+      throw new Error(`Invalid child ID format: ${childId}`);
+    }
+    
+    console.log(`Creating conversation with ID ${conversationId} for child ${numericChildId}`);
     
     // Insert conversation with the string ID directly
     await db.execute({
@@ -13,10 +19,10 @@ async function createConversationWithStringId(childId, threadId, conversationId)
         INSERT INTO conversations (id, child_id, thread_id)
         VALUES (?, ?, ?)
       `,
-      args: [conversationId, Number(childId), threadId]
+      args: [conversationId, numericChildId, threadId]
     });
     
-    console.log(`Successfully created conversation with ID ${conversationId}`);
+    console.log(`Successfully created conversation with ID ${conversationId} for child ${numericChildId}`);
     return conversationId;
   } catch (error) {
     console.error('Error creating conversation with string ID:', error);
@@ -28,16 +34,26 @@ async function createConversationWithStringId(childId, threadId, conversationId)
 router.get('/child/:childId', async (req, res, next) => {
   try {
     const { childId } = req.params;
+    console.log(`Fetching conversations for child ID: ${childId}`);
 
+    // Ensure childId is properly handled as a number
+    const numericChildId = parseInt(childId, 10);
+    if (isNaN(numericChildId)) {
+      console.error(`Invalid child ID: ${childId}`);
+      return res.status(400).json({ error: 'Invalid child ID format' });
+    }
+
+    console.log(`Searching database for child_id = ${numericChildId}`);
     const result = await db.execute({
       sql: `
         SELECT * FROM conversations 
         WHERE child_id = ? 
         ORDER BY last_activity_at DESC
       `,
-      args: [childId]
+      args: [numericChildId]
     });
 
+    console.log(`Found ${result.rows.length} conversations for child ${numericChildId}`);
     res.json(result.rows);
   } catch (error) {
     console.error('Error getting conversations:', error);
@@ -58,28 +74,8 @@ router.get('/:id', async (req, res, next) => {
 
     // If not found and ID looks like a string ID pattern
     if (result.rows.length === 0 && id.includes('-')) {
-      console.log(`Conversation with exact ID ${id} not found, checking if it needs to be created`);
-      
-      // Extract childId from the ID pattern (assuming format conv-timestamp)
-      const parts = id.split('-');
-      if (parts.length >= 2 && parts[0] === 'conv') {
-        // Get available child profiles
-        const profilesResult = await db.execute('SELECT id FROM child_profiles LIMIT 1');
-        
-        if (profilesResult.rows.length > 0) {
-          const childId = profilesResult.rows[0].id;
-          const threadId = `thread-${parts[1]}`;
-          
-          // Create conversation with the string ID
-          await createConversationWithStringId(childId, threadId, id);
-          
-          // Try to fetch it again
-          result = await db.execute({
-            sql: 'SELECT * FROM conversations WHERE id = ?',
-            args: [id]
-          });
-        }
-      }
+      console.log(`Conversation with exact ID ${id} not found`);
+      return res.status(404).json({ error: 'Conversation not found' });
     }
 
     if (result.rows.length === 0) {
@@ -104,37 +100,9 @@ router.get('/:id/messages', async (req, res, next) => {
       args: [id]
     });
 
-    // If not found and ID looks like a string ID pattern
-    if (convCheck.rows.length === 0 && id.includes('-')) {
-      console.log(`Conversation with ID ${id} not found for messages, checking if it needs to be created`);
-      
-      // Extract childId from the ID pattern (assuming format conv-timestamp)
-      const parts = id.split('-');
-      if (parts.length >= 2 && parts[0] === 'conv') {
-        // Get available child profiles
-        const profilesResult = await db.execute('SELECT id FROM child_profiles LIMIT 1');
-        
-        if (profilesResult.rows.length > 0) {
-          const childId = profilesResult.rows[0].id;
-          const threadId = `thread-${parts[1]}`;
-          
-          try {
-            // Create conversation with the string ID
-            await createConversationWithStringId(childId, threadId, id);
-            
-            // Try to fetch it again
-            convCheck = await db.execute({
-              sql: 'SELECT id FROM conversations WHERE id = ?',
-              args: [id]
-            });
-          } catch (createError) {
-            console.error(`Failed to create conversation ${id}:`, createError);
-          }
-        }
-      }
-    }
-
+    // If not found, return a 404
     if (convCheck.rows.length === 0) {
+      console.log(`Conversation with ID ${id} not found for messages`);
       return res.status(404).json({ error: 'Conversation not found' });
     }
 
@@ -165,10 +133,16 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({ error: 'Child ID and thread ID are required' });
     }
 
+    // Ensure childId is a number
+    const numericChildId = parseInt(childId, 10);
+    if (isNaN(numericChildId)) {
+      return res.status(400).json({ error: 'Invalid child ID format' });
+    }
+
     // Check if child exists
     const childCheck = await db.execute({
       sql: 'SELECT id FROM child_profiles WHERE id = ?',
-      args: [childId]
+      args: [numericChildId]
     });
 
     if (childCheck.rows.length === 0) {
@@ -180,16 +154,16 @@ router.post('/', async (req, res, next) => {
     
     try {
       // Try to create the conversation
-      await createConversationWithStringId(childId, threadId, conversationId);
+      await createConversationWithStringId(numericChildId, threadId, conversationId);
       
       const now = new Date().toISOString();
       
       res.status(201).json({
         id: conversationId,
-        childId,
-        threadId,
-        startedAt: now,
-        lastActivityAt: now
+        child_id: numericChildId,
+        thread_id: threadId,
+        started_at: now,
+        last_activity_at: now
       });
     } catch (createError) {
       console.error('Failed to create conversation:', createError);
@@ -218,36 +192,10 @@ router.post('/:id/messages', async (req, res, next) => {
 
     // Check if conversation exists with exact ID
     let convCheck = await db.execute({
-      sql: 'SELECT id FROM conversations WHERE id = ?',
+      sql: 'SELECT child_id, id FROM conversations WHERE id = ?',
       args: [id]
     });
     
-    // If not found and ID has the expected format, create it
-    if (convCheck.rows.length === 0 && id.includes('-')) {
-      console.log(`Conversation with ID ${id} not found for adding message, attempting to create it`);
-      
-      // Extract childId from the ID pattern (assuming format conv-timestamp)
-      const parts = id.split('-');
-      if (parts.length >= 2 && parts[0] === 'conv') {
-        // Get available child profiles
-        const profilesResult = await db.execute('SELECT id FROM child_profiles LIMIT 1');
-        
-        if (profilesResult.rows.length > 0) {
-          const childId = profilesResult.rows[0].id;
-          const threadId = `thread-${parts[1]}`;
-          
-          // Create conversation with the string ID
-          await createConversationWithStringId(childId, threadId, id);
-          
-          // Try to fetch it again
-          convCheck = await db.execute({
-            sql: 'SELECT id FROM conversations WHERE id = ?',
-            args: [id]
-          });
-        }
-      }
-    }
-
     if (convCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Conversation not found' });
     }

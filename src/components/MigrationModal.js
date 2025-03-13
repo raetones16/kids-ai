@@ -23,8 +23,19 @@ const MigrationModal = ({ onComplete }) => {
           return;
         }
         
-        // Check if backend is available
-        const isAvailable = await storageServiceRef.current.checkBackendAvailability();
+        // Add a timeout to prevent hanging if backend check is slow
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Backend check timed out')), 5000)
+        );
+        
+        // Race between backend check and timeout
+        const isAvailable = await Promise.race([
+          storageServiceRef.current.checkBackendAvailability(),
+          timeoutPromise
+        ]).catch(err => {
+          console.warn('Backend availability check failed:', err);
+          return false;
+        });
         
         if (isAvailable) {
           // Show the migration dialog
@@ -33,10 +44,14 @@ const MigrationModal = ({ onComplete }) => {
         } else {
           // No backend available, continue with localStorage
           console.log('Backend not available, continuing with localStorage');
+          // Still mark as completed so we don't show this again
+          localStorage.setItem('kids-ai.migration-completed', 'true');
           onComplete(false);
         }
       } catch (err) {
         console.error('Error checking backend:', err);
+        // Mark as completed even on error
+        localStorage.setItem('kids-ai.migration-completed', 'true');
         onComplete(false);
       }
     };
@@ -49,14 +64,25 @@ const MigrationModal = ({ onComplete }) => {
       setStatus('migrating');
       setError(null);
       
-      // Perform migration
-      const success = await storageServiceRef.current.migrateToBackend();
+      // Add a timeout to prevent hanging if migration is slow
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Migration timed out, continuing with local storage')), 10000)
+      );
+      
+      // Race between migration and timeout
+      const success = await Promise.race([
+        storageServiceRef.current.migrateToBackend(),
+        timeoutPromise
+      ]).catch(err => {
+        console.warn('Migration failed with timeout:', err);
+        return false;
+      });
       
       if (success) {
         setStatus('success');
       } else {
         setStatus('error');
-        setError('Migration failed for an unknown reason.');
+        setError('Migration could not be completed. You can continue using local storage.');
       }
     } catch (err) {
       console.error('Migration error:', err);
@@ -67,6 +93,8 @@ const MigrationModal = ({ onComplete }) => {
 
   const handleSkip = () => {
     console.log('User skipped migration, continuing with localStorage');
+    // Mark as completed even when skipped
+    localStorage.setItem('kids-ai.migration-completed', 'true');
     setIsVisible(false);
     onComplete(false);
   };
@@ -162,7 +190,11 @@ const MigrationModal = ({ onComplete }) => {
             </div>
             <div className="flex justify-end">
               <button
-                onClick={handleSkip}
+                onClick={() => {
+                  // Make sure we mark as completed on error too
+                  localStorage.setItem('kids-ai.migration-completed', 'true');
+                  handleSkip();
+                }}
                 className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
               >
                 Continue with Local Storage

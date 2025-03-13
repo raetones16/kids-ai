@@ -46,22 +46,70 @@ const ConversationViewer = ({ childId, childName }) => {
         setLoading(true);
         setError(null);
         
+        console.log(`Loading conversations for child ID ${childId} and name: ${childName}`);
+        
         // Load all conversations for this child
         const childConversations = await storageService.getConversationsByChildId(childId);
+        console.log('Loaded conversations:', childConversations);
         
-        // Sort conversations by last activity date
-        const sortedConversations = childConversations.sort((a, b) => 
-          new Date(b.lastActivityAt) - new Date(a.lastActivityAt)
+        // Ensure all conversations have proper date fields
+        const processedConversations = await Promise.all(
+          childConversations.map(async (conversation) => {
+            // Verify this conversation belongs to the current child
+            if ((conversation.childId !== childId && conversation.child_id !== childId) ||
+                (!conversation.childId && !conversation.child_id)) {
+              console.error(`Conversation ${conversation.id} has wrong/missing child ID:`, 
+                conversation.childId || conversation.child_id);
+              return null; // Skip this conversation
+            }
+            
+            // Make sure we have messages loaded for each conversation
+            if (!conversation.messages || conversation.messages.length === 0) {
+              try {
+                // Load messages if they're not already included
+                const messages = await storageService.getConversationMessages(conversation.id);
+                conversation.messages = messages || [];
+              } catch (err) {
+                console.error(`Failed to load messages for conversation ${conversation.id}:`, err);
+                conversation.messages = [];
+              }
+            }
+            
+            // Fix date fields
+            const startDate = conversation.started_at || conversation.startedAt || new Date().toISOString();
+            const lastActivityDate = conversation.last_activity_at || conversation.lastActivityAt || startDate;
+            
+            return {
+              ...conversation,
+              childId: childId, // Ensure the childId is set correctly
+              startedAt: startDate,
+              lastActivityAt: lastActivityDate
+            };
+          })
         );
         
+        // Filter out any null values (conversations that don't belong to this child)
+        const validConversations = processedConversations.filter(conv => conv !== null);
+        
+        // Sort conversations by last activity date
+        const sortedConversations = validConversations.sort((a, b) => {
+          const dateA = new Date(a.lastActivityAt || a.last_activity_at || 0);
+          const dateB = new Date(b.lastActivityAt || b.last_activity_at || 0);
+          return dateB - dateA;
+        });
+        
+        console.log('Final processed conversations:', sortedConversations);
         setConversations(sortedConversations);
         setFilteredConversations(sortedConversations);
         
         // Auto-select the most recent conversation
-        if (sortedConversations.length > 0 && !selectedConversationId) {
+        if (sortedConversations.length > 0) {
           const mostRecent = sortedConversations[0];
           setSelectedConversationId(mostRecent.id);
           setSelectedConversation(mostRecent);
+        } else {
+          setSelectedConversationId(null);
+          setSelectedConversation(null);
         }
         
         // Load usage statistics
@@ -71,13 +119,13 @@ const ConversationViewer = ({ childId, childName }) => {
         setLoading(false);
       } catch (err) {
         console.error('Error loading conversations:', err);
-        setError('Failed to load conversation history');
+        setError('Failed to load conversation history. Try again later.');
         setLoading(false);
       }
     };
     
     loadData();
-  }, [childId, selectedConversationId]);
+  }, [childId, childName]);
   
   // Handle conversation selection
   const handleSelectConversation = (conversationId) => {
@@ -88,35 +136,69 @@ const ConversationViewer = ({ childId, childName }) => {
   
   // Format date for display
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-GB', { 
-      day: 'numeric', 
-      month: 'short', 
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    try {
+      // Handle invalid or missing dates
+      if (!dateString || dateString === 'Invalid Date') {
+        return 'Unknown date';
+      }
+      
+      const date = new Date(dateString);
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date string:', dateString);
+        return 'Unknown date';
+      }
+      
+      return date.toLocaleDateString('en-GB', { 
+        day: 'numeric', 
+        month: 'short', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error, dateString);
+      return 'Unknown date';
+    }
   };
   
   // Get a shorter date format for conversation list
   const formatShortDate = (dateString) => {
-    const date = new Date(dateString);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    // If today, show time only
-    if (date.toDateString() === today.toDateString()) {
-      return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    try {
+      // Handle invalid or missing dates
+      if (!dateString || dateString === 'Invalid Date') {
+        return 'Unknown';
+      }
+      
+      const date = new Date(dateString);
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid short date string:', dateString);
+        return 'Unknown';
+      }
+      
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      // If today, show time only
+      if (date.toDateString() === today.toDateString()) {
+        return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      }
+      
+      // If yesterday, show "Yesterday"
+      if (date.toDateString() === yesterday.toDateString()) {
+        return 'Yesterday';
+      }
+      
+      // Otherwise show date
+      return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    } catch (error) {
+      console.error('Error formatting short date:', error, dateString);
+      return 'Unknown';
     }
-    
-    // If yesterday, show "Yesterday"
-    if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday';
-    }
-    
-    // Otherwise show date
-    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   };
 
   // If still loading

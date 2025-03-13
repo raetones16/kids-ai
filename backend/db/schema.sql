@@ -36,5 +36,5 @@ CREATE TABLE IF NOT EXISTS settings (
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Initialize settings with default PIN
-INSERT OR IGNORE INTO settings (id, parent_pin) VALUES (1, '000000');
+-- Initialize settings with default PIN using REPLACE to avoid constraint errors
+INSERT OR REPLACE INTO settings (id, parent_pin) VALUES (1, '000000');

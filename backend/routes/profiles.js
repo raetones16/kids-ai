@@ -5,6 +5,11 @@ const { db } = require('../db');
 // GET /api/profiles - Get all child profiles
 router.get('/', async (req, res, next) => {
   try {
+    // First, log the raw database content for debugging
+    console.log('Querying all profiles from database...');
+    const debugResult = await db.execute('SELECT * FROM child_profiles');
+    console.log('Raw database profiles:', debugResult.rows);
+    
     const result = await db.execute('SELECT * FROM child_profiles');
     res.json(result.rows);
   } catch (error) {
@@ -101,6 +106,9 @@ router.put('/:id', async (req, res, next) => {
       sql: 'SELECT * FROM child_profiles WHERE id = ?',
       args: [id]
     });
+
+    // Log the profile for debugging
+    console.log(`Profile retrieved from database for id ${id}:`, result.rows[0]);
 
     res.json(result.rows[0]);
   } catch (error) {

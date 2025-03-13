@@ -71,53 +71,88 @@ router.post('/verify-pin', async (req, res, next) => {
     }
     
     try {
-      // First, check if settings table exists
+      // First, check if settings table exists and has data
+      const verifyQuery = `
+        SELECT parent_pin FROM settings WHERE id = 1 LIMIT 1
+      `;
+      
+      // Try to get the PIN directly first
+      try {
+        const pinResult = await db.execute(verifyQuery);
+        
+        if (pinResult && pinResult.rows && pinResult.rows.length > 0) {
+          // We have a valid PIN, compare it
+          const storedPin = pinResult.rows[0].parent_pin || '000000';
+          return res.json({ valid: pin === storedPin });
+        }
+      } catch (directQueryError) {
+        console.warn('Direct PIN query failed, trying table check:', directQueryError);
+        // Continue to table check
+      }
+      
+      // If direct query failed, check if table exists
       const checkResult = await db.execute(`
         SELECT name FROM sqlite_master 
         WHERE type='table' AND name='settings'
-      `);
+      `).catch(err => {
+        console.error('Error checking settings table:', err);
+        return { rows: [] };
+      });
 
-      if (checkResult.rows.length === 0) {
+      if (!checkResult || !checkResult.rows || checkResult.rows.length === 0) {
         console.log('Settings table does not exist, initializing...');
         
-        // Create table if it doesn't exist
-        await db.execute(`
-          CREATE TABLE IF NOT EXISTS settings (
-            id INTEGER PRIMARY KEY CHECK (id = 1),
-            parent_pin TEXT NOT NULL DEFAULT '000000',
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-          )
-        `);
-        
-        // Insert default data
-        await db.execute(`
-          INSERT OR IGNORE INTO settings (id, parent_pin)
-          VALUES (1, '000000')
-        `);
+        try {
+          // Create table if it doesn't exist
+          await db.execute(`
+            CREATE TABLE IF NOT EXISTS settings (
+              id INTEGER PRIMARY KEY CHECK (id = 1),
+              parent_pin TEXT NOT NULL DEFAULT '000000',
+              updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+          `);
+          
+          // Insert default data - use INSERT OR REPLACE to avoid constraint errors
+          await db.execute(`
+            INSERT OR REPLACE INTO settings (id, parent_pin)
+            VALUES (1, '000000')
+          `);
+        } catch (initError) {
+          console.error('Error initializing settings table:', initError);
+        }
         
         // Default PIN is valid
         return res.json({ valid: pin === '000000' });
       }
       
       // Get the current PIN
-      const result = await db.execute({
-        sql: 'SELECT parent_pin FROM settings WHERE id = 1'
-      });
-      
-      if (result.rows.length === 0) {
-        // Insert default settings if not present
-        await db.execute(`
-          INSERT INTO settings (id, parent_pin)
-          VALUES (1, '000000')
-        `);
+      try {
+        const result = await db.execute(verifyQuery);
         
-        // Default PIN is valid
+        if (result && result.rows && result.rows.length > 0) {
+          // Compare the provided PIN with the stored PIN
+          const storedPin = result.rows[0].parent_pin || '000000';
+          return res.json({ valid: pin === storedPin });
+        } else {
+          // No settings row found, try to insert one
+          try {
+            // Use INSERT OR REPLACE to avoid constraint errors
+            await db.execute(`
+              INSERT OR REPLACE INTO settings (id, parent_pin)
+              VALUES (1, '000000')
+            `);
+          } catch (insertError) {
+            console.error('Error inserting default settings:', insertError);
+          }
+          
+          // Default PIN is valid
+          return res.json({ valid: pin === '000000' });
+        }
+      } catch (getError) {
+        console.error('Error getting settings row:', getError);
+        // Fallback to default PIN
         return res.json({ valid: pin === '000000' });
       }
-      
-      // Compare the provided PIN with the stored PIN
-      const isValid = pin === result.rows[0].parent_pin;
-      res.json({ valid: isValid });
     } catch (dbError) {
       console.error('Database error when verifying PIN:', dbError);
       // Fallback to default PIN
@@ -125,7 +160,8 @@ router.post('/verify-pin', async (req, res, next) => {
     }
   } catch (error) {
     console.error('Error verifying PIN:', error);
-    next(error);
+    // Always respond, even on error
+    return res.status(500).json({ valid: false, error: 'Server error' });
   }
 });
 
