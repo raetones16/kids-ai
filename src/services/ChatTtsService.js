@@ -148,7 +148,20 @@ export class ChatTtsService {
       }
     }
     
-    this.isPlaying = false;
+    // Make sure we update state and call the end callback
+    if (this.isPlaying) {
+      this.isPlaying = false;
+      
+      // Explicitly call the onEnd callback to ensure UI state is updated
+      if (this.onEndCallback) {
+        this.onEndCallback();
+      }
+    }
+    
+    // Also ensure browser's built-in TTS is stopped as a fallback
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
   }
   
   // Get audio data for visualizations

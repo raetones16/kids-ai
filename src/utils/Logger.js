@@ -11,7 +11,7 @@ const LOG_LEVELS = {
 
 // Set this to control which levels are logged
 // In production, could be set to WARN to only show warnings and errors
-let currentLogLevel = LOG_LEVELS.DEBUG;
+let currentLogLevel = LOG_LEVELS.WARN;
 
 // Log history for in-app debugging
 const logHistory = [];

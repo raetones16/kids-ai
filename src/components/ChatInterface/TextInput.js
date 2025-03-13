@@ -18,7 +18,7 @@ const TextInput = ({ onSubmit, interfaceState, visible }) => {
 
   return (
     <form 
-      className="w-full flex gap-2" 
+      className="w-full flex justify-center gap-2" 
       onSubmit={handleSubmit}
     >
       <Input
@@ -27,7 +27,7 @@ const TextInput = ({ onSubmit, interfaceState, visible }) => {
         onChange={(e) => setTextInput(e.target.value)}
         placeholder="Type your message..."
         disabled={interfaceState !== 'idle'}
-        className="flex-grow"
+        className="flex-grow text-center"
         autoFocus
       />
       <Button 

@@ -17,7 +17,7 @@ const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
 
 // Flags for services
 const USE_REAL_API = true;
-const DEBUG_MODE = true;
+const DEBUG_MODE = false;
 
 function App() {
   // Main state
@@ -190,6 +190,10 @@ function App() {
     Logger.info('App', `Logged out from child chat: ${user?.name || 'unknown'}`);
     // Just reset the user without clearing parent authentication
     setUser(null);
+    // Make sure we reload the child profiles for user selection screen
+    if (parentAuthenticated) {
+      await loadChildProfiles();
+    }
   };
 
   // Handle logout from parent dashboard

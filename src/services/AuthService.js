@@ -342,6 +342,18 @@ export class AuthService {
   async logout(clearRememberMe = false) {
     try {
       const sessionId = localStorage.getItem(this.sessionIdKey);
+      const sessionData = localStorage.getItem(this.sessionKey);
+      let currentUserType = 'unknown';
+      
+      // Determine the type of user logging out
+      if (sessionData) {
+        try {
+          const parsedSession = JSON.parse(sessionData);
+          currentUserType = parsedSession.type || 'unknown';
+        } catch (e) {
+          console.warn('Error parsing session data:', e);
+        }
+      }
       
       // Check backend availability
       await this.checkBackendAvailability();
@@ -362,8 +374,9 @@ export class AuthService {
       this.currentUser = null;
       this.currentSessionId = null;
       
-      // Only clear remember me data if explicitly requested
-      if (clearRememberMe) {
+      // Only clear remember me data if explicitly requested OR if this is a parent logout
+      // This ensures child logouts don't clear parent authentication
+      if (clearRememberMe || currentUserType === 'parent') {
         localStorage.removeItem(this.rememberMeKey);
         localStorage.removeItem(this.credentialsKey);
         console.log('Remember Me data cleared');

@@ -92,6 +92,26 @@ const ChatInterface = ({ childId, childName, onLogout, assistantRef, useMockApi 
       }
     }
     
+    // Stop speaking if the circle is clicked while speaking
+    if (interfaceState === 'speaking') {
+      console.log('Stopping speech playback');
+      if (tts) {
+        try {
+          // Stop the speech
+          tts.stop();
+          // Reset interface state immediately without waiting for callbacks
+          setInterfaceState('idle');
+          console.log('Speech stopped, interface reset to idle');
+        } catch (error) {
+          console.error('Error stopping speech:', error);
+          setInterfaceState('idle');
+        }
+      } else {
+        setInterfaceState('idle');
+      }
+      return;
+    }
+    
     // Normal microphone behavior after initialization
     if (interfaceState === 'idle') {
       // Make sure audio context is initialized

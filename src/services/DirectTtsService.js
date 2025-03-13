@@ -101,13 +101,34 @@ export class DirectTtsService {
     if (this.currentSource) {
       try {
         this.currentSource.stop();
+        this.currentSource.disconnect();
       } catch (e) {
         // Ignore errors when stopping (might already be stopped)
+        console.log('Non-critical error when stopping audio source:', e);
       }
       this.currentSource = null;
     }
     
-    this.isPlaying = false;
+    // Clean up analyzer if it exists
+    if (this.analyserNode) {
+      try {
+        this.analyserNode.disconnect();
+      } catch (e) {
+        // Ignore disconnection errors
+      }
+    }
+    
+    // Signal that playback has stopped
+    if (this.isPlaying) {
+      this.isPlaying = false;
+      
+      // Call end callback synchronously to ensure UI updates immediately
+      if (this.onEndCallback) {
+        setTimeout(() => {
+          this.onEndCallback(); 
+        }, 0);
+      }
+    }
   }
   
   // Get audio data for visualization
