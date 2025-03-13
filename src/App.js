@@ -6,7 +6,6 @@ import PinEntryModal from './components/ParentDashboard/PinEntryModal';
 import ChatInterface from './components/ChatInterface';
 import ParentDashboard from './components/ParentDashboard';
 import DebugPanel from './components/DebugPanel';
-import MigrationModal from './components/MigrationModal';
 import { StorageService } from './services/StorageService';
 import { ChatCompletionService } from './services/ChatCompletionService';
 import { MockAssistantService } from './services/MockAssistantService';
@@ -194,17 +193,19 @@ function App() {
   };
 
   // Handle logout from parent dashboard
-  const handleParentDashboardLogout = () => {
+  const handleParentDashboardLogout = async () => {
     Logger.info('App', 'Logged out from parent dashboard');
-    // Just reset the user, but keep parent authentication
+    // Reload child profiles before returning to selection screen
+    await loadChildProfiles();
+    // Reset the user, but keep parent authentication
     setUser(null);
   };
 
   // Handle complete logout
   const handleCompleteLogout = async () => {
     Logger.info('App', 'Complete logout');
-    // Logout using auth service
-    await authService.current.logout();
+    // Logout using auth service - true flag ensures we clear remember me data
+    await authService.current.logout(true);
     // Reset all authentication state
     setUser(null);
     setParentAuthenticated(false);

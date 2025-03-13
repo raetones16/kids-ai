@@ -32,13 +32,6 @@ const LoginScreen = ({
     return DEFAULT_COLORS[charCode % DEFAULT_COLORS.length];
   };
 
-  // Reload profiles if refresh button is clicked
-  const handleRefresh = async () => {
-    if (typeof reloadProfiles === 'function') {
-      await reloadProfiles();
-    }
-  };
-
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background">
       <div className="text-3xl font-bold mb-8">Kids AI</div>
@@ -46,30 +39,20 @@ const LoginScreen = ({
       <div className="w-full max-w-3xl">
         <div className="flex justify-between items-center mb-8">
           <h2 className="text-2xl font-semibold">Who's talking today?</h2>
-          <div className="flex gap-2">
-            {showCompleteLogout && (
-              <Button 
-                variant="outline" 
-                onClick={onCompleteLogout} 
-                className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
-              >
-                <LogOut className="h-4 w-4" />
-                <span>Log Out</span>
-              </Button>
-            )}
+          {showCompleteLogout && (
             <Button 
               variant="outline" 
-              onClick={onParentLogin}
+              onClick={onCompleteLogout} 
               className="gap-2"
             >
-              <User className="h-4 w-4" />
-              <span>Parent</span>
+              <LogOut className="h-4 w-4" />
+              <span>Log Out</span>
             </Button>
-          </div>
+          )}
         </div>
         
-        {childProfiles.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            {/* Child Profiles */}
             {childProfiles.map(profile => (
               <Card 
                 key={profile.id}
@@ -86,20 +69,30 @@ const LoginScreen = ({
                 </CardContent>
               </Card>
             ))}
+            
+            {/* Parent Card - Always last */}
+            <Card 
+              className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+              onClick={onParentLogin}
+            >
+              <CardContent className="p-6 flex flex-col items-center justify-center">
+                <div 
+                  className="w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-4 bg-slate-600"
+                >
+                  <User className="h-10 w-10" />
+                </div>
+                <div className="text-xl font-medium">Parent</div>
+              </CardContent>
+            </Card>
           </div>
-        ) : (
-          <Card className="bg-muted/50 border-dashed">
-            <CardContent className="p-8 text-center">
-              <p className="mb-2 text-muted-foreground">No child profiles have been created yet.</p>
-              <p className="text-muted-foreground">Parents need to create profiles through the Parent Dashboard.</p>
-            </CardContent>
-          </Card>
-        )}
 
-        {/* Parent Help Text */}
-        <div className="mt-8 text-center text-sm text-muted-foreground">
-          <p>Parents: Click the "Parent" button above to access the dashboard</p>
-        </div>
+        {/* Show message only if no child profiles */}
+        {childProfiles.length === 0 && (
+          <div className="mt-4 p-4 text-center">
+            <p className="text-muted-foreground">No child profiles have been created yet.</p>
+            <p className="text-muted-foreground">Create profiles through the Parent Dashboard.</p>
+          </div>
+        )}
       </div>
     </div>
   );

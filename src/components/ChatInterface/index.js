@@ -5,7 +5,7 @@ import Header from './Header';
 import MainCircle from './MainCircle';
 import TextInput from './TextInput';
 import ErrorDisplay from './ErrorDisplay';
-import SubtitleDisplay from '../SubtitleDisplay';
+import SubtitleStyleDisplay from '../SubtitleStyleDisplay';
 import { useChat } from '../../hooks/useChat';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 import '../ChildInterface.css'; // Retain original CSS for animations and layout
@@ -138,7 +138,7 @@ const ChatInterface = ({ childId, childName, onLogout, assistantRef, useMockApi 
   };
 
   // Define a consistent container for both subtitle and text input
-  const containerClass = "w-full max-w-lg px-4";
+  const containerClass = "w-full max-w-2xl px-4";
 
   return (
     <div className={`min-h-screen flex flex-col bg-gray-100 child-interface ${showTextInput ? 'chat-bottom-space' : ''}`}>
@@ -162,8 +162,8 @@ const ChatInterface = ({ childId, childName, onLogout, assistantRef, useMockApi 
               />
             </div>
 
-            <div className={containerClass + " mt-4"}>
-              <SubtitleDisplay messages={messages} />
+            <div className={containerClass + " mt-8"}>
+              <SubtitleStyleDisplay messages={messages} />
             </div>
             
             {/* Only show the text input when toggled - use same container class */}

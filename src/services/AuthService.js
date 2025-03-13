@@ -9,6 +9,8 @@ export class AuthService {
     this.namespace = namespace;
     this.sessionKey = `${this.namespace}.session`;
     this.sessionIdKey = `${this.namespace}.sessionId`;
+    this.rememberMeKey = `${this.namespace}.rememberMe`;
+    this.credentialsKey = `${this.namespace}.parentCredentials`;
     this.currentUser = null;
     this.currentSessionId = null;
     this.isBackendAvailable = true; // Assume backend is available initially
@@ -33,18 +35,9 @@ export class AuthService {
     await this.checkBackendAvailability();
       
     if (this.isBackendAvailable) {
-      try {
-        // TODO: In a production version, we would have a proper endpoint
-        // For now, just return the default credentials since we know they're fixed
-        return { username: 'parent', password: 'password123' };
-      } catch (error) {
-        console.warn('Error getting parent credentials from API:', error);
-        // Fall back to localStorage
-        const storedCredentials = localStorage.getItem(`${this.namespace}.parent_credentials`);
-        return storedCredentials 
-          ? JSON.parse(storedCredentials) 
-          : { username: 'parent', password: 'password123' };
-      }
+      // TODO: In a production version, we would have a proper endpoint
+      // For now, just return the default credentials since we know they're fixed
+      return { username: 'parent', password: 'password123' };
     } else {
       // Get credentials from localStorage with fallback to defaults
       const storedCredentials = localStorage.getItem(`${this.namespace}.parent_credentials`);
@@ -85,8 +78,44 @@ export class AuthService {
     }
   }
   
+  // Auto login from stored credentials
+  async autoLogin() {
+    // Check if we have a remember me flag and credentials
+    const rememberMe = localStorage.getItem(this.rememberMeKey) === 'true';
+    
+    if (!rememberMe) {
+      return null;
+    }
+    
+    try {
+      // Try to get stored credentials
+      const storedCredentialsJson = localStorage.getItem(this.credentialsKey);
+      
+      if (!storedCredentialsJson) {
+        return null;
+      }
+      
+      const storedCredentials = JSON.parse(storedCredentialsJson);
+      
+      // Use the stored credentials to login
+      if (storedCredentials && storedCredentials.username && storedCredentials.password) {
+        return await this.loginParent(
+          storedCredentials.username, 
+          storedCredentials.password, 
+          true, // Keep remember me active
+          true  // Silent mode - don't throw errors
+        );
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Auto-login error:', error);
+      return null;
+    }
+  }
+  
   // Login parent with username/password
-  async loginParent(username, password) {
+  async loginParent(username, password, rememberMe = false, silent = false) {
     try {
       // Check backend availability
       await this.checkBackendAvailability();
@@ -104,6 +133,15 @@ export class AuthService {
           localStorage.setItem(this.sessionKey, JSON.stringify(result.user));
           localStorage.setItem(this.sessionIdKey, result.sessionId);
           
+          // If remember me is enabled, store credentials
+          if (rememberMe) {
+            localStorage.setItem(this.rememberMeKey, 'true');
+            localStorage.setItem(this.credentialsKey, JSON.stringify({
+              username,
+              password
+            }));
+          }
+          
           return result.user;
         } catch (apiError) {
           console.error('API login error:', apiError);
@@ -114,27 +152,27 @@ export class AuthService {
           }
           
           // For other errors, try legacy login
-          return this.legacyLoginParent(username, password);
+          return this.legacyLoginParent(username, password, rememberMe);
         }
       } else {
         // Fallback to legacy localStorage auth
-        return this.legacyLoginParent(username, password);
+        return this.legacyLoginParent(username, password, rememberMe);
       }
     } catch (error) {
       console.error('Login error:', error);
       
-      // If it's an authentication error, don't fall back
-      if (error.message && error.message.includes('Invalid')) {
+      // If it's an authentication error, don't fall back unless in silent mode
+      if (error.message && error.message.includes('Invalid') && !silent) {
         throw error;
       }
       
       // Try legacy login as fallback
-      return this.legacyLoginParent(username, password);
+      return this.legacyLoginParent(username, password, rememberMe);
     }
   }
   
   // Legacy login method using localStorage
-  async legacyLoginParent(username, password) {
+  async legacyLoginParent(username, password, rememberMe = false) {
     console.log('Using legacy localStorage authentication');
     
     // Get stored credentials
@@ -155,6 +193,15 @@ export class AuthService {
       // Store session
       localStorage.setItem(this.sessionKey, JSON.stringify(session));
       this.currentUser = session;
+      
+      // If remember me is enabled, store credentials
+      if (rememberMe) {
+        localStorage.setItem(this.rememberMeKey, 'true');
+        localStorage.setItem(this.credentialsKey, JSON.stringify({
+          username,
+          password
+        }));
+      }
       
       return session;
     } else {
@@ -292,7 +339,7 @@ export class AuthService {
   }
   
   // Logout any user (parent or child)
-  async logout() {
+  async logout(clearRememberMe = false) {
     try {
       const sessionId = localStorage.getItem(this.sessionIdKey);
       
@@ -314,6 +361,13 @@ export class AuthService {
       localStorage.removeItem(this.sessionIdKey);
       this.currentUser = null;
       this.currentSessionId = null;
+      
+      // Only clear remember me data if explicitly requested
+      if (clearRememberMe) {
+        localStorage.removeItem(this.rememberMeKey);
+        localStorage.removeItem(this.credentialsKey);
+        console.log('Remember Me data cleared');
+      }
       
       return true;
     } catch (error) {

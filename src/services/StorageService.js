@@ -156,12 +156,25 @@ export class StorageService {
       if (this.isBackendAvailable) {
         // Use backend API
         try {
-          if (profile.id && profile.id !== 'new') {
+          // Check if this is a new profile with a generated UUID
+          // UUIDs typically look like: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+          const isNewUuid = profile.id && profile.id !== 'new' && 
+                           profile.id.includes('-') && 
+                           !profile.createdAt; // No createdAt means it's likely new
+          
+          if (isNewUuid || profile.id === 'new') {
+            // Create a new profile instead of updating
+            console.log('Creating new profile with backend API');
+            const newProfile = await ProfileApi.createProfile(this.mapProfileToBackend(profile));
+            return this.mapProfileFromBackend(newProfile);
+          } else if (profile.id) {
             // Update existing profile
+            console.log('Updating existing profile with backend API');
             const updatedProfile = await ProfileApi.updateProfile(profile.id, this.mapProfileToBackend(profile));
             return this.mapProfileFromBackend(updatedProfile);
           } else {
-            // Create new profile
+            // Fallback case - create new profile
+            console.log('Fallback: Creating new profile with backend API');
             const newProfile = await ProfileApi.createProfile(this.mapProfileToBackend(profile));
             return this.mapProfileFromBackend(newProfile);
           }

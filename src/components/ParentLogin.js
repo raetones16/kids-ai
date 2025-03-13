@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardContent, CardFooter, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Label } from './ui/label';
+import { Checkbox } from './ui/checkbox';
 import { AuthService } from '../services/AuthService';
 
 const authService = new AuthService();
@@ -10,8 +11,29 @@ const authService = new AuthService();
 const ParentLogin = ({ onLoginSuccess, onCancel }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Check for saved credentials on component mount
+  useEffect(() => {
+    // Try to auto-login if credentials exist
+    const attemptAutoLogin = async () => {
+      try {
+        // Check if we can automatically log in
+        const session = await authService.autoLogin();
+        if (session) {
+          console.log('Auto-login successful');
+          onLoginSuccess(session);
+        }
+      } catch (err) {
+        console.log('No saved session found or auto-login failed');
+        // No saved session, continue with manual login
+      }
+    };
+    
+    attemptAutoLogin();
+  }, [onLoginSuccess]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -25,7 +47,7 @@ const ParentLogin = ({ onLoginSuccess, onCancel }) => {
     setError('');
     
     try {
-      const session = await authService.loginParent(username, password);
+      const session = await authService.loginParent(username, password, rememberMe);
       onLoginSuccess(session);
     } catch (err) {
       console.error('Login error:', err);
@@ -36,20 +58,20 @@ const ParentLogin = ({ onLoginSuccess, onCancel }) => {
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-50">
-      <Card className="w-full max-w-md mx-4">
+      <Card className="w-full max-w-sm mx-4">
         <CardHeader>
           <CardTitle className="text-xl">Parent Login</CardTitle>
         </CardHeader>
         
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 w-full">
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-md text-sm">
                 {error}
               </div>
             )}
             
-            <div className="space-y-2">
+            <div className="space-y-2 w-full">
               <Label htmlFor="username">Username</Label>
               <Input
                 type="text"
@@ -59,10 +81,11 @@ const ParentLogin = ({ onLoginSuccess, onCancel }) => {
                 placeholder="Enter username"
                 disabled={isLoading}
                 required
+                className="w-full max-w-none"
               />
             </div>
             
-            <div className="space-y-2">
+            <div className="space-y-2 w-full">
               <Label htmlFor="password">Password</Label>
               <Input
                 type="password"
@@ -72,9 +95,21 @@ const ParentLogin = ({ onLoginSuccess, onCancel }) => {
                 placeholder="Enter password"
                 disabled={isLoading}
                 required
+                className="w-full max-w-none"
               />
             </div>
             
+            <div className="flex items-center space-x-2 pt-2">
+              <Checkbox 
+                id="remember-me" 
+                checked={rememberMe} 
+                onCheckedChange={setRememberMe}
+              />
+              <Label htmlFor="remember-me" className="text-sm font-normal">
+                Remember me forever
+              </Label>
+            </div>
+
             <div className="text-sm text-muted-foreground">
               <p>Default username: parent</p>
               <p>Default password: password123</p>
