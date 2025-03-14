@@ -44,24 +44,61 @@ const ChatInterface = ({ childId, childName, onLogout, assistantRef, useMockApi 
     }
   }, [speechError]);
   
-  // Set up animation frame for audio visualization
+  // Set up audio data updates
   useEffect(() => {
-    const updateAudioData = () => {
-      const data = getAudioData();
-      if (data) {
-        setAudioData(data);
-      }
-      animationFrameRef.current = requestAnimationFrame(updateAudioData);
-    };
+    console.log(`ChatInterface: State changed to ${interfaceState}`);
     
-    animationFrameRef.current = requestAnimationFrame(updateAudioData);
+    // If we're in speaking state, start generating audio data
+    if (interfaceState === 'speaking') {
+      console.log('Starting speaking animation updates');
+      
+      // Create a fake audio data array if needed
+      const generateFakeAudioData = () => {
+        const data = new Uint8Array(64);
+        const currentTime = Date.now() * 0.001; // Convert to seconds for smoother animation
+        
+        for (let i = 0; i < data.length; i++) {
+          // Create wave pattern with multiple frequencies
+          data[i] = Math.max(10, Math.min(255, 
+            100 + // base value
+            Math.sin(currentTime * 1.5 + i * 0.1) * 40 + // slow wave
+            Math.sin(currentTime * 3 + i * 0.3) * 30 + // medium wave
+            Math.sin(currentTime * 5 + i * 0.5) * 15 + // fast wave
+            (Math.random() * 20) // random noise
+          ));
+        }
+        return data;
+      };
+      
+      // Update function using both real and fake data
+      const updateAudioData = () => {
+        // Try to get real audio data first
+        const realData = getAudioData();
+        
+        if (realData && realData.length > 0) {
+          setAudioData(realData);
+        } else {
+          // Fall back to generated data
+          setAudioData(generateFakeAudioData());
+        }
+        
+        if (interfaceState === 'speaking') {
+          animationFrameRef.current = requestAnimationFrame(updateAudioData);
+        }
+      };
+      
+      // Start the animation
+      animationFrameRef.current = requestAnimationFrame(updateAudioData);
+    }
     
     return () => {
+      // Clean up animation frame on state change or unmount
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
       }
     };
-  }, [getAudioData]);
+  }, [interfaceState, getAudioData]);
   
   // Handle microphone button click
   const handleMicrophoneClick = async () => {
@@ -94,22 +131,23 @@ const ChatInterface = ({ childId, childName, onLogout, assistantRef, useMockApi 
     
     // Stop speaking if the circle is clicked while speaking
     if (interfaceState === 'speaking') {
-      console.log('Stopping speech playback');
-      if (tts) {
-        try {
-          // Stop the speech
-          tts.stop();
-          // Reset interface state immediately without waiting for callbacks
-          setInterfaceState('idle');
-          console.log('Speech stopped, interface reset to idle');
-        } catch (error) {
-          console.error('Error stopping speech:', error);
-          setInterfaceState('idle');
-        }
-      } else {
+    console.log('Stopping speech playback');
+    if (tts) {
+      try {
+        // Stop the speech
+        tts.stop();
+        
+        // Reset interface state immediately
         setInterfaceState('idle');
-      }
-      return;
+    console.log('Speech stopped, interface reset to idle');
+    } catch (error) {
+      console.error('Error stopping speech:', error);
+      setInterfaceState('idle');
+    }
+    } else {
+    setInterfaceState('idle');
+    }
+    return;
     }
     
     // Normal microphone behavior after initialization
@@ -135,6 +173,9 @@ const ChatInterface = ({ childId, childName, onLogout, assistantRef, useMockApi 
       }
     } else if (interfaceState === 'listening') {
       stopListening();
+    } else if (interfaceState === 'thinking') {
+      // If in thinking state, just log it but don't take any action
+      console.log('Currently thinking, click ignored');
     }
   };
 

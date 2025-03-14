@@ -502,9 +502,13 @@ export function useChat(assistantService, childId, childName) {
       // Speak the welcome message now that audio context is initialized
       if (textToSpeechRef.current) {
         try {
+          // Make sure the interface state is set to speaking before starting TTS
+          setInterfaceState('speaking');
+          console.log('Speaking welcome message with state set to speaking');
           await textToSpeechRef.current.speak(personalWelcomeMessage.content);
         } catch (err) {
           console.error('Error speaking welcome message:', err);
+          setInterfaceState('idle');
         }
       }
     } catch (error) {
@@ -518,8 +522,50 @@ export function useChat(assistantService, childId, childName) {
     if (textToSpeechRef.current && 
         interfaceState === 'speaking' && 
         typeof textToSpeechRef.current.getAudioData === 'function') {
-      return textToSpeechRef.current.getAudioData();
+      // Get the audio data
+      const audioData = textToSpeechRef.current.getAudioData();
+      
+      // If the TTS service isn't actually returning audio data,
+      // generate some fake audio data for visualization
+      if (!audioData || audioData.length === 0) {
+        const fakeAudioData = new Uint8Array(128);
+        for (let i = 0; i < fakeAudioData.length; i++) {
+          // Create a more dynamic curve with some randomness
+          const time = Date.now() * 0.003;
+          const position = i / fakeAudioData.length;
+          
+          // Combine multiple sine waves for more interesting movement
+          const value = 
+            Math.sin(time + position * 8) * 30 + 
+            Math.sin(time * 1.5 + position * 4) * 15 + 
+            Math.sin(time * 0.5 + position * 12) * 10 + 
+            Math.random() * 15;
+          
+          // Scale to appropriate range (0-255)
+          fakeAudioData[i] = Math.max(0, Math.min(255, 50 + value));
+        }
+        console.log('Generated fake audio data for visualization');
+        return fakeAudioData;
+      }
+      
+      return audioData;
     }
+    
+    // Always return some data when in speaking state for consistent animation
+    if (interfaceState === 'speaking') {
+      const fakeAudioData = new Uint8Array(128);
+      for (let i = 0; i < fakeAudioData.length; i++) {
+        const time = Date.now() * 0.003;
+        const position = i / fakeAudioData.length;
+        const value = 
+          Math.sin(time + position * 8) * 30 + 
+          Math.sin(time * 1.5 + position * 4) * 15 + 
+          Math.random() * 20;
+        fakeAudioData[i] = Math.max(0, Math.min(255, 50 + value));
+      }
+      return fakeAudioData;
+    }
+    
     return null;
   }, [interfaceState]);
 

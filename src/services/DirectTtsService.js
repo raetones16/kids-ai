@@ -35,9 +35,13 @@ export class DirectTtsService {
     this.stop();
     
     try {
+      console.log('DirectTtsService: Starting to speak text');
       // Signal that speech is starting
       this.isPlaying = true;
-      if (this.onStartCallback) this.onStartCallback();
+      if (this.onStartCallback) {
+        console.log('DirectTtsService: Calling onStartCallback');
+        this.onStartCallback();
+      }
       
       // Call OpenAI TTS API
       const response = await fetch('https://api.openai.com/v1/audio/speech', {
@@ -59,6 +63,8 @@ export class DirectTtsService {
         throw new Error(`OpenAI API error: ${response.status}`);
       }
       
+      console.log('DirectTtsService: API response received, processing audio');
+      
       // Get audio data as a blob
       const audioBlob = await response.blob();
       
@@ -72,20 +78,45 @@ export class DirectTtsService {
       
       // Set up analyzer for visualization data
       this.analyserNode = this.audioContext.createAnalyser();
-      this.analyserNode.fftSize = 256;
+      this.analyserNode.fftSize = 128; // Smaller FFT size for better performance
+      this.analyserNode.smoothingTimeConstant = 0.7; // Add smoothing for more natural visualization
       source.connect(this.analyserNode);
       this.analyserNode.connect(this.audioContext.destination);
-      
-      // Set up event handler for when audio ends
-      source.onended = () => {
-        this.isPlaying = false;
-        if (this.onEndCallback) this.onEndCallback();
-      };
       
       // Store source for potential stopping
       this.currentSource = source;
       
+      // Set up event handler for when audio ends
+      source.onended = () => {
+        console.log('Audio playback ended');
+        this.isPlaying = false;
+        if (this.onEndCallback) this.onEndCallback();
+      };
+      
+      // Create a heartbeat to ensure we maintain the speaking state while audio is playing
+      // This helps keep the animation going even if the analyzer doesn't produce data
+      this.heartbeatInterval = setInterval(() => {
+        // Only continue if we're still playing
+        if (this.isPlaying) {
+          // Force a call to the start callback to ensure speaking state is maintained
+          if (this.onStartCallback) {
+            this.onStartCallback();
+          }
+        } else {
+          // Clear interval if we're no longer playing
+          clearInterval(this.heartbeatInterval);
+        }
+      }, 500); // Check every 500ms
+      
+      // Make sure we're in playing state
+      this.isPlaying = true;
+      if (this.onStartCallback) {
+        console.log('DirectTtsService: Calling onStartCallback again before play');
+        this.onStartCallback();
+      }
+      
       // Start playback
+      console.log('DirectTtsService: Starting audio playback');
       source.start(0);
       
       return this.analyserNode;
@@ -98,10 +129,21 @@ export class DirectTtsService {
   
   // Stop any current playback
   stop() {
+    console.log('DirectTtsService: Stopping playback');
+    
+    // Clear heartbeat interval first
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+      console.log('DirectTtsService: Cleared heartbeat interval');
+    }
+    
+    // Stop audio source
     if (this.currentSource) {
       try {
         this.currentSource.stop();
         this.currentSource.disconnect();
+        console.log('DirectTtsService: Stopped and disconnected audio source');
       } catch (e) {
         // Ignore errors when stopping (might already be stopped)
         console.log('Non-critical error when stopping audio source:', e);
@@ -113,31 +155,86 @@ export class DirectTtsService {
     if (this.analyserNode) {
       try {
         this.analyserNode.disconnect();
+        console.log('DirectTtsService: Disconnected analyzer node');
       } catch (e) {
         // Ignore disconnection errors
+        console.log('Non-critical error when disconnecting analyzer:', e);
       }
     }
     
     // Signal that playback has stopped
     if (this.isPlaying) {
       this.isPlaying = false;
+      console.log('DirectTtsService: Set isPlaying to false');
       
-      // Call end callback synchronously to ensure UI updates immediately
+      // Call end callback immediately to ensure UI updates right away
       if (this.onEndCallback) {
-        setTimeout(() => {
-          this.onEndCallback(); 
-        }, 0);
+        console.log('DirectTtsService: Calling onEndCallback');
+        this.onEndCallback();
       }
     }
   }
   
   // Get audio data for visualization
   getAudioData() {
-    if (!this.analyserNode || !this.audioContext) return null;
+    // First check if we have an analyzer node and are still playing
+    if (!this.analyserNode || !this.audioContext || !this.isPlaying) {
+      return this.generateFakeAudioData();
+    }
     
+    // Try to get real frequency data
     const dataArray = new Uint8Array(this.analyserNode.frequencyBinCount);
     this.analyserNode.getByteFrequencyData(dataArray);
-    return dataArray;
+    
+    // Check if we actually have data (sometimes the analyzer returns all zeros)
+    let hasData = false;
+    for (let i = 0; i < dataArray.length; i++) {
+      if (dataArray[i] > 0) {
+        hasData = true;
+        break;
+      }
+    }
+    
+    // If we have real data, return it
+    if (hasData) {
+      return dataArray;
+    } else {
+      // Otherwise generate fake data
+      return this.generateFakeAudioData();
+    }
+  }
+  
+  // Generate fake audio data for consistent animation
+  generateFakeAudioData() {
+    // Create array with sensible size
+    const fakeData = new Uint8Array(64);
+    
+    if (!this.isPlaying) {
+      // Return empty data if we're not playing
+      return fakeData;
+    }
+    
+    // Create dynamic waveform data
+    const time = Date.now() * 0.001; // Current time in seconds
+    
+    for (let i = 0; i < fakeData.length; i++) {
+      // Position in array (0-1)
+      const position = i / fakeData.length;
+      
+      // Create multiple sine waves for complexity
+      fakeData[i] = Math.floor(
+        80 + // base level
+        Math.sin(time * 1.1 + position * 4.8) * 40 + // slow wave
+        Math.sin(time * 2.7 + position * 9.4) * 30 + // medium wave
+        Math.sin(time * 4.3 + position * 2.3) * 20 + // fast wave
+        (Math.random() * 30) // noise
+      );
+      
+      // Ensure values are in valid range
+      fakeData[i] = Math.max(0, Math.min(255, fakeData[i]));
+    }
+    
+    return fakeData;
   }
   
   // Event handlers
