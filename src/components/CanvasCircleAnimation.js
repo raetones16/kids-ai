@@ -5,6 +5,8 @@ const CanvasCircleAnimation = ({ state = 'idle', audioData = null, audioStream =
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
   const isSpeakingRef = useRef(false);
+  const pulseTimeRef = useRef(0);
+  const lastPulseTimeRef = useRef(0);
   
   // Track if we're actually speaking (voice is playing)
   useEffect(() => {
@@ -67,12 +69,12 @@ const CanvasCircleAnimation = ({ state = 'idle', audioData = null, audioStream =
     }
     
     // Draw main circle with anti-aliasing
-    const drawMainCircle = () => {
+    const drawMainCircle = (scale = 1) => {
       ctx.clearRect(0, 0, rect.width, rect.height);
       
-      // Draw main circle
+      // Draw main circle (with optional scale for idle animation)
       ctx.beginPath();
-      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      ctx.arc(centerX, centerY, radius * scale, 0, Math.PI * 2);
       ctx.fillStyle = circleColor;
       ctx.fill();
       
@@ -80,6 +82,40 @@ const CanvasCircleAnimation = ({ state = 'idle', audioData = null, audioStream =
       ctx.strokeStyle = '#E0E0E0';
       ctx.lineWidth = 2;
       ctx.stroke();
+    };
+    
+    // Idle animation (more noticeable pulsing with occasional ripples)
+    const animateIdle = (timestamp) => {
+      const time = timestamp * 0.001;
+      pulseTimeRef.current = time;
+      
+      // More noticeable scale pulsing (between 0.97 and 1.03)
+      const pulseScale = 1 + 0.03 * Math.sin(time * 0.8);
+      
+      drawMainCircle(pulseScale);
+      
+      // Add occasional ripple effect (every 4 seconds)
+      const timeSinceLastPulse = time - lastPulseTimeRef.current;
+      if (timeSinceLastPulse > 4) { // Trigger a new pulse every 4 seconds
+        lastPulseTimeRef.current = time;
+      }
+      
+      // Draw ripples if they're active
+      if (timeSinceLastPulse < 2) { // Ripple lasts for 2 seconds
+        const rippleProgress = timeSinceLastPulse / 2; // 0 to 1 over 2 seconds
+        const rippleRadius = radius * (1 + rippleProgress * 0.5); // Expand to 50% larger
+        const rippleOpacity = 0.4 * (1 - rippleProgress); // Fade out as it expands
+        
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, rippleRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(200, 200, 200, ${rippleOpacity})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      
+      if (state === 'idle') {
+        animationRef.current = requestAnimationFrame(animateIdle);
+      }
     };
     
     // Listening animation (blue ripples)
@@ -286,43 +322,76 @@ const CanvasCircleAnimation = ({ state = 'idle', audioData = null, audioStream =
       }
     };
     
-    // Searching animation (pulsing concentric circles)
+    // Simplified searching animation (subtle wavy circles)
     const animateSearching = (timestamp) => {
       const time = timestamp * 0.001;
       drawMainCircle();
       
-      // Draw pulsing concentric circles
-      const numCircles = 3;
+      // Draw 2 gentle wavy circles
+      const numWaves = 2;
       
-      for (let i = 0; i < numCircles; i++) {
-        const pulsePhase = (time + i * 0.5) % 2; // 2-second cycle with offset
-        const circleRadius = radius * (1.1 + pulsePhase * 0.2);
-        const alpha = Math.max(0, 0.5 - pulsePhase * 0.25);
+      for (let waveIndex = 0; waveIndex < numWaves; waveIndex++) {
+        // Different radius for each wave
+        const baseRadius = radius * (1.1 + waveIndex * 0.12);
+        const waveAmplitude = radius * 0.04; // Small, subtle waves
+        const segments = 60; // Higher for smoother curves
         
+        // Draw a complete wavy circle
         ctx.beginPath();
-        ctx.arc(centerX, centerY, circleRadius, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(142, 36, 170, ${alpha})`;
-        ctx.lineWidth = 2 + (i * 0.5);
+        
+        for (let i = 0; i <= segments; i++) {
+          const angle = (i / segments) * Math.PI * 2;
+          
+          // Create subtle wave effect with just one or two frequencies
+          const waveOffset = 
+            Math.sin(angle * 4 + time * 0.7 + waveIndex * 1.2) * 0.6 + 
+            Math.sin(angle * 8 + time * 0.5 + waveIndex * 0.8) * 0.4;
+          
+          const waveRadius = baseRadius + waveAmplitude * waveOffset;
+          const x = centerX + Math.cos(angle) * waveRadius;
+          const y = centerY + Math.sin(angle) * waveRadius;
+          
+          // First point uses moveTo, others use lineTo
+          if (i === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        }
+        
+        // Close the path
+        ctx.closePath();
+        
+        // Set line style
+        ctx.strokeStyle = `rgba(142, 36, 170, ${0.5 - waveIndex * 0.15})`;
+        ctx.lineWidth = 2;
         ctx.stroke();
       }
       
-      // Add rotating dots around the circle
-      const dotCount = 8;
-      const dotRadius = radius * 0.08;
+      // Add a subtle rotating scan line
+      const scanAngle = time * 0.5 % (Math.PI * 2); // Slow rotation
+      const scanRadius = radius * 1.15; // Slightly outside the wavy circles
       
-      for (let i = 0; i < dotCount; i++) {
-        const angle = time * 1.5 + (i * (Math.PI * 2 / dotCount));
-        const x = centerX + Math.cos(angle) * radius * 1.3;
-        const y = centerY + Math.sin(angle) * radius * 1.3;
-        
-        // Pulsing dot size
-        const pulseFactor = 0.8 + 0.2 * Math.sin(time * 3 + i);
-        
-        ctx.beginPath();
-        ctx.arc(x, y, dotRadius * pulseFactor, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(142, 36, 170, 0.6)';
-        ctx.fill();
-      }
+      // Draw scan line
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.lineTo(
+        centerX + Math.cos(scanAngle) * scanRadius,
+        centerY + Math.sin(scanAngle) * scanRadius
+      );
+      ctx.strokeStyle = 'rgba(142, 36, 170, 0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      
+      // Draw small dot at the end of scan line
+      const dotRadius = radius * 0.03;
+      const dotX = centerX + Math.cos(scanAngle) * scanRadius;
+      const dotY = centerY + Math.sin(scanAngle) * scanRadius;
+      
+      ctx.beginPath();
+      ctx.arc(dotX, dotY, dotRadius, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(142, 36, 170, 0.6)';
+      ctx.fill();
       
       if (state === 'searching') {
         animationRef.current = requestAnimationFrame(animateSearching);
@@ -344,8 +413,8 @@ const CanvasCircleAnimation = ({ state = 'idle', audioData = null, audioStream =
         animationRef.current = requestAnimationFrame(animateSearching);
         break;
       default:
-        // Draw idle white circle
-        drawMainCircle();
+        // Animate idle state with more noticeable pulsing and occasional ripples
+        animationRef.current = requestAnimationFrame(animateIdle);
     }
     
     // Handle window resize
