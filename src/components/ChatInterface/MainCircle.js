@@ -1,10 +1,14 @@
 import React from 'react';
-import CircleAnimation from '../CircleAnimation';
+import CanvasCircleAnimation from '../CanvasCircleAnimation';
 
-const MainCircle = ({ interfaceState, audioData, onClick }) => {
+const MainCircle = ({ interfaceState, audioData, audioStream, onClick }) => {
   return (
     <div className="circle-container" onClick={onClick}>
-      <CircleAnimation state={interfaceState} audioData={audioData} />
+      <CanvasCircleAnimation 
+        state={interfaceState} 
+        audioData={audioData}
+        audioStream={audioStream}
+      />
       <div className="mic-hint">
         {interfaceState === 'idle' && 'Tap to talk'}
         {interfaceState === 'listening' && 'Listening...'}

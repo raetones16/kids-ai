@@ -1,6 +1,5 @@
 /* 
-  ChatInterface Styles - We're keeping specific styles for the Three.js animations
-  and circle interactions while transitioning most UI elements to ShadCN
+  ChatInterface Styles - Optimized for Canvas animations
 */
 
 /* Main container for circle animation */
@@ -36,7 +35,17 @@
   height: 100%;
   border-radius: 50%;
   overflow: hidden;
-  background-color: transparent; /* Remove any background color */
+  background-color: transparent;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.animation-canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+  border-radius: 50%;
 }
 
 .mic-hint {
@@ -44,28 +53,6 @@
   font-size: 16px;
   color: hsl(var(--muted-foreground));
   text-align: center;
-}
-
-/* Animation keyframes - these need to remain for the Three.js animations */
-@keyframes ripple-animation {
-  0% { 
-    transform: scale(1);
-    stroke-opacity: 0.3;
-  }
-  100% { 
-    transform: scale(1.2);
-    stroke-opacity: 0;
-  }
-}
-
-@keyframes rotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-@keyframes wave-animation {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(10px); }
 }
 
 /* Loading spinner */

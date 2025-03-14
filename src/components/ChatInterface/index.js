@@ -14,6 +14,7 @@ const ChatInterface = ({ childId, childName, onLogout, assistantRef, useMockApi 
   const [showTextInput, setShowTextInput] = useState(false);
   const [error, setError] = useState(null);
   const [audioData, setAudioData] = useState(null);
+  const [audioStream, setAudioStream] = useState(null);
   const animationFrameRef = useRef(null);
   
   // Initialize chat hook
@@ -52,6 +53,14 @@ const ChatInterface = ({ childId, childName, onLogout, assistantRef, useMockApi 
     if (interfaceState === 'speaking') {
       console.log('Starting speaking animation updates');
       
+      // Try to get the audio analyzer node from TTS service
+      const getAudioAnalyzer = () => {
+        if (tts && tts.ttsService && tts.ttsService.analyserNode) {
+          return tts.ttsService.analyserNode;
+        }
+        return null;
+      };
+      
       // Create a fake audio data array if needed
       const generateFakeAudioData = () => {
         const data = new Uint8Array(64);
@@ -82,6 +91,12 @@ const ChatInterface = ({ childId, childName, onLogout, assistantRef, useMockApi 
           setAudioData(generateFakeAudioData());
         }
         
+        // Try to get the audio stream for more accurate visualization
+        const analyzer = getAudioAnalyzer();
+        if (analyzer && analyzer !== audioStream) {
+          setAudioStream(analyzer);
+        }
+        
         if (interfaceState === 'speaking') {
           animationFrameRef.current = requestAnimationFrame(updateAudioData);
         }
@@ -89,6 +104,11 @@ const ChatInterface = ({ childId, childName, onLogout, assistantRef, useMockApi 
       
       // Start the animation
       animationFrameRef.current = requestAnimationFrame(updateAudioData);
+    } else {
+      // Clear audio stream when not speaking
+      if (audioStream) {
+        setAudioStream(null);
+      }
     }
     
     return () => {
@@ -98,7 +118,7 @@ const ChatInterface = ({ childId, childName, onLogout, assistantRef, useMockApi 
         animationFrameRef.current = null;
       }
     };
-  }, [interfaceState, getAudioData]);
+  }, [interfaceState, getAudioData, tts, audioStream]);
   
   // Handle microphone button click
   const handleMicrophoneClick = async () => {
@@ -218,7 +238,8 @@ const ChatInterface = ({ childId, childName, onLogout, assistantRef, useMockApi 
             <div className="circle-container-wrapper mb-4">
               <MainCircle 
                 interfaceState={interfaceState} 
-                audioData={audioData} 
+                audioData={audioData}
+                audioStream={audioStream}
                 onClick={handleMicrophoneClick} 
               />
             </div>
