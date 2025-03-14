@@ -1,253 +1,94 @@
-/* Parent Dashboard Styles */
-.parent-dashboard {
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
-  font-family: 'Helvetica', 'Arial', sans-serif;
-  color: #333333;
-  background-color: #F5F5F5;
-}
-
-/* Header Styles */
-.dashboard-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 24px;
-  background-color: #FFFFFF;
-  border-bottom: 1px solid #EEEEEE;
-}
-
-.dashboard-header h1 {
-  font-size: 20px;
-  font-weight: 500;
-  margin: 0;
-  color: #333333;
-}
-
-.dashboard-controls {
-  display: flex;
-  gap: 10px;
-}
-
-.logout-button {
-  padding: 8px 16px;
-  background-color: #F5F5F5;
-  border: none;
-  border-radius: 4px;
-  color: #333333;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background-color 0.2s;
-}
-
-.logout-button:hover {
-  background-color: #EEEEEE;
-}
-
-/* Main Layout */
-.dashboard-layout {
-  display: flex;
-  flex-grow: 1;
-  overflow: hidden;
-}
-
-/* Navigation Styles */
-.dashboard-nav {
-  width: 220px;
-  background-color: #FFFFFF;
-  padding: 20px 0;
-  border-right: 1px solid #EEEEEE;
-}
-
-.nav-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.nav-item {
-  margin-bottom: 5px;
-}
-
-.nav-link {
-  display: flex;
-  align-items: center;
-  padding: 12px 20px;
-  color: #555555;
-  text-decoration: none;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  font-size: 14px;
-  border: none;
-  background: none;
+/* Custom styling for the tabs component */
+.dashboard-tabs {
   width: 100%;
-  text-align: left;
 }
 
-.nav-link:hover {
-  background-color: #F5F5F5;
-}
-
-.nav-link.active {
-  background-color: #E8F0FE;
-  color: #4285F4;
-  font-weight: 500;
-  border-left: 3px solid #4285F4;
-}
-
-.nav-icon {
-  margin-right: 12px;
-  font-size: 18px;
-  width: 20px;
-  text-align: center;
-}
-
-/* Main Content Area */
-.dashboard-content {
-  flex-grow: 1;
-  padding: 20px;
-  overflow-y: auto;
-  background-color: #FFFFFF;
-}
-
-/* Error Message */
-.error-message {
-  padding: 10px;
-  margin-bottom: 15px;
-  background-color: #FFEBEE;
-  color: #D32F2F;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-/* Success Message */
-.success-message {
-  padding: 10px;
-  margin-bottom: 15px;
-  background-color: #E8F5E9;
-  color: #2E7D32;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-/* PIN Modal Styles */
-.pin-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+.dashboard-tabs-list {
   display: flex;
-  justify-content: center;
+  gap: 1rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding-bottom: 0;
+  margin-bottom: 2rem;
+}
+
+.dashboard-tab {
+  display: flex;
   align-items: center;
-  z-index: 1000;
-}
-
-.pin-modal {
-  background-color: #FFFFFF;
-  border-radius: 8px;
-  padding: 25px;
-  width: 90%;
-  max-width: 400px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.pin-modal h2 {
-  margin-top: 0;
-  margin-bottom: 15px;
-  font-size: 20px;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem 0.75rem 0 0;
   font-weight: 500;
-}
-
-.pin-entry {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  margin: 20px 0;
-}
-
-.pin-digit {
-  width: 40px;
-  height: 50px;
-  text-align: center;
-  font-size: 24px;
-  border: 1px solid #DDDDDD;
-  border-radius: 4px;
-}
-
-.pin-modal .button-group {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 20px;
-}
-
-.pin-modal button {
-  padding: 10px 16px;
-  border: none;
-  border-radius: 4px;
-  font-size: 14px;
+  font-size: 0.875rem;
+  border-bottom: 2px solid transparent;
+  transition: all 0.3s ease;
+  background: transparent;
+  color: #666;
   cursor: pointer;
 }
 
-.pin-modal .primary-button {
-  background-color: #4285F4;
-  color: white;
+.dashboard-tab:hover:not([data-state="active"]) {
+  color: #333;
+  background-color: rgba(0, 0, 0, 0.03);
 }
 
-.pin-modal .secondary-button {
-  background-color: #EEEEEE;
-  color: #333333;
+.dashboard-tab[data-state="active"] {
+  color: var(--primary-color, #4285F4);
+  border-bottom-color: var(--primary-color, #4285F4);
+  background-color: rgba(66, 133, 244, 0.05);
 }
 
-/* Dashboard panel containers */
-.dashboard-panel {
-  background-color: #FFFFFF;
-  height: 100%;
-  padding: 24px;
-  overflow-y: auto;
+.dashboard-tab[data-disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.dashboard-panel h2 {
-  margin-top: 0;
-  margin-bottom: 20px;
-  font-size: 18px;
-  font-weight: 500;
-  color: #333333;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #EEEEEE;
-}
-
-/* Responsive Adjustments */
-@media (max-width: 768px) {
-  .dashboard-layout {
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .dashboard-tabs-list {
     flex-direction: column;
+    gap: 0.5rem;
+    border-bottom: none;
   }
   
-  .dashboard-nav {
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid #EEEEEE;
-    padding: 10px 0;
+  .dashboard-tab {
+    border-radius: 0.5rem;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-bottom-width: 1px;
   }
   
-  .nav-list {
-    display: flex;
-    overflow-x: auto;
-    padding-bottom: 5px;
+  .dashboard-tab[data-state="active"] {
+    border-color: var(--primary-color, #4285F4);
+    border-bottom-color: var(--primary-color, #4285F4);
   }
-  
-  .nav-item {
-    margin-bottom: 0;
-    margin-right: 5px;
-  }
-  
-  .nav-link {
-    padding: 8px 16px;
-  }
-  
-  .nav-icon {
-    margin-right: 8px;
-  }
+}
+
+/* Card styles */
+.dashboard-card {
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+}
+
+/* Animation for tab transitions */
+.tab-content-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.tab-content-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms, transform 300ms;
+}
+
+.tab-content-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.tab-content-exit-active {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 300ms, transform 300ms;
 }
