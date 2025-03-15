@@ -11,6 +11,12 @@ module.exports = {
       },
     },
     extend: {
+      fontFamily: {
+        asap: ["Asap", "sans-serif"],
+        "asap-condensed": ["Asap Condensed", "sans-serif"],
+        arvo: ["Arvo", "serif"],
+        sans: ["Asap", "sans-serif"], // Override the default sans font
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

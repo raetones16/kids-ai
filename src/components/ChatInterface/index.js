@@ -231,7 +231,7 @@ const ChatInterface = ({
   };
 
   // Define a consistent container for both subtitle and text input
-  const containerClass = "w-full max-w-4xl px-4";
+  const containerClass = "w-full max-w-4xl px-8";
 
   // Determine if we should show the loading skeleton
   const isLoading = !isInitialized && !error;

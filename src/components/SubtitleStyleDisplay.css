@@ -13,26 +13,30 @@
 .user-question {
   font-size: 1.1rem;
   max-width: 100%;
-  opacity: 0.7;
   margin-bottom: 0.75rem;
-  color: var(--text-color, hsl(var(--grey-100)));
+  color: hsl(var(--muted-foreground));
   animation: fadeIn 0.8s ease-in-out;
+  font-family: "Asap", sans-serif;
+  font-weight: 400;
 }
 
 .assistant-subtitle {
-  font-size: 1.6rem;
-  font-weight: 500;
+  font-size: 1.8rem;
+  font-weight: 400;
   max-width: 90%;
   line-height: 1.4;
   color: var(--text-color, hsl(var(--grey-100)));
   animation: fadeIn 1s ease-in-out;
+  font-family: "Arvo", serif;
 }
 
 .subtitle-placeholder {
   font-size: 1rem;
   opacity: 0.5;
   font-style: italic;
-  color: var(--text-color, hsl(var(--grey-100)));
+  color: hsl(var(--muted-foreground));
+  font-family: "Asap", sans-serif;
+  font-weight: 400;
 }
 
 /* Animation for text to fade in */

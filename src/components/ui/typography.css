@@ -1,0 +1,112 @@
+/* Typography styles for the Kids AI application */
+
+/* Asap (Sans) - Default font */
+.font-asap {
+  font-family: "Asap", sans-serif;
+  font-optical-sizing: auto;
+  font-variation-settings: "wdth" 100;
+}
+
+/* Font weights for Asap */
+.font-asap-regular {
+  font-family: "Asap", sans-serif;
+  font-weight: 400;
+}
+
+.font-asap-medium {
+  font-family: "Asap", sans-serif;
+  font-weight: 500;
+}
+
+.font-asap-semibold {
+  font-family: "Asap", sans-serif;
+  font-weight: 600;
+}
+
+.font-asap-bold {
+  font-family: "Asap", sans-serif;
+  font-weight: 700;
+}
+
+/* Asap Condensed */
+.font-asap-condensed {
+  font-family: "Asap Condensed", sans-serif;
+}
+
+.font-asap-condensed-bold {
+  font-family: "Asap Condensed", sans-serif;
+  font-weight: 700;
+}
+
+/* Arvo (Serif) - For assistant responses */
+.font-arvo {
+  font-family: "Arvo", serif;
+}
+
+.font-arvo-regular {
+  font-family: "Arvo", serif;
+  font-weight: 400;
+}
+
+.font-arvo-bold {
+  font-family: "Arvo", serif;
+  font-weight: 700;
+}
+
+/* Text sizes with responsive adjustments */
+.text-title {
+  font-family: "Asap", sans-serif;
+  font-weight: 700;
+  font-size: 2.5rem;
+  line-height: 1.2;
+}
+
+.text-subtitle {
+  font-family: "Asap", sans-serif;
+  font-weight: 600;
+  font-size: 1.75rem;
+  line-height: 1.3;
+}
+
+.text-heading {
+  font-family: "Asap", sans-serif;
+  font-weight: 600;
+  font-size: 1.25rem;
+  line-height: 1.4;
+}
+
+.text-body {
+  font-family: "Asap", sans-serif;
+  font-weight: 400;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.text-small {
+  font-family: "Asap", sans-serif;
+  font-weight: 400;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* Assistant text - using Arvo */
+.text-assistant {
+  font-family: "Arvo", serif;
+  font-weight: 400;
+  font-size: 1.6rem;
+  line-height: 1.4;
+}
+
+/* Button text - using Asap semi-bold */
+.text-button {
+  font-family: "Asap", sans-serif;
+  font-weight: 600;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* Condensed text for specific UI elements */
+.text-condensed {
+  font-family: "Asap Condensed", sans-serif;
+  font-weight: 700;
+}
