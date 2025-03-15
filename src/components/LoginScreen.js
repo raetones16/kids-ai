@@ -57,7 +57,7 @@ const LoginScreen = ({
           {childProfiles.map((profile) => (
             <Card
               key={profile.id}
-              className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer w-[180px]"
+              className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer w-[180px] shadow-medium"
               onClick={() => onChildLogin(profile.id)}
             >
               <CardContent className="p-6 flex flex-col items-center justify-center">
@@ -77,7 +77,7 @@ const LoginScreen = ({
 
           {/* Parent Card - Always last */}
           <Card
-            className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer w-[180px]"
+            className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer w-[180px] shadow-medium"
             onClick={onParentLogin}
           >
             <CardContent className="p-6 flex flex-col items-center justify-center">

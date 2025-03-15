@@ -1,20 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardContent, CardFooter, CardTitle } from './ui/card';
-import { Input } from './ui/input';
-import { Button } from './ui/button';
-import { Label } from './ui/label';
-import { Checkbox } from './ui/checkbox';
-import { AuthService } from '../services/AuthService';
+import React, { useState, useEffect } from "react";
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  CardFooter,
+  CardTitle,
+} from "./ui/card";
+import { Input } from "./ui/input";
+import { Button } from "./ui/button";
+import { Label } from "./ui/label";
+import { Checkbox } from "./ui/checkbox";
+import { AuthService } from "../services/AuthService";
 
 const authService = new AuthService();
 
 const ParentLogin = ({ onLoginSuccess, onCancel }) => {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // Check for saved credentials on component mount
   useEffect(() => {
     // Try to auto-login if credentials exist
@@ -23,46 +29,50 @@ const ParentLogin = ({ onLoginSuccess, onCancel }) => {
         // Check if we can automatically log in
         const session = await authService.autoLogin();
         if (session) {
-          console.log('Auto-login successful');
+          console.log("Auto-login successful");
           onLoginSuccess(session);
         }
       } catch (err) {
-        console.log('No saved session found or auto-login failed');
+        console.log("No saved session found or auto-login failed");
         // No saved session, continue with manual login
       }
     };
-    
+
     attemptAutoLogin();
   }, [onLoginSuccess]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!username.trim() || !password) {
-      setError('Please enter both username and password');
+      setError("Please enter both username and password");
       return;
     }
-    
+
     setIsLoading(true);
-    setError('');
-    
+    setError("");
+
     try {
-      const session = await authService.loginParent(username, password, rememberMe);
+      const session = await authService.loginParent(
+        username,
+        password,
+        rememberMe
+      );
       onLoginSuccess(session);
     } catch (err) {
-      console.error('Login error:', err);
-      setError(err.message || 'Invalid username or password');
+      console.error("Login error:", err);
+      setError(err.message || "Invalid username or password");
       setIsLoading(false);
     }
   };
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-50">
-      <Card className="w-full max-w-sm mx-4">
+      <Card className="w-full max-w-sm mx-4 shadow-large">
         <CardHeader>
           <CardTitle className="text-xl">Parent Login</CardTitle>
         </CardHeader>
-        
+
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4 w-full">
             {error && (
@@ -70,7 +80,7 @@ const ParentLogin = ({ onLoginSuccess, onCancel }) => {
                 {error}
               </div>
             )}
-            
+
             <div className="space-y-2 w-full">
               <Label htmlFor="username">Username</Label>
               <Input
@@ -84,7 +94,7 @@ const ParentLogin = ({ onLoginSuccess, onCancel }) => {
                 className="w-full max-w-none"
               />
             </div>
-            
+
             <div className="space-y-2 w-full">
               <Label htmlFor="password">Password</Label>
               <Input
@@ -98,11 +108,11 @@ const ParentLogin = ({ onLoginSuccess, onCancel }) => {
                 className="w-full max-w-none"
               />
             </div>
-            
+
             <div className="flex items-center space-x-2 pt-2">
-              <Checkbox 
-                id="remember-me" 
-                checked={rememberMe} 
+              <Checkbox
+                id="remember-me"
+                checked={rememberMe}
                 onCheckedChange={setRememberMe}
               />
               <Label htmlFor="remember-me" className="text-sm font-normal">
@@ -115,21 +125,18 @@ const ParentLogin = ({ onLoginSuccess, onCancel }) => {
               <p>Default password: password123</p>
             </div>
           </CardContent>
-          
+
           <CardFooter className="flex justify-between">
-            <Button 
-              type="button" 
+            <Button
+              type="button"
               variant="outline"
               onClick={onCancel}
               disabled={isLoading}
             >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
-              disabled={isLoading}
-            >
-              {isLoading ? 'Logging in...' : 'Login'}
+            <Button type="submit" disabled={isLoading}>
+              {isLoading ? "Logging in..." : "Login"}
             </Button>
           </CardFooter>
         </form>

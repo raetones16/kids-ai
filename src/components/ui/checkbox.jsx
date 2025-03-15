@@ -18,11 +18,11 @@ const Checkbox = React.forwardRef(({ className, checked, onCheckedChange, id, ..
         "h-4 w-4 shrink-0 rounded-sm border border-primary flex items-center justify-center",
         "peer-focus-visible:ring-2 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-ring",
         "peer-disabled:cursor-not-allowed peer-disabled:opacity-50",
-        checked ? "bg-primary text-primary-foreground" : "bg-white",
+        checked ? "bg-primary text-primary-foreground" : "bg-background",
         className
       )}
     >
-      {checked && <Check className="h-3 w-3 text-white" />}
+      {checked && <Check className="h-3 w-3 text-primary-foreground" />}
     </div>
   </div>
 ));

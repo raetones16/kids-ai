@@ -1,9 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: ["class"],
-  content: [
-    "./src/**/*.{js,jsx,ts,tsx}",
-  ],
+  content: ["./src/**/*.{js,jsx,ts,tsx}"],
   theme: {
     container: {
       center: true,
@@ -19,7 +17,7 @@ module.exports = {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
-        
+
         // Grey scale
         grey: {
           10: "hsl(var(--grey-10))",
@@ -33,7 +31,7 @@ module.exports = {
           90: "hsl(var(--grey-90))",
           100: "hsl(var(--grey-100))",
         },
-        
+
         // Orange scale
         orange: {
           10: "hsl(var(--orange-10))",
@@ -47,7 +45,7 @@ module.exports = {
           90: "hsl(var(--orange-90))",
           100: "hsl(var(--orange-100))",
         },
-        
+
         // State colors for animations
         state: {
           listening: "hsl(var(--state-listening))",
@@ -56,7 +54,7 @@ module.exports = {
           searching: "hsl(var(--state-searching))",
           idle: "hsl(var(--state-idle))",
         },
-        
+
         // Standard interface colors
         primary: {
           DEFAULT: "hsl(var(--primary))",
@@ -106,7 +104,12 @@ module.exports = {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
       },
+      boxShadow: {
+        large: "var(--shadow-large)",
+        medium: "var(--shadow-medium)",
+        small: "var(--shadow-small)",
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],
-}
+};
