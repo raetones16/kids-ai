@@ -31,11 +31,8 @@ const ParentDashboard = ({ onLogout }) => {
       try {
         const profiles = await storageService.getChildProfiles();
         setChildProfiles(profiles);
-
-        // Select the first child by default if available
-        if (profiles.length > 0 && !selectedChildId) {
-          setSelectedChildId(profiles[0].id);
-        }
+        
+        // No automatic selection of the first profile on initial load
       } catch (err) {
         console.error("Error loading profiles:", err);
         setError("Failed to load child profiles");
@@ -43,7 +40,7 @@ const ParentDashboard = ({ onLogout }) => {
     };
 
     loadProfiles();
-  }, [selectedChildId]);
+  }, []);
 
   // Update child profiles after changes
   const refreshChildProfiles = async () => {
@@ -52,6 +49,16 @@ const ParentDashboard = ({ onLogout }) => {
       setChildProfiles(profiles);
     } catch (err) {
       console.error("Error refreshing profiles:", err);
+    }
+  };
+
+  // Handle tab selection
+  const handleTabSelect = (tab) => {
+    setActiveTab(tab);
+    
+    // Auto-select first profile for conversation history tab if none selected
+    if (tab === "conversations" && !selectedChildId && childProfiles.length > 0) {
+      setSelectedChildId(childProfiles[0].id);
     }
   };
 
@@ -96,7 +103,7 @@ const ParentDashboard = ({ onLogout }) => {
   return (
     <div className="min-h-screen w-full bg-background">
       {/* Header */}
-      <header className="border-b bg-background text-foreground">
+      <header className="border-b bg-[#0E1116] text-foreground">
         <div className="flex h-16 items-center justify-between px-6">
           <h1 className="text-xl font-semibold m-0 flex items-center">
             Kids AI - Parent Dashboard
@@ -122,12 +129,12 @@ const ParentDashboard = ({ onLogout }) => {
 
         {/* Simple Button Group Slider for Tabs */}
         <div className="mb-6 overflow-x-auto">
-          <div className="inline-flex p-1 bg-grey-10 rounded-lg w-full justify-center gap-[4px]">
+          <div className="inline-flex p-0 bg-grey-10 rounded-lg w-full justify-center gap-[8px]">
             <Button
               variant={activeTab === "profiles" ? "default" : "outline"}
               size="sm"
               className="gap-2 rounded-md"
-              onClick={() => setActiveTab("profiles")}
+              onClick={() => handleTabSelect("profiles")}
             >
               <User className="h-4 w-4" />
               Child Profiles
@@ -137,8 +144,7 @@ const ParentDashboard = ({ onLogout }) => {
               variant={activeTab === "conversations" ? "default" : "outline"}
               size="sm"
               className="gap-2 rounded-md"
-              onClick={() => setActiveTab("conversations")}
-              disabled={!selectedChildId}
+              onClick={() => handleTabSelect("conversations")}
             >
               <MessageSquare className="h-4 w-4" />
               Conversation History
@@ -148,7 +154,7 @@ const ParentDashboard = ({ onLogout }) => {
               variant={activeTab === "account" ? "default" : "outline"}
               size="sm"
               className="gap-2 rounded-md"
-              onClick={() => setActiveTab("account")}
+              onClick={() => handleTabSelect("account")}
             >
               <Settings className="h-4 w-4" />
               Account Settings
@@ -192,7 +198,7 @@ const ParentDashboard = ({ onLogout }) => {
                 </div>
               )}
 
-              {selectedChildId && (
+              {selectedChildId ? (
                 <ConversationViewer
                   childId={selectedChildId}
                   childName={
@@ -200,6 +206,10 @@ const ParentDashboard = ({ onLogout }) => {
                     "Child"
                   }
                 />
+              ) : (
+                <div className="bg-muted rounded-lg p-6 text-center">
+                  <p className="text-muted-foreground">Please select a child profile to view conversation history.</p>
+                </div>
               )}
             </>
           )}

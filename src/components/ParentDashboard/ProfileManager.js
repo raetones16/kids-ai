@@ -31,13 +31,6 @@ const ProfileManager = ({
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [currentProfile, setCurrentProfile] = useState(null);
 
-  // Handle profile selection
-  const handleSelectProfile = (profileId) => {
-    if (onSelectChild) {
-      onSelectChild(profileId);
-    }
-  };
-
   // Initialize new profile form
   const handleAddProfile = () => {
     // Assign a random color if creating a new profile
@@ -64,9 +57,10 @@ const ProfileManager = ({
     setShowConfirmDelete(false);
   };
 
-  // Initialize edit profile form
+  // Initialize edit profile form - Can be triggered by clicking the card or the edit button
   const handleEditProfile = (profile, e) => {
-    e.stopPropagation();
+    if (e) e.stopPropagation(); // Prevent propagation only if event is provided (from edit button)
+
     // Ensure the profile has a color, assign one if missing
     const profileWithColor = {
       ...profile,
@@ -157,7 +151,7 @@ const ProfileManager = ({
                     ? "border-primary border-2"
                     : ""
                 }`}
-                onClick={() => handleSelectProfile(profile.id)}
+                onClick={() => handleEditProfile(profile)} // Changed to call handleEditProfile directly
               >
                 <div className="relative">
                   <div className="absolute top-2 right-2 z-10">
@@ -166,6 +160,7 @@ const ProfileManager = ({
                       size="sm"
                       className="h-8 w-8 rounded-full bg-background shadow-sm border p-0 flex items-center justify-center"
                       onClick={(e) => handleEditProfile(profile, e)}
+                      aria-label="Edit profile"
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
