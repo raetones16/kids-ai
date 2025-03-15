@@ -1,8 +1,20 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import './SubtitleStyleDisplay.css';
 
 const SubtitleStyleDisplay = ({ messages }) => {
   const containerRef = useRef(null);
+  
+  // Set text color CSS variable to match our theme
+  useEffect(() => {
+    if (containerRef.current) {
+      // Get the computed grey-100 color from CSS
+      const grey100 = getComputedStyle(document.documentElement)
+        .getPropertyValue('--grey-100').trim();
+      
+      // Set the text color variable using our grey-100
+      containerRef.current.style.setProperty('--text-color', `hsl(${grey100})`);
+    }
+  }, []);
   
   // Only get the most recent user and assistant messages
   const getRecentMessages = () => {

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import {
   Select,
@@ -97,13 +96,13 @@ const ParentDashboard = ({ onLogout }) => {
   return (
     <div className="min-h-screen w-full bg-background">
       {/* Header */}
-      <header className="border-b bg-white">
+      <header className="border-b bg-background text-foreground">
         <div className="flex h-16 items-center justify-between px-6">
           <h1 className="text-xl font-semibold m-0 flex items-center">
             Kids AI - Parent Dashboard
           </h1>
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             className="gap-2"
             onClick={onLogout}
@@ -116,16 +115,16 @@ const ParentDashboard = ({ onLogout }) => {
 
       <div className="container mx-auto py-6 w-full max-w-5xl px-6 sm:px-8 md:px-10">
         {error && (
-          <div className="mb-6 bg-red-50 p-4 rounded-lg border border-red-200 text-red-800">
+          <div className="mb-6 bg-destructive/10 p-4 rounded-lg border border-destructive/20 text-destructive">
             {error}
           </div>
         )}
 
         {/* Simple Button Group Slider for Tabs */}
         <div className="mb-6 overflow-x-auto">
-          <div className="inline-flex p-1 bg-slate-100 rounded-lg w-full justify-cente gap-[4px]">
+          <div className="inline-flex p-1 bg-grey-10 rounded-lg w-full justify-center gap-[4px]">
             <Button
-              variant={activeTab === "profiles" ? "default" : "accent"}
+              variant={activeTab === "profiles" ? "default" : "outline"}
               size="sm"
               className="gap-2 rounded-md"
               onClick={() => setActiveTab("profiles")}
@@ -135,7 +134,7 @@ const ParentDashboard = ({ onLogout }) => {
             </Button>
 
             <Button
-              variant={activeTab === "conversations" ? "default" : "ghost"}
+              variant={activeTab === "conversations" ? "default" : "outline"}
               size="sm"
               className="gap-2 rounded-md"
               onClick={() => setActiveTab("conversations")}
@@ -146,7 +145,7 @@ const ParentDashboard = ({ onLogout }) => {
             </Button>
 
             <Button
-              variant={activeTab === "account" ? "default" : "ghost"}
+              variant={activeTab === "account" ? "default" : "outline"}
               size="sm"
               className="gap-2 rounded-md"
               onClick={() => setActiveTab("account")}

@@ -79,7 +79,7 @@ const PinEntryModal = ({ onVerify, error: propError, onCancel }) => {
         
         <form onSubmit={handleSubmit}>
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-md mb-4 text-sm">
+            <div className="bg-destructive/10 border border-destructive/20 text-destructive p-3 rounded-md mb-4 text-sm">
               {error}
             </div>
           )}

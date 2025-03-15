@@ -229,11 +229,11 @@ const ChatInterface = ({
   };
 
   // Define a consistent container for both subtitle and text input
-  const containerClass = "w-full max-w-2xl px-4";
+  const containerClass = "w-full max-w-4xl px-4";
 
   return (
     <div
-      className={`min-h-screen flex flex-col bg-gray-100 child-interface ${
+      className={`min-h-screen flex flex-col bg-background text-foreground child-interface ${
         showTextInput ? "chat-bottom-space" : ""
       }`}
     >
@@ -282,18 +282,18 @@ const ChatInterface = ({
           variant="secondary"
           onClick={toggleTextInput}
           aria-label={showTextInput ? "Hide keyboard" : "Show keyboard"}
-          className="rounded-full w-12 h-12 bg-white border border-gray-200 shadow-md flex items-center justify-center"
+          className="rounded-full w-12 h-12 bg-card border-border shadow-md flex items-center justify-center"
         >
           {showTextInput ? (
-            <X className="h-5 w-5 text-black" />
+            <X className="h-5 w-5" />
           ) : (
-            <Keyboard className="h-5 w-5 text-black" />
+            <Keyboard className="h-5 w-5" />
           )}
         </Button>
       </div>
 
       {useMockApi && (
-        <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto bg-yellow-100 border border-yellow-300 text-yellow-800 px-4 py-2 rounded text-center text-sm">
+        <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto bg-orange-90 border border-orange-50 text-orange-30 px-4 py-2 rounded text-center text-sm">
           Using Mock AI (Offline Mode)
         </div>
       )}

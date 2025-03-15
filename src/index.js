@@ -3,6 +3,10 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import './globals.css'; // Import the Tailwind CSS
 import App from './App';
+import { initializeTheme } from './utils/themeUtils';
+
+// Initialize theme before rendering
+initializeTheme();
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

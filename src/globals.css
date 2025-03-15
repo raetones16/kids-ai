@@ -1,71 +1,132 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
- 
+
 @layer base {
   :root {
+    /* Base UI colors */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 222 10% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
- 
+    --card-foreground: 222 10% 10%;
+
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
- 
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
- 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
- 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
- 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
- 
-    --destructive: 0 84.2% 60.2%;
+    --popover-foreground: 222 10% 10%;
+
+    /* Grey Scale - Braun-inspired neutral palette */
+    --grey-10: 210 26% 16%; /* #14181F */
+    --grey-20: 213 25% 24%; /* #28323E */
+    --grey-30: 213 22% 32%; /* #3C4B5D */
+    --grey-40: 212 21% 40%; /* #50647C */
+    --grey-50: 213 20% 50%; /* #667D99 */
+    --grey-60: 211 19% 60%; /* #8397AF */
+    --grey-70: 211 18% 70%; /* #A2B1C3 */
+    --grey-80: 212 16% 80%; /* #C1CBD7 */
+    --grey-90: 212 14% 90%; /* #E0E5EB */
+    --grey-100: 210 12% 97%; /* #F3F5F7 */
+
+    /* Orange Scale - Braun-inspired accent palette */
+    --orange-10: 21 70% 10%; /* #2B1508 */
+    --orange-20: 21 77% 20%; /* #5A280C */
+    --orange-30: 21 76% 30%; /* #873C12 */
+    --orange-40: 21 70% 40%; /* #AD521F */
+    --orange-50: 21 63% 50%; /* #D0692F */
+    --orange-60: 21 60% 60%; /* #E7834B */
+    --orange-70: 21 58% 70%; /* #EDA278 */
+    --orange-80: 21 55% 80%; /* #F3C1A5 */
+    --orange-90: 21 50% 90%; /* #F9E0D2 */
+    --orange-100: 21 45% 96%; /* #FDF3ED */
+
+    /* Semantic colors based on our scale */
+    --primary: var(--orange-60);
+    --primary-foreground: var(--orange-100);
+
+    --secondary: var(--grey-90);
+    --secondary-foreground: var(--grey-10);
+
+    --muted: var(--grey-100);
+    --muted-foreground: var(--grey-30);
+
+    --accent: var(--orange-50);
+    --accent-foreground: var(--grey-10);
+
+    --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
- 
+    /* State colors (for animations) */
+    --state-listening: 221 89% 59%; /* #4285F4 blue */
+    --state-thinking: 36 100% 50%; /* #FFA000 amber */
+    --state-speaking: 4 68% 54%; /* #DB4437 red */
+    --state-searching: 283 65% 40%; /* #8E24AA purple */
+    --state-idle: 0 0% 100%; /* Pure white for visibility */
+
+    --border: var(--grey-80);
+    --input: var(--grey-80);
+    --ring: var(--grey-40);
+
     --radius: 0.5rem;
+
+    /* Animation circle shadows */
+    --circle-shadow: 0px -44px 52px -8px rgba(255, 255, 255, 0.2),
+      0px 36px 68px -8px rgba(44, 55, 58, 0.5);
+    --circle-shadow-listening: var(--circle-shadow);
+    --circle-shadow-thinking: var(--circle-shadow);
+    --circle-shadow-speaking: var(--circle-shadow);
+    --circle-shadow-searching: var(--circle-shadow);
+    --circle-shadow-idle: var(--circle-shadow);
   }
- 
+
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
- 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
- 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
- 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
- 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
- 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
- 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
- 
-    --destructive: 0 62.8% 30.6%;
+    /* Base UI colors */
+    --background: var(--grey-10);
+    --foreground: var(--grey-90);
+
+    --card: var(--grey-20);
+    --card-foreground: var(--grey-90);
+
+    --popover: var(--grey-20);
+    --popover-foreground: var(--grey-90);
+
+    /* Semantic colors based on our scale */
+    --primary: var(--grey-90);
+    --primary-foreground: var(--grey-10);
+
+    --secondary: var(--grey-20);
+    --secondary-foreground: var(--grey-100);
+
+    --muted: var(--grey-30);
+    --muted-foreground: var(--grey-70);
+
+    --accent: var(--orange-50);
+    --accent-foreground: var(--grey-100);
+
+    --destructive: 0 62% 30%;
     --destructive-foreground: 210 40% 98%;
- 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+
+    --border: var(--grey-30);
+    --input: var(--grey-30);
+    --ring: var(--grey-70);
+
+    /* State colors (for dark mode) adjust slightly for better visibility */
+    --state-listening: 221 89% 65%;
+    --state-thinking: 36 100% 55%;
+    --state-speaking: 4 68% 60%;
+    --state-searching: 283 65% 45%;
+    /* Force a bright white for better visibility in dark mode */
+    --state-idle: 0 0% 100%;
+
+    /* Animation circle shadows for dark mode - adjusted for dark background */
+    --circle-shadow: 0px -44px 52px -8px rgba(0, 0, 0, 0.3),
+      0px 36px 68px -8px rgba(255, 255, 255, 0.15);
+    --circle-shadow-listening: var(--circle-shadow);
+    --circle-shadow-thinking: var(--circle-shadow);
+    --circle-shadow-speaking: var(--circle-shadow);
+    --circle-shadow-searching: var(--circle-shadow);
+    --circle-shadow-idle: var(--circle-shadow);
   }
 }
- 
+
 @layer base {
   * {
     @apply border-border;
@@ -74,12 +135,19 @@
     @apply bg-background text-foreground;
   }
   /* Forcefully override heading margins */
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     margin: 0 !important;
   }
 }
 
 /* Additional override outside of Tailwind layers to ensure it takes priority */
-h1, h2, h3 {
+h1,
+h2,
+h3 {
   margin-bottom: 0 !important;
 }

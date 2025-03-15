@@ -273,14 +273,14 @@ function App() {
   } else {
     // No authentication - show initial parent login button
     content = (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-2">Kids AI</h1>
-          <p className="text-gray-500">A child-friendly AI assistant</p>
+          <p className="text-muted-foreground">A child-friendly AI assistant</p>
         </div>
         <button
           onClick={handleParentLogin}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+          className="px-6 py-3 bg-accent text-accent-foreground rounded-lg font-medium hover:bg-accent/90 transition-colors"
         >
           Parent Login
         </button>
@@ -289,7 +289,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-background text-foreground">
       {content}
       
       {/* PIN Entry Modal */}

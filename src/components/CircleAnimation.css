@@ -7,6 +7,8 @@
   justify-content: center;
   border-radius: 50%;
   overflow: hidden;
+  /* Apply default shadow from CSS variables, can be overridden by state-specific shadow */
+  filter: drop-shadow(var(--circle-shadow));
 }
 
 /* Simple Circle Animation (CSS-based) - as a backup if Three.js fails */

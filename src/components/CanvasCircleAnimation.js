@@ -49,37 +49,100 @@ const CanvasCircleAnimation = ({ state = 'idle', audioData = null, audioStream =
       cancelAnimationFrame(animationRef.current);
     }
     
+    // Get circle color based on state from CSS variables
+    const getStateColor = (stateName) => {
+      // Get the CSS variable value
+      const cssVar = getComputedStyle(document.documentElement)
+        .getPropertyValue(`--state-${stateName}`).trim();
+      
+      // Check if it's referencing another variable (starts with "var")
+      if (cssVar.startsWith('var(--')) {
+        // Extract the referenced variable name
+        const referencedVar = cssVar.match(/var\(--([^)]+)\)/)[1];
+        // Get the actual value from the referenced variable
+        const actualValue = getComputedStyle(document.documentElement)
+          .getPropertyValue(`--${referencedVar}`).trim();
+        return `hsl(${actualValue})`;
+      }
+      
+      return `hsl(${cssVar})`;
+    };
+    
     // Set circle color based on state
     let circleColor;
     switch (state) {
       case 'listening':
-        circleColor = '#4285F4'; // Blue
+        circleColor = getStateColor('listening');
         break;
       case 'thinking':
-        circleColor = '#FFA000'; // Amber
+        circleColor = getStateColor('thinking');
         break;
       case 'speaking':
-        circleColor = '#DB4437'; // Red
+        circleColor = getStateColor('speaking');
         break;
       case 'searching':
-        circleColor = '#8E24AA'; // Purple
+        circleColor = getStateColor('searching');
         break;
       default:
-        circleColor = '#FFFFFF'; // White for idle
+        circleColor = getStateColor('idle');
     }
     
-    // Draw main circle with anti-aliasing
+    // Draw main circle with anti-aliasing and shadow
     const drawMainCircle = (scale = 1) => {
       ctx.clearRect(0, 0, rect.width, rect.height);
       
-      // Draw main circle (with optional scale for idle animation)
+      // Get border color from CSS variables
+      const getBorderColor = () => {
+        const cssVar = getComputedStyle(document.documentElement)
+          .getPropertyValue('--border').trim();
+          
+        // Check if it's referencing another variable
+        if (cssVar.startsWith('var(--')) {
+          const referencedVar = cssVar.match(/var\(--([^)]+)\)/)[1];
+          const actualValue = getComputedStyle(document.documentElement)
+            .getPropertyValue(`--${referencedVar}`).trim();
+          return `hsl(${actualValue})`;
+        }
+        
+        return `hsl(${cssVar})`;
+      };
+
+      // Get shadow values from CSS variables - use simple pre-defined values for now
+      const isDarkMode = document.documentElement.classList.contains('dark');
+      
+      // Use hardcoded shadows to ensure the circle is visible
+      // Top shadow (light)
+      ctx.shadowColor = isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.20)';
+      ctx.shadowBlur = 52;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = -44;
+      
+      // Draw with top shadow
       ctx.beginPath();
       ctx.arc(centerX, centerY, radius * scale, 0, Math.PI * 2);
       ctx.fillStyle = circleColor;
       ctx.fill();
       
+      // Bottom shadow (dark)
+      ctx.shadowColor = isDarkMode ? 'rgba(0, 0, 0, 0.5)' : 'rgba(44, 55, 58, 0.50)';
+      ctx.shadowBlur = 68;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 36;
+      
+      // Draw with bottom shadow
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius * scale, 0, Math.PI * 2);
+      ctx.fillStyle = circleColor;
+      ctx.fill();
+      
+      // Reset shadow for border
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+      
       // Draw border
-      ctx.strokeStyle = '#E0E0E0';
+      ctx.strokeStyle = getBorderColor();
       ctx.lineWidth = 2;
       ctx.stroke();
     };
@@ -106,9 +169,25 @@ const CanvasCircleAnimation = ({ state = 'idle', audioData = null, audioStream =
         const rippleRadius = radius * (1 + rippleProgress * 0.5); // Expand to 50% larger
         const rippleOpacity = 0.4 * (1 - rippleProgress); // Fade out as it expands
         
+        // Get ripple color based on grey-60
+        const getRippleColor = (opacity) => {
+          const cssVar = getComputedStyle(document.documentElement)
+            .getPropertyValue('--grey-60').trim();
+          
+          // Check if it's referencing another variable
+          if (cssVar.startsWith('var(--')) {
+            const referencedVar = cssVar.match(/var\(--([^)]+)\)/)[1];
+            const actualValue = getComputedStyle(document.documentElement)
+              .getPropertyValue(`--${referencedVar}`).trim();
+            return `hsla(${actualValue}, ${opacity})`;
+          }
+          
+          return `hsla(${cssVar}, ${opacity})`;
+        };
+        
         ctx.beginPath();
         ctx.arc(centerX, centerY, rippleRadius, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(200, 200, 200, ${rippleOpacity})`;
+        ctx.strokeStyle = getRippleColor(rippleOpacity);
         ctx.lineWidth = 2;
         ctx.stroke();
       }
@@ -442,7 +521,11 @@ const CanvasCircleAnimation = ({ state = 'idle', audioData = null, audioStream =
       <canvas 
         ref={canvasRef} 
         className="animation-canvas"
-        style={{ width: '100%', height: '100%' }}
+        style={{ 
+          width: '100%', 
+          height: '100%',
+          borderRadius: '50%',
+        }}
       />
     </div>
   );

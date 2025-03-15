@@ -19,6 +19,45 @@ module.exports = {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        
+        // Grey scale
+        grey: {
+          10: "hsl(var(--grey-10))",
+          20: "hsl(var(--grey-20))",
+          30: "hsl(var(--grey-30))",
+          40: "hsl(var(--grey-40))",
+          50: "hsl(var(--grey-50))",
+          60: "hsl(var(--grey-60))",
+          70: "hsl(var(--grey-70))",
+          80: "hsl(var(--grey-80))",
+          90: "hsl(var(--grey-90))",
+          100: "hsl(var(--grey-100))",
+        },
+        
+        // Orange scale
+        orange: {
+          10: "hsl(var(--orange-10))",
+          20: "hsl(var(--orange-20))",
+          30: "hsl(var(--orange-30))",
+          40: "hsl(var(--orange-40))",
+          50: "hsl(var(--orange-50))",
+          60: "hsl(var(--orange-60))",
+          70: "hsl(var(--orange-70))",
+          80: "hsl(var(--orange-80))",
+          90: "hsl(var(--orange-90))",
+          100: "hsl(var(--orange-100))",
+        },
+        
+        // State colors for animations
+        state: {
+          listening: "hsl(var(--state-listening))",
+          thinking: "hsl(var(--state-thinking))",
+          speaking: "hsl(var(--state-speaking))",
+          searching: "hsl(var(--state-searching))",
+          idle: "hsl(var(--state-idle))",
+        },
+        
+        // Standard interface colors
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
