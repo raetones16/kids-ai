@@ -67,8 +67,18 @@ const ParentLogin = ({ onLoginSuccess, onCancel }) => {
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-50">
-      <Card className="w-full max-w-sm mx-4 shadow-large">
+    <div className="fixed inset-0 flex items-center justify-center z-50">
+      {/* Background Image */}
+      <div 
+        className="fixed inset-0 z-0 w-full h-full bg-cover bg-center bg-no-repeat" 
+        style={{ 
+          backgroundImage: 'url("/background-images/Login.svg")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center'
+        }}
+      />
+
+      <Card className="w-full max-w-sm mx-4 shadow-large relative z-10 bg-background/80 backdrop-blur-sm">
         <CardHeader>
           <CardTitle className="text-xl">Parent Login</CardTitle>
         </CardHeader>

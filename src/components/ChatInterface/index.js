@@ -6,6 +6,7 @@ import MainCircle from "./MainCircle";
 import TextInput from "./TextInput";
 import ErrorDisplay from "./ErrorDisplay";
 import SubtitleStyleDisplay from "../SubtitleStyleDisplay";
+import SubtitleStyleSkeleton from "../SubtitleStyleSkeleton";
 import { useChat } from "../../hooks/useChat";
 import { useSpeechRecognition } from "../../hooks/useSpeechRecognition";
 import "../ChildInterface.css"; // Retain original CSS for animations and layout
@@ -33,6 +34,7 @@ const ChatInterface = ({
     getAudioData,
     conversationReady,
     tts,
+    isInitialized,
   } = useChat(assistantRef, childId, childName);
 
   // Initialize speech recognition hook
@@ -231,15 +233,35 @@ const ChatInterface = ({
   // Define a consistent container for both subtitle and text input
   const containerClass = "w-full max-w-4xl px-4";
 
+  // Determine if we should show the loading skeleton
+  const isLoading = !isInitialized && !error;
+
   return (
     <div
-      className={`min-h-screen flex flex-col bg-background text-foreground child-interface ${
+      className={`min-h-screen flex flex-col text-foreground child-interface relative ${
         showTextInput ? "chat-bottom-space" : ""
       }`}
     >
-      <Header childName={childName} onLogout={onLogout} />
+      {/* Background Image - using JPG as requested */}
+      <div
+        className="fixed inset-0 z-0 w-full h-full bg-cover bg-center bg-no-repeat"
+        style={{
+          backgroundImage: 'url("/background-images/Chat.jpg")',
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+        aria-hidden="true"
+      />
 
-      <div className="flex-grow flex flex-col items-center justify-center pb-[4rem]">
+      {/* Semi-transparent overlay for better readability */}
+      <div className="fixed inset-0 z-0 bg-background/40" aria-hidden="true" />
+
+      {/* Header with higher z-index */}
+      <div className="relative z-10">
+        <Header childName={childName} onLogout={onLogout} />
+      </div>
+
+      <div className="flex-grow flex flex-col items-center justify-center pb-[4rem] relative z-10">
         {error ? (
           <div className="w-full max-w-md px-4">
             <ErrorDisplay
@@ -251,20 +273,28 @@ const ChatInterface = ({
           <div className="flex flex-col items-center justify-center w-full">
             <div className="circle-container-wrapper mb-4">
               <MainCircle
-                interfaceState={interfaceState}
+                interfaceState={isLoading ? "thinking" : interfaceState}
                 audioData={audioData}
                 audioStream={audioStream}
                 onClick={handleMicrophoneClick}
               />
             </div>
 
-            <div className={containerClass + " mt-8"}>
-              <SubtitleStyleDisplay messages={messages} />
+            <div
+              className={`${containerClass} mt-8 backdrop-blur-sm py-4 rounded-lg`}
+            >
+              {isLoading ? (
+                <SubtitleStyleSkeleton />
+              ) : (
+                <SubtitleStyleDisplay messages={messages} />
+              )}
             </div>
 
             {/* Only show the text input when toggled - use same container class */}
-            {showTextInput && (
-              <div className={containerClass + " mt-4"}>
+            {showTextInput && !isLoading && (
+              <div
+                className={`${containerClass} mt-4 backdrop-blur-sm py-4 rounded-lg`}
+              >
                 <TextInput
                   onSubmit={handleTextSubmit}
                   interfaceState={interfaceState}
@@ -283,6 +313,7 @@ const ChatInterface = ({
           onClick={toggleTextInput}
           aria-label={showTextInput ? "Hide keyboard" : "Show keyboard"}
           className="rounded-full w-12 h-12 bg-card border-border shadow-md flex items-center justify-center"
+          disabled={isLoading}
         >
           {showTextInput ? (
             <X className="h-5 w-5" />
@@ -293,7 +324,7 @@ const ChatInterface = ({
       </div>
 
       {useMockApi && (
-        <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto bg-orange-90 border border-orange-50 text-orange-30 px-4 py-2 rounded text-center text-sm">
+        <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto bg-orange-90 border border-orange-50 text-orange-30 px-4 py-2 rounded text-center text-sm z-50">
           Using Mock AI (Offline Mode)
         </div>
       )}

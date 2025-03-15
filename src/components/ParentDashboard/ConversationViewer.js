@@ -3,6 +3,7 @@ import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Search, X } from 'lucide-react';
 import { StorageService } from '../../services/StorageService';
+import { Skeleton } from '../ui/skeleton';
 
 const storageService = new StorageService();
 
@@ -201,10 +202,65 @@ const ConversationViewer = ({ childId, childName }) => {
     }
   };
 
-  // If still loading
-  if (loading) {
-    return <div className="flex items-center justify-center h-40">Loading conversation history...</div>;
-  }
+  // Skeleton loader for stats cards
+  const StatsCardsSkeleton = () => (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {[...Array(4)].map((_, i) => (
+        <Card key={i}>
+          <CardContent className="p-4 flex flex-col items-center">
+            <Skeleton className="h-8 w-16 mb-2" />
+            <Skeleton className="h-4 w-24" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+
+  // Skeleton loader for conversation list
+  const ConversationListSkeleton = () => (
+    <div className="border rounded-lg overflow-hidden">
+      <div className="bg-muted p-3 border-b">
+        <h3 className="font-medium">Recent Conversations</h3>
+      </div>
+      <div className="overflow-y-auto h-[calc(100%-44px)]">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="border-b p-3">
+            <Skeleton className="h-3 w-16 mb-2" />
+            <Skeleton className="h-4 w-full mb-1" />
+            <Skeleton className="h-4 w-2/3 mb-2" />
+            <Skeleton className="h-3 w-10 mt-1" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // Skeleton loader for conversation details
+  const ConversationDetailSkeleton = () => (
+    <div className="border rounded-lg overflow-hidden">
+      <div className="bg-muted p-3 border-b">
+        <h3 className="font-medium">Conversation Details</h3>
+        <Skeleton className="h-3 w-40 mt-1" />
+      </div>
+      
+      <div className="overflow-y-auto p-4 h-[calc(100%-64px)] space-y-4">
+        {[...Array(6)].map((_, i) => (
+          <div 
+            key={i}
+            className={`p-3 rounded-lg max-w-[85%] ${i % 2 === 0 ? 'ml-auto' : ''}`}
+          >
+            <div className="flex justify-between mb-2">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-3 w-24" />
+            </div>
+            <Skeleton className="h-4 w-full mb-1" />
+            <Skeleton className="h-4 w-full mb-1" />
+            {i % 2 === 0 && <Skeleton className="h-4 w-3/4" />}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
   
   return (
     <div className="space-y-6">
@@ -220,12 +276,14 @@ const ConversationViewer = ({ childId, childName }) => {
             className="w-full bg-background py-2 pl-8 pr-8 rounded-md border shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            disabled={loading}
           />
           {searchQuery && (
             <button 
               className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
               onClick={() => setSearchQuery('')}
               aria-label="Clear search"
+              disabled={loading}
             >
               <X className="h-4 w-4" />
             </button>
@@ -240,37 +298,53 @@ const ConversationViewer = ({ childId, childName }) => {
         </div>
       )}
       
-      {/* Stats Summary */}
-      {usageStats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4 flex flex-col items-center">
-              <div className="text-3xl font-bold text-primary">{usageStats.totalConversations}</div>
-              <p className="text-sm text-muted-foreground">Conversations</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 flex flex-col items-center">
-              <div className="text-3xl font-bold text-primary">{usageStats.totalMessages}</div>
-              <p className="text-sm text-muted-foreground">Total Messages</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 flex flex-col items-center">
-              <div className="text-3xl font-bold text-primary">{usageStats.totalUserMessages}</div>
-              <p className="text-sm text-muted-foreground">Child Messages</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 flex flex-col items-center">
-              <div className="text-3xl font-bold text-primary">{usageStats.averageMessagesPerConversation}</div>
-              <p className="text-sm text-muted-foreground">Avg. Messages/Conv.</p>
-            </CardContent>
-          </Card>
-        </div>
+      {/* Stats Summary - Show skeleton while loading */}
+      {loading ? (
+        <StatsCardsSkeleton />
+      ) : (
+        usageStats && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-4 flex flex-col items-center">
+                <div className="text-3xl font-bold text-primary">{usageStats.totalConversations}</div>
+                <p className="text-sm text-muted-foreground">Conversations</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 flex flex-col items-center">
+                <div className="text-3xl font-bold text-primary">{usageStats.totalMessages}</div>
+                <p className="text-sm text-muted-foreground">Total Messages</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 flex flex-col items-center">
+                <div className="text-3xl font-bold text-primary">{usageStats.totalUserMessages}</div>
+                <p className="text-sm text-muted-foreground">Child Messages</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4 flex flex-col items-center">
+                <div className="text-3xl font-bold text-primary">{usageStats.averageMessagesPerConversation}</div>
+                <p className="text-sm text-muted-foreground">Avg. Messages/Conv.</p>
+              </CardContent>
+            </Card>
+          </div>
+        )
       )}
       
-      {filteredConversations.length === 0 && searchQuery ? (
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[calc(100vh-350px)]">
+          {/* Conversation List Skeleton */}
+          <div className="md:col-span-1">
+            <ConversationListSkeleton />
+          </div>
+          
+          {/* Conversation Detail Skeleton */}
+          <div className="md:col-span-2">
+            <ConversationDetailSkeleton />
+          </div>
+        </div>
+      ) : filteredConversations.length === 0 && searchQuery ? (
         <div className="bg-muted rounded-lg p-6 text-center">
           <p className="text-muted-foreground mb-4">No conversations match your search.</p>
           <Button 

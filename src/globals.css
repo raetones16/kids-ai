@@ -15,6 +15,7 @@
     --popover-foreground: 222 10% 10%;
 
     /* Grey Scale - Braun-inspired neutral palette */
+    --grey-0: 213 22% 7%; /* 0E1116 */
     --grey-10: 210 26% 16%; /* #14181F */
     --grey-20: 213 25% 24%; /* #28323E */
     --grey-30: 213 22% 32%; /* #3C4B5D */

@@ -281,8 +281,18 @@ function App() {
   } else {
     // No authentication - show initial parent login button
     content = (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Card className="w-full max-w-sm mx-4 shadow-large p-8">
+      <div className="min-h-screen flex items-center justify-center relative">
+        {/* Background Image */}
+        <div 
+          className="fixed inset-0 z-0 w-full h-full bg-cover bg-center bg-no-repeat" 
+          style={{ 
+            backgroundImage: 'url("/background-images/Login.svg")',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center'
+          }}
+        />
+        
+        <Card className="w-full max-w-sm mx-4 shadow-large p-8 relative z-10 bg-background/80 backdrop-blur-sm">
           <CardHeader className="p-0">
             <h1 className="text-4xl font-bold text-center text-primary">
               Kids AI
