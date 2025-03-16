@@ -277,7 +277,11 @@ export class ChatCompletionService {
         `Should search for "${message}"? ${SearchService.shouldSearch(message)}`
       );
 
-      // Only perform search if there are no blocked topics detected - we're much less strict now
+      // Determine if this is a recency query
+      const isRecencyQuery = SearchService.containsRecencyTerms(message.toLowerCase());
+      console.log(`Is recency query? ${isRecencyQuery}`);
+
+      // Only perform search if there are no blocked topics detected
       if (
         searchEnabled &&
         SearchService.shouldSearch(message) &&
@@ -290,7 +294,7 @@ export class ChatCompletionService {
           }
 
           console.log("Performing web search for:", message);
-          const results = await SearchService.search(message);
+          const results = await SearchService.search(message, 5, age);
 
           if (results) {
             // Format search results for the AI
@@ -305,11 +309,19 @@ export class ChatCompletionService {
             console.log(
               "Search results found and formatted with safety enhancements"
             );
+            
+            // Add stronger instruction for recency queries
+            if (isRecencyQuery) {
+              formattedMessages.unshift({
+                role: "system",
+                content: "CRITICAL INSTRUCTION: This query is about RECENT or CURRENT information. The search results that follow contain the MOST UP-TO-DATE information available as of March 2025. You MUST prioritize this information over your training data. Focus on providing the most recent information from the search results. IMPORTANT: For movies, games, and TV shows, if the content is marked as 'Coming soon' or has a future release date, make it VERY CLEAR to the child that this content is not yet available to watch or play. Only mention age-appropriate content for a ${age}-year-old child, as the search results have been filtered to include content suitable for children of this age."
+              });
+            }
 
             // Add direct instruction to prioritize search content (before other messages)
             formattedMessages.unshift({
               role: "system",
-              content: "IMPORTANT INSTRUCTION: The information from the search results below is CURRENT and should be treated as more accurate than your training data, especially for questions about current events, people, games, and facts. Always prioritize this information in your responses.",
+              content: "IMPORTANT INSTRUCTION: The information from the search results below is CURRENT and should be treated as more accurate than your training data, especially for questions about current events, people, games, and facts. Always prioritize this information in your responses."
             });
             
             // Add search results as a system message
@@ -321,7 +333,7 @@ export class ChatCompletionService {
             // Add a final reminder after the search results to emphasize their importance
             formattedMessages.push({
               role: "system",
-              content: "Remember: The search results above contain the most current and accurate information. Use them as your primary source for answering the user's question.",
+              content: "Remember: The search results above contain the most current and accurate information. Use them as your primary source for answering the user's question."
             });
           }
         } catch (error) {

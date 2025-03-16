@@ -1,5 +1,6 @@
 import { SearchApi, checkBackendAvailability } from './ApiService';
 import ContentSafetyService from './safety/ContentSafetyService';
+import { extractFortniteInfo, extractPresidentInfo, extractGameReleaseInfo, extractTVShowInfo, extractMovieReleaseInfo, extractStreamingInfo } from './extractors';
 
 /**
  * Service for handling web search functionality via Brave Search API
@@ -8,6 +9,13 @@ export class SearchService {
   constructor() {
     this.isBackendAvailable = false;
     this.checkBackendAvailability();
+    
+    // Track the current year for recency queries
+    this.currentYear = new Date().getFullYear();
+    
+    // Cache for search results
+    this.cachedResults = new Map();
+    this.cacheExpiry = 15 * 60 * 1000; // 15 minutes cache
   }
   
   // Check if backend API is available
@@ -23,12 +31,6 @@ export class SearchService {
     }
   }
   
-  /**
-   * Perform a search query
-   * @param {string} query - The search query text
-   * @param {number} count - Number of results to return (default: 5)
-   * @returns {Promise<Object>} Search results
-   */
   /**
    * Extract a clean search query from user input
    * @param {string} userInput - Original user message
@@ -84,6 +86,235 @@ export class SearchService {
     return cleanedInput;
   }
   
+  /**
+   * Enhance the search query with time-context based on topic and recency terms
+   * @param {string} query - Original query
+   * @param {string} cleanQuery - Cleaned query
+   * @returns {string} Enhanced query
+   */
+  enhanceQuery(query, cleanQuery, age = 8) {
+    // Default to 8 if no age provided
+    let enhancedQuery = cleanQuery || query;
+    const lowerQuery = enhancedQuery.toLowerCase();
+    
+    // Check for recency indicators
+    const hasRecencyTerms = this.containsRecencyTerms(lowerQuery);
+    
+    // Always add current year to recency queries
+    if (hasRecencyTerms && !lowerQuery.includes(this.currentYear.toString())) {
+      enhancedQuery = `${enhancedQuery} ${this.currentYear}`;
+      console.log(`Added current year to query: ${enhancedQuery}`);
+    }
+    
+    // Game-specific enhancements
+    if (this.isGameRelatedQuery(lowerQuery)) {
+      if (hasRecencyTerms) {
+        // Check if specific platform is mentioned
+        if (lowerQuery.includes('switch') || lowerQuery.includes('nintendo')) {
+          enhancedQuery = `${enhancedQuery} nintendo switch new releases`;
+        } else if (lowerQuery.includes('playstation') || lowerQuery.includes('ps5') || lowerQuery.includes('ps4')) {
+          enhancedQuery = `${enhancedQuery} playstation new releases`;
+        } else if (lowerQuery.includes('xbox')) {
+          enhancedQuery = `${enhancedQuery} xbox new releases`;
+        } else {
+          enhancedQuery = `${enhancedQuery} new video game releases`;
+        }
+        console.log(`Enhanced game query: ${enhancedQuery}`);
+      }
+    }
+    
+    // Movie-specific enhancements
+    else if (this.isMovieRelatedQuery(lowerQuery)) {
+      if (hasRecencyTerms) {
+        enhancedQuery = `${enhancedQuery} new movie releases`;
+      }
+      
+      // Check for cinema/theater specific terms
+      if (lowerQuery.includes('cinema') || lowerQuery.includes('theater') || 
+          lowerQuery.includes('theatre') || lowerQuery.includes('showing')) {
+        enhancedQuery = `${enhancedQuery} movies in theaters now ${this.currentYear}`;
+        console.log(`Enhanced cinema query: ${enhancedQuery}`);
+      }
+      
+      // Check for kids/family specific terms
+      // Always add age-appropriate terms for children
+      if (age < 13) {
+        if (!lowerQuery.includes('kids') && !lowerQuery.includes('family') && !lowerQuery.includes('children')) {
+          enhancedQuery = `${enhancedQuery} family friendly`;
+          console.log(`Added family-friendly to query: ${enhancedQuery}`);
+        }
+        
+        // Add more specific age targeting for younger children
+        if (age <= 8) {
+          enhancedQuery = `${enhancedQuery} for kids children's PG`;
+          console.log(`Added children's content indicators to query: ${enhancedQuery}`);
+        }
+      }
+      
+      console.log(`Enhanced movie query: ${enhancedQuery}`);
+    }
+    
+    // TV-specific enhancements
+    else if (this.isTVRelatedQuery(lowerQuery) && hasRecencyTerms) {
+      enhancedQuery = `${enhancedQuery} new tv series episodes`;
+      console.log(`Enhanced TV query: ${enhancedQuery}`);
+    }
+    
+    // Streaming service specific enhancements
+    else if (this.isStreamingQuery(lowerQuery)) {
+      // Extract the service name
+      let streamingService = '';
+      if (lowerQuery.includes('netflix')) streamingService = 'netflix';
+      else if (lowerQuery.includes('disney+')) streamingService = 'disney+';
+      else if (lowerQuery.includes('hulu')) streamingService = 'hulu';
+      else if (lowerQuery.includes('prime')) streamingService = 'amazon prime';
+      
+      if (streamingService) {
+        enhancedQuery = `${enhancedQuery} ${streamingService} new releases ${this.currentYear} this month`;
+        
+        // Add age-appropriate terms for streaming services
+        if (age < 13) {
+          enhancedQuery = `${enhancedQuery} kids family friendly`;
+          
+          if (age <= 8) {
+            enhancedQuery = `${enhancedQuery} children's animated`;
+          }
+        }
+        
+        console.log(`Enhanced streaming query: ${enhancedQuery}`);
+      }
+    }
+    
+    // Fortnite - keep existing enhancement
+    else if (enhancedQuery.toLowerCase().includes('fortnite')) {
+      if (!enhancedQuery.includes('2025') && !enhancedQuery.includes('current')) {
+        enhancedQuery = `${enhancedQuery} 2025 current chapter season`;
+        console.log(`Enhanced Fortnite query to: ${enhancedQuery}`);
+      }
+    }
+    
+    // President - keep existing enhancement
+    else if (enhancedQuery.toLowerCase().includes('president')) {
+      if (!enhancedQuery.includes('2025') && !enhancedQuery.includes('current')) {
+        enhancedQuery = `${enhancedQuery} current 2025`;
+        console.log(`Enhanced president query to: ${enhancedQuery}`);
+      }
+    }
+    
+    // Always add "current" to recency queries if not already present
+    if (hasRecencyTerms && !enhancedQuery.toLowerCase().includes('current')) {
+      enhancedQuery = `${enhancedQuery} current`;
+      console.log(`Added 'current' to query: ${enhancedQuery}`);
+    }
+    
+    return enhancedQuery;
+  }
+  
+  /**
+   * Check if query contains recency-related terms
+   * @param {string} query - The query to check
+   * @returns {boolean} Whether query contains recency terms
+   */
+  containsRecencyTerms(query) {
+    const recencyTerms = [
+      'latest', 'recent', 'new', 'newest', 'current', 
+      'just released', 'just came out', 'this year', 
+      'this month', 'this week', 'today', 'now',
+      'currently', 'showing', 'in theaters', 'at the cinema',
+      'in the cinema', 'available', 'out now', 'can watch',
+      'playing', 'out in'
+    ];
+    
+    // Direct terms check
+    if (recencyTerms.some(term => query.includes(term))) {
+      console.log(`Recency term detected: ${recencyTerms.find(term => query.includes(term))}`);
+      return true;
+    }
+    
+    // Context pattern detection - check for availability questions
+    if (
+      (query.includes('are there') || query.includes('what') || query.includes('can i')) &&
+      (query.includes('cinema') || query.includes('theater') || query.includes('theatre') || 
+       query.includes('watch') || query.includes('stream') || query.includes('netflix') || 
+       query.includes('disney+') || query.includes('hulu') || query.includes('see'))
+    ) {
+      console.log('Availability question detected as recency query');
+      return true;
+    }
+    
+    return false;
+  }
+  
+  /**
+   * Check if query is related to games
+   * @param {string} query - The query to check
+   * @returns {boolean} Whether query is game-related
+   */
+  isGameRelatedQuery(query) {
+    const gameTerms = [
+      'game', 'gaming', 'fortnite', 'minecraft', 'roblox',
+      'nintendo', 'switch', 'playstation', 'ps5', 'ps4', 'xbox', 
+      'console', 'steam', 'epic games'
+    ];
+    
+    return gameTerms.some(term => query.includes(term));
+  }
+  
+  /**
+   * Check if query is related to movies
+   * @param {string} query - The query to check
+   * @returns {boolean} Whether query is movie-related
+   */
+  isMovieRelatedQuery(query) {
+    const movieTerms = [
+      'movie', 'film', 'cinema', 'theater', 'theatre', 'boxoffice',
+      'watch', 'showing'
+    ];
+    
+    return movieTerms.some(term => query.includes(term));
+  }
+  
+  /**
+   * Check if query is related to TV shows
+   * @param {string} query - The query to check
+   * @returns {boolean} Whether query is TV-related
+   */
+  isTVRelatedQuery(query) {
+    const tvTerms = [
+      'tv', 'television', 'show', 'series', 'episode', 'streaming'
+    ];
+    
+    return tvTerms.some(term => query.includes(term)) && 
+           !this.isStreamingQuery(query); // Avoid overlap with streaming queries
+  }
+  
+  /**
+   * Check if query is specifically about streaming services
+   * @param {string} query - The query to check
+   * @returns {boolean} Whether query is about streaming services
+   */
+  isStreamingQuery(query) {
+    const streamingTerms = [
+      'netflix', 'hulu', 'disney+', 'amazon prime', 'streaming',
+      'hbo', 'paramount+', 'peacock', 'apple tv'
+    ];
+    
+    return streamingTerms.some(term => query.includes(term));
+  }
+  
+  /**
+   * Perform a search query
+   * @param {string} query - The search query text
+   * @param {number} count - Number of results to return (default: 5)
+   * @returns {Promise<Object>} Search results
+   */
+  /**
+   * Perform a search query with age-appropriate results
+   * @param {string} query - The search query text
+   * @param {number} count - Number of results to return
+   * @param {number} age - Child's age for age-appropriate content
+   * @returns {Promise<Object>} Search results
+   */
   async search(query, count = 5, age = 8) {
     try {
       // Safety check - block search for inappropriate content
@@ -103,34 +334,40 @@ export class SearchService {
       
       // Extract a better search query from user input
       const cleanQuery = this.extractSearchQuery(query);
+      
+      // Enhance the query for better results with age context
+      const enhancedQuery = this.enhanceQuery(query, cleanQuery, age);
       console.log(`Extracted clean search query: "${cleanQuery}" from original: "${query}"`);
+      console.log(`Enhanced to: "${enhancedQuery}"`);
       
-      // Add query enhancement for better results on certain topics
-      let enhancedQuery = cleanQuery || query; // Use original as fallback
+      // Create cache key based on enhanced query
+      const cacheKey = enhancedQuery.toLowerCase();
       
-      // For Fortnite specifically, add current year to get more recent results
-      if (enhancedQuery.toLowerCase().includes('fortnite')) {
-        if (!enhancedQuery.includes('2025') && !enhancedQuery.includes('current')) {
-          enhancedQuery = `${enhancedQuery} 2025 current chapter season`;
-          console.log(`Enhanced Fortnite query to: ${enhancedQuery}`);
-        }
-      }
-      
-      // For president questions, explicitly ask for current information
-      if (enhancedQuery.toLowerCase().includes('president')) {
-        if (!enhancedQuery.includes('2025') && !enhancedQuery.includes('current')) {
-          enhancedQuery = `${enhancedQuery} current 2025`;
-          console.log(`Enhanced president query to: ${enhancedQuery}`);
-        }
+      // Check cache first
+      const cachedResult = this.checkCache(cacheKey);
+      if (cachedResult) {
+        console.log(`Using cached search results for: "${query}"`);
+        return cachedResult;
       }
       
       // Perform search using the backend API with enhanced query
       const results = await SearchApi.search(enhancedQuery, count);
       
+      // Extract dates from results
+      const resultDates = this.extractDatesFromResults(results.web?.results || []);
+      
+      // Process results with age context
+      const extractedFacts = this.extractFactsFromResults(results.web?.results || [], enhancedQuery, query, age);
+      
       // Store the original query in the results object for reference
       results.originalQuery = query;
       results.cleanQuery = cleanQuery;
       results.enhancedQuery = enhancedQuery;
+      results.extractedFacts = extractedFacts;
+      results.resultDates = resultDates;
+      
+      // Cache the results
+      this.cacheResults(cacheKey, results);
       
       return results;
     } catch (error) {
@@ -140,9 +377,131 @@ export class SearchService {
   }
   
   /**
-   * Determines if a query would benefit from a web search
-   * @param {string} query - The user's input text
-   * @returns {boolean} Whether a search should be performed
+   * Check cache for existing results
+   * @param {string} key - Cache key
+   * @returns {Object|null} Cached results or null
+   */
+  checkCache(key) {
+    if (this.cachedResults.has(key)) {
+      const { timestamp, data } = this.cachedResults.get(key);
+      const now = Date.now();
+      
+      // Return if cache is still valid
+      if (now - timestamp < this.cacheExpiry) {
+        return data;
+      } else {
+        // Clean up expired cache
+        this.cachedResults.delete(key);
+      }
+    }
+    return null;
+  }
+  
+  /**
+   * Cache search results
+   * @param {string} key - Cache key
+   * @param {Object} data - Data to cache
+   */
+  cacheResults(key, data) {
+    this.cachedResults.set(key, {
+      timestamp: Date.now(),
+      data
+    });
+    
+    // Clean up old cache entries if we have too many
+    if (this.cachedResults.size > 50) {
+      this.cleanCache();
+    }
+  }
+  
+  /**
+   * Clean up expired cache entries
+   */
+  cleanCache() {
+    const now = Date.now();
+    for (const [key, value] of this.cachedResults.entries()) {
+      if (now - value.timestamp > this.cacheExpiry) {
+        this.cachedResults.delete(key);
+      }
+    }
+  }
+  
+  /**
+   * Extract dates from search results
+   * @param {Array} results - Search results
+   * @returns {Array} Array of extracted dates with result indices
+   */
+  extractDatesFromResults(results) {
+    if (!results || !results.length) return [];
+    
+    const dateInfo = [];
+    const datePatterns = [
+      // ISO format: 2023-03-15
+      /\b(20\d{2})-(\d{1,2})-(\d{1,2})\b/,
+      // Month name format: March 15, 2023
+      /\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})(?:[,\s]+)(20\d{2})\b/i,
+      // Slash format: 03/15/2023 or 15/03/2023
+      /\b(\d{1,2})\/(\d{1,2})\/?(20\d{2})\b/,
+      // Year only
+      /\b(20\d{2})\b/
+    ];
+    
+    results.forEach((result, index) => {
+      const fullText = `${result.title} ${result.description}`;
+      
+      // Try each pattern
+      for (const pattern of datePatterns) {
+        const match = fullText.match(pattern);
+        if (match) {
+          let date;
+          try {
+            // Handle different formats
+            if (pattern.toString().includes('January|February')) {
+              // Month name format
+              const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
+                                  'july', 'august', 'september', 'october', 'november', 'december'];
+              const monthIndex = monthNames.indexOf(match[1].toLowerCase());
+              if (monthIndex !== -1) {
+                date = new Date(parseInt(match[3]), monthIndex, parseInt(match[2]));
+              }
+            } else if (pattern.toString().includes('20\\d{2})-')) {
+              // ISO format
+              date = new Date(match[0]);
+            } else if (pattern.toString().includes('\\/')) {
+              // Slash format - try both MM/DD/YYYY and DD/MM/YYYY
+              // For simplicity, assume MM/DD/YYYY
+              date = new Date(`${match[3]}-${match[1]}-${match[2]}`);
+            } else {
+              // Year only
+              date = new Date(parseInt(match[1]), 0, 1);
+            }
+            
+            // Check if date is valid
+            if (!isNaN(date.getTime())) {
+              // Check if the date is in the future
+              const isFuture = date > new Date();
+              
+              dateInfo.push({
+                index,
+                date,
+                text: match[0],
+                year: date.getFullYear(),
+                isFuture: isFuture
+              });
+              break; // Stop after finding first valid date
+            }
+          } catch (e) {
+            console.log(`Error parsing date: ${match[0]}`, e);
+          }
+        }
+      }
+    });
+    
+    return dateInfo;
+  }
+  
+  /**
+   * Check if a query would benefit from a web search
    */
   shouldSearch(query) {
     if (!query || typeof query !== 'string' || query.length < 5) {
@@ -223,184 +582,57 @@ export class SearchService {
   /**
    * Extract key facts from search results based on query type
    * @param {Array} results - Search result items
-   * @param {string} query - Original search query
+   * @param {string} enhancedQuery - Enhanced search query
+   * @param {string} originalQuery - Original user query
    * @returns {string} Extracted key facts in plaintext format
    */
-  extractKeyFactsFromResults(results, query) {
+  extractFactsFromResults(results, enhancedQuery, originalQuery, age = 8) {
     if (!results || !results.length) return '';
     
     // Ensure query is a string before processing
-    const queryStr = typeof query === 'string' ? query : 
-                    (query && query.q ? query.q : 'fortnite season');
+    const queryStr = typeof enhancedQuery === 'string' ? enhancedQuery : 
+                    (enhancedQuery && enhancedQuery.q ? enhancedQuery.q : 'fortnite season');
     const lowerQuery = queryStr.toLowerCase();
+    const originalLowerQuery = originalQuery.toLowerCase();
     let extractedFacts = '';
     
-    // Check for Fortnite-related queries
-    if (lowerQuery.includes('fortnite')) {
-      extractedFacts += this.extractFortniteInfo(results);
-    }
+    // Check if this is an "availability now" type query
+    const isAvailabilityNowQuery = 
+      this.containsRecencyTerms(originalLowerQuery) && 
+      (originalLowerQuery.includes('can i') || 
+       originalLowerQuery.includes('are there') || 
+       originalLowerQuery.includes('what') || 
+       originalLowerQuery.includes('available') || 
+       originalLowerQuery.includes('watch'));
     
+    // Extract movie information - specifically for cinema/theater questions
+    if (this.isMovieRelatedQuery(lowerQuery) && 
+        (lowerQuery.includes('cinema') || lowerQuery.includes('theater') || 
+         lowerQuery.includes('theatre'))) {
+      extractedFacts += extractMovieReleaseInfo(results, this.currentYear, isAvailabilityNowQuery, age);
+    }
+    // Extract streaming service information
+    else if (this.isStreamingQuery(lowerQuery)) {
+      extractedFacts += extractStreamingInfo(results, lowerQuery, age);
+    }
+    // Extract game-specific information
+    else if (this.isGameRelatedQuery(lowerQuery) && this.containsRecencyTerms(lowerQuery)) {
+      extractedFacts += extractGameReleaseInfo(results, this.currentYear, isAvailabilityNowQuery, age);
+    }
+    // Extract TV-specific information
+    else if (this.isTVRelatedQuery(lowerQuery) && this.containsRecencyTerms(lowerQuery)) {
+      extractedFacts += extractTVShowInfo(results, this.currentYear, age);
+    }
+    // Check for Fortnite-related queries
+    else if (lowerQuery.includes('fortnite')) {
+      extractedFacts += extractFortniteInfo(results);
+    }
     // Check for president-related queries
-    if (lowerQuery.includes('president')) {
-      extractedFacts += this.extractPresidentInfo(results);
+    else if (lowerQuery.includes('president')) {
+      extractedFacts += extractPresidentInfo(results);
     }
     
     return extractedFacts;
-  }
-  
-  /**
-   * Extract Fortnite-specific information from search results
-   * @param {Array} results - Search result items
-   * @returns {string} Extracted Fortnite information
-   */
-  extractFortniteInfo(results) {
-    let facts = '';
-    let currentChapter = '';
-    let currentSeason = '';
-    let seasonName = '';
-    const chapterPatterns = [
-      /chapter\s*([0-9]+)/i,
-      /fortnite\s+chapter\s*([0-9]+)/i
-    ];
-    
-    const seasonPatterns = [
-      /season\s*([0-9]+)/i,
-      /chapter\s*[0-9]+,?\s*season\s*([0-9]+)/i
-    ];
-    
-    const seasonNamePatterns = [
-      /season[^a-z0-9]*([a-z0-9\s]+)/i,
-      /named\s+"([^"]+)"/i,
-      /called\s+"([^"]+)"/i,
-      /titled\s+"([^"]+)"/i
-    ];
-    
-    // Look for chapter and season numbers in titles and descriptions
-    for (const result of results) {
-      const fullText = `${result.title} ${result.description}`;
-      
-      // Try to find chapter number
-      if (!currentChapter) {
-        for (const pattern of chapterPatterns) {
-          const match = fullText.match(pattern);
-          if (match && match[1]) {
-            currentChapter = match[1];
-            break;
-          }
-        }
-      }
-      
-      // Try to find season number
-      if (!currentSeason) {
-        for (const pattern of seasonPatterns) {
-          const match = fullText.match(pattern);
-          if (match && match[1]) {
-            currentSeason = match[1];
-            break;
-          }
-        }
-      }
-      
-      // Try to find season name
-      if (!seasonName) {
-        for (const pattern of seasonNamePatterns) {
-          const match = fullText.match(pattern);
-          if (match && match[1] && match[1].length < 30) { // Avoid capturing too much text
-            seasonName = match[1].trim();
-            break;
-          }
-        }
-      }
-      
-      // If we have all the information, we can stop looking
-      if (currentChapter && currentSeason) {
-        break;
-      }
-    }
-    
-    // Format the facts
-    if (currentChapter) {
-      facts += `- Fortnite is currently in Chapter ${currentChapter}`;
-      if (currentSeason) {
-        facts += `, Season ${currentSeason}`;
-      }
-      if (seasonName) {
-        facts += ` ("${seasonName}")`;
-      }
-      facts += ".\n";
-    }
-    
-    // If we couldn't extract structured data, default to text search
-    if (!facts) {
-      // Look for sentences mentioning current chapter/season
-      for (const result of results) {
-        const fullText = `${result.title}. ${result.description}`;
-        const sentences = fullText.split(/[.!?]+/).filter(s => s.trim().length > 0);
-        
-        for (const sentence of sentences) {
-          if ((sentence.toLowerCase().includes('chapter') || 
-               sentence.toLowerCase().includes('season')) && 
-              (sentence.toLowerCase().includes('current') || 
-               sentence.toLowerCase().includes('latest') || 
-               sentence.toLowerCase().includes('new') || 
-               sentence.toLowerCase().includes('now'))) {
-            facts += `- ${sentence.trim()}.\n`;
-            break;
-          }
-        }
-        
-        if (facts) break;
-      }
-    }
-    
-    // Default fallback data as an absolute last resort
-    if (!facts) {
-      facts = "- Fortnite is currently in Chapter 6, Season 2 as of March 2025.\n";
-    }
-    
-    return facts;
-  }
-  
-  /**
-   * Extract president information from search results
-   * @param {Array} results - Search result items
-   * @returns {string} Extracted president information
-   */
-  extractPresidentInfo(results) {
-    let facts = '';
-    let presidentName = '';
-    
-    const presidentPatterns = [
-      /president\s+is\s+([A-Z][a-z]+\s+[A-Z][a-z]+)/i,
-      /([A-Z][a-z]+\s+[A-Z][a-z]+)\s+is\s+(?:the\s+)?(?:current\s+)?president/i,
-      /([A-Z][a-z]+\s+[A-Z][a-z]+)\s+(?:became|elected|won)\s+(?:the\s+)?president/i
-    ];
-    
-    // Look for president name in titles and descriptions
-    for (const result of results) {
-      const fullText = `${result.title} ${result.description}`;
-      
-      // Try to find president name
-      for (const pattern of presidentPatterns) {
-        const match = fullText.match(pattern);
-        if (match && match[1]) {
-          presidentName = match[1];
-          break;
-        }
-      }
-      
-      if (presidentName) break;
-    }
-    
-    // Format the facts
-    if (presidentName) {
-      facts += `- The current President of the United States is ${presidentName}.\n`;
-    } else {
-      // Default fallback - This should be kept updated with correct information
-      facts += "- The current President of the United States is Donald Trump (as of March 2025).\n";
-    }
-    
-    return facts;
   }
   
   /**
@@ -417,30 +649,46 @@ export class SearchService {
     // Get the top 3 results
     const topResults = results.web.results.slice(0, 3);
     
-    // Extract the most important facts for known question types
-    // Use the enhancedQuery or cleanQuery if available, otherwise check for query property
-    const queryForExtraction = results.enhancedQuery || results.cleanQuery || 
-                            (results.query ? results.query : 'fortnite');
-    let extractedFacts = this.extractKeyFactsFromResults(topResults, queryForExtraction);
-
-    // Format the results with extracted facts first for maximum clarity
+    // Format with extracted facts first
     let formattedResults = "CURRENT FACTUAL INFORMATION FROM LIVE WEB SEARCH (March 2025):\n\n";
     
     // Add extracted facts prominently if available
-    if (extractedFacts && extractedFacts.trim()) {
-      formattedResults += `EXTRACTED KEY FACTS:\n${extractedFacts}\n\n`;
+    if (results.extractedFacts && results.extractedFacts.trim()) {
+      formattedResults += `EXTRACTED KEY FACTS:\n${results.extractedFacts}\n\n`;
     }
     
     // Add full results after the extracted facts
     formattedResults += "DETAILED SEARCH RESULTS:\n";
     topResults.forEach((result, index) => {
-      formattedResults += `${index + 1}. ${result.title}\n`;
+      // Include date information if available
+      const dateInfo = results.resultDates?.find(d => d.index === index);
+      let dateText = '';
+      
+      if (dateInfo) {
+        // If it's a future date, make this clear
+        if (dateInfo.isFuture) {
+          dateText = ` (Coming: ${dateInfo.text})`;
+        } else {
+          dateText = ` (${dateInfo.text})`;
+        }
+      }
+      
+      formattedResults += `${index + 1}. ${result.title}${dateText}\n`;
       formattedResults += `${result.description}\n`;
       formattedResults += `Source: ${result.url}\n\n`;
     });
     
     // Add stronger instruction for the AI to prioritize this information
     formattedResults += `CRITICAL: The information above is from a CURRENT web search as of March 2025 and OVERRIDES any contradicting information in your training data. Use the EXTRACTED KEY FACTS section first when available, as it contains the most relevant current information.\n\n`;
+    
+    // Add specific instruction for "what's available now" queries
+    if (results.originalQuery && 
+        (results.originalQuery.toLowerCase().includes('cinema') || 
+         results.originalQuery.toLowerCase().includes('theater') ||
+         results.originalQuery.toLowerCase().includes('watch') ||
+         results.originalQuery.toLowerCase().includes('can i'))) {
+      formattedResults += `IMPORTANT: If the question is about what's available NOW or what the child CAN WATCH, only mention content that is CURRENTLY AVAILABLE, not future releases. If a date is listed as 'Coming' or is in the future, make it clear that this content is not yet available.\n\n`;
+    }
     
     // Add instruction for the AI based on child's age
     formattedResults += `Please use this information to provide a simple, ${age <= 7 ? 'very easy to understand' : age <= 10 ? 'kid-friendly' : 'straightforward'} answer about the query. Don't mention that you're searching or using search results - just provide the information directly. Make sure to simplify complex concepts and avoid any inappropriate content.`;
