@@ -16,20 +16,41 @@ const SubtitleStyleDisplay = ({ messages }) => {
     }
   }, []);
   
+  // Filter out any welcome messages or duplicates
+  const filteredMessages = messages.filter((message, index) => {
+    // Skip empty messages
+    if (!message.content || !message.content.trim()) {
+      return false;
+    }
+    
+    // Remove welcome messages
+    if (message.content.includes('Hello! Tap the circle to start talking with me')) {
+      return false;
+    }
+    
+    // Check for duplicate content
+    const isExactDuplicate = messages.findIndex((m, i) => 
+      i !== index && m.content === message.content && m.role === message.role
+    ) !== -1;
+    
+    return !isExactDuplicate;
+  });
+  
   // Only get the most recent user and assistant messages
   const getRecentMessages = () => {
     // Start from the most recent message and work backwards
     const recentMessages = { user: null, assistant: null };
     
-    // Iterate backward through messages to find the most recent of each type
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const message = messages[i];
+    // Simple approach - just get the most recent messages of each type
+    // after filtering out duplicates
+    for (let i = filteredMessages.length - 1; i >= 0; i--) {
+      const message = filteredMessages[i];
       
-      if (message.role === 'assistant' && !recentMessages.assistant && message.content.trim()) {
+      if (message.role === 'assistant' && !recentMessages.assistant) {
         recentMessages.assistant = message;
       }
       
-      if (message.role === 'user' && !recentMessages.user && message.content.trim()) {
+      if (message.role === 'user' && !recentMessages.user) {
         recentMessages.user = message;
       }
       

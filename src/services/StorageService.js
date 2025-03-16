@@ -630,6 +630,35 @@ export class StorageService {
         };
       }
       
+      // Check for duplicates before adding the message
+      if (conversation.messages && conversation.messages.length > 0) {
+        // Check if there's already a message with the same role and content
+        const existingMessage = conversation.messages.find(m => 
+          m.role === message.role && m.content === message.content
+        );
+        
+        if (existingMessage) {
+          console.log(`Ignoring duplicate message save: ${message.role} message already exists with same content`);
+          return conversation;
+        }
+        
+        // For assistant messages, also check for similar content with small differences
+        // This can happen with streaming responses
+        if (message.role === 'assistant' && message.content) {
+          const existingSimilarMessages = conversation.messages.filter(m => 
+            m.role === 'assistant' && 
+            m.content && 
+            (m.content.startsWith(message.content.substring(0, 20)) || 
+             message.content.startsWith(m.content.substring(0, 20)))
+          );
+          
+          if (existingSimilarMessages.length > 0) {
+            console.log(`Ignoring message that looks like a duplicate: found ${existingSimilarMessages.length} similar assistant responses`);
+            return conversation;
+          }
+        }
+      }
+      
       // Ensure message has a timestamp
       const messageWithTimestamp = {
         ...message, 

@@ -199,6 +199,7 @@ export class AssistantService {
         threadId = await this.syncConversationHistory(threadId, recentMessages);
         // Update the thread ID reference in the calling code
         if (typeof onChunk === 'function') {
+          console.log(`Passing new thread ID back to caller: ${threadId}`);
           onChunk('', false, false, '', threadId); // Use the last parameter to pass back the new thread ID
         }
       } else {

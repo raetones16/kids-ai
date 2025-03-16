@@ -136,27 +136,35 @@ const ChatInterface = ({
   const handleMicrophoneClick = async () => {
     console.log("Microphone clicked, current state:", interfaceState);
 
-    // First-time initialization when user interacts
+    // First click should just show that we're ready to listen
+    // We don't create a conversation yet - that happens when they actually ask a question
     if (!conversationReady) {
-      console.log("First-time initialization of conversation");
+      console.log("First click - preparing to listen without creating conversation");
       try {
-        // Show a loading state during initialization
-        setInterfaceState("thinking");
-
-        // IMPORTANT: Wait for a moment to allow the conversation creation to fully complete in the database
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        // Only play the welcome message if there are no existing messages
-        if (messages.length <= 1) {
-          await initializeWelcomeMessage();
-        } else {
-          // Just set the state back to idle if we already have conversation history
-          setInterfaceState("idle");
+        // Reset any errors
+        setError(null);
+        
+        // Start listening immediately (no need to initialize conversation first)
+        // Make sure audio context is initialized
+        if (tts && typeof tts.initAudioContext === "function") {
+          tts.initAudioContext();
         }
-        return; // Don't start listening on the first click
+
+        if (!speechAvailable) {
+          setError("Speech recognition is not available on your device");
+          setShowTextInput(true);
+          return;
+        }
+
+        // Start listening right away
+        const success = startListening();
+        if (!success) {
+          setShowTextInput(true);
+        }
+        return;
       } catch (error) {
-        console.error("Error initializing conversation:", error);
-        setError("Failed to start conversation. Please try again.");
+        console.error("Error preparing to listen:", error);
+        setError("Failed to activate microphone. Please try again.");
         setInterfaceState("idle");
       }
     }

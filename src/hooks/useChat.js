@@ -20,13 +20,17 @@ export function useChat(assistantService, childId, childName) {
   const assistantRef = useRef(assistantService);
   const initPromiseRef = useRef(null);
 
-  // Initialize services in a way that can be awaited
+  // Initialize services and create conversation (this will only be called when the first question is asked)
   const initialize = useCallback(async () => {
-    // If we're already initialized or initializing, return the existing promise
-    if (isInitialized) return Promise.resolve();
+    // If we're fully initialized including conversation, return
+    if (isInitialized && threadIdRef.current && conversationIdRef.current) {
+      return Promise.resolve();
+    }
+    
+    // If we're still initializing, return the existing promise
     if (initPromiseRef.current) return initPromiseRef.current;
 
-    // Create a new initialization promise
+    // Create a new initialization promise to fully set up the conversation
     initPromiseRef.current = (async () => {
       try {
         console.log('Initializing chat services...');
@@ -199,11 +203,16 @@ export function useChat(assistantService, childId, childName) {
     return initPromiseRef.current;
   }, [assistantService, childId, childName, isInitialized]);
 
-  // Initialize on mount and when dependencies change
+  // Initialize on mount with welcome message
   useEffect(() => {
-    initialize().catch(err => {
-      console.error('Failed to initialize chat:', err);
-    });
+    // Just set up initial welcome message (don't create conversation yet)
+    const welcomeMessage = {
+      role: 'assistant',
+      content: 'Hello! Tap the circle to start talking with me.'
+    };
+    
+    setMessages([welcomeMessage]);
+    setIsInitialized(true);
     
     // Cleanup on unmount
     return () => {
@@ -211,7 +220,7 @@ export function useChat(assistantService, childId, childName) {
         textToSpeechRef.current.stop();
       }
     };
-  }, [initialize]);
+  }, []);
 
   // Process user input (from speech or text) with streaming response
   const processUserInput = async (input) => {
@@ -220,16 +229,22 @@ export function useChat(assistantService, childId, childName) {
       return;
     }
     
-    // Make sure we're fully initialized first
-    if (!isInitialized) {
-      try {
-        await initialize();
-        // Add a small delay to ensure database operations complete
-        await new Promise(resolve => setTimeout(resolve, 300));
-      } catch (err) {
-        console.error('Failed to initialize before processing input:', err);
-        throw err;
-      }
+    // Check if we're already processing this exact input
+    const lastUserMessage = messages.find(msg => msg.role === 'user');
+    if (lastUserMessage && lastUserMessage.content === input) {
+      console.log('Duplicate user message detected, not processing again');
+      return;
+    }
+    
+    // This is the user's first question, so we need to create a conversation
+    // at this point, not before
+    try {
+      await initialize();
+      // Add a small delay to ensure database operations complete
+      await new Promise(resolve => setTimeout(resolve, 300));
+    } catch (err) {
+      console.error('Failed to initialize conversation for first question:', err);
+      throw err;
     }
     
     if (!assistantRef.current) {
@@ -276,6 +291,9 @@ export function useChat(assistantService, childId, childName) {
         return [...prev, userMessage];
       });
       
+      // Debug logging for diagnosing conversation and message saving issues
+      console.log(`Saving user message to conversation: ${conversationIdRef.current}`);
+
       // Try to save to storage, with fallback handling
       if (storageRef.current && conversationIdRef.current) {
         // First verify conversation exists
@@ -344,6 +362,9 @@ export function useChat(assistantService, childId, childName) {
       let completeResponse = '';
       const messageId = tempAssistantMessage.id;
       
+      // Track if we received a new thread ID during processing
+      let updatedThreadId = null;
+      
       // Start a timer to measure response time
       const startTime = Date.now();
       
@@ -359,12 +380,19 @@ export function useChat(assistantService, childId, childName) {
         input,
         childProfileRef.current,
         // Process the streaming response with a simplified approach
-        async (chunk, isPausePoint, isComplete, fullText, state) => {
-          // If we receive a state change (e.g., 'searching')
-          if (state) {
-            setInterfaceState(state);
+        async (chunk, isPausePoint, isComplete, fullText, stateOrThreadId) => {
+          // If we receive a new thread ID, update our reference
+          if (stateOrThreadId && typeof stateOrThreadId === 'string' && stateOrThreadId.startsWith('thread_')) {
+            updatedThreadId = stateOrThreadId;
+            threadIdRef.current = stateOrThreadId;
+            return;
+          } 
+          // If we received a state change (e.g., 'searching')
+          else if (stateOrThreadId && typeof stateOrThreadId === 'string') {
+            setInterfaceState(stateOrThreadId);
             return;
           }
+          
           // Update the complete response with the full text when available
           if (fullText) {
             completeResponse = fullText;
@@ -411,14 +439,18 @@ export function useChat(assistantService, childId, childName) {
       console.log(`Total response time: ${Date.now() - startTime}ms`);
       
       // Save the complete assistant message to storage
-      if (storageRef.current && conversationIdRef.current) {
+      // But ONLY if we didn't get a thread ID update during processing,
+      // as that means the API is already handling message saving
+      if (storageRef.current && conversationIdRef.current && !updatedThreadId) {
         const assistantMessage = {
           role: 'assistant',
           content: completeResponse || response
         };
         
         try {
+          console.log(`Attempting to save assistant message to conversation ${conversationIdRef.current}`);
           await storageRef.current.saveMessage(conversationIdRef.current, assistantMessage);
+          console.log('Successfully saved assistant message to storage');
         } catch (saveError) {
           console.error('Error saving assistant message to storage:', saveError);
           // If the conversation still doesn't exist, try one more time to create it with both messages
@@ -439,6 +471,8 @@ export function useChat(assistantService, childId, childName) {
             }
           }
         }
+      } else if (updatedThreadId) {
+        console.log(`Not saving message to storage - thread was synced during processing. New thread ID: ${updatedThreadId}`);
       }
       
       return response;
@@ -449,72 +483,11 @@ export function useChat(assistantService, childId, childName) {
     }
   };
 
-  // Initialize welcome message
+  // This function is no longer used - the welcome message is now handled by the initial state
+  // Since it's referenced in the interface, we'll keep it as a no-op function that just returns
   const initializeWelcomeMessage = async () => {
-    // Make sure we're fully initialized first
-    if (!isInitialized) {
-      try {
-        await initialize();
-      } catch (err) {
-        console.error('Failed to initialize before welcome message:', err);
-        throw err;
-      }
-    }
-    
-    if (!conversationIdRef.current || !childProfileRef.current) {
-      console.error('Cannot initialize welcome message - missing conversation or profile');
-      throw new Error('The chat system is not ready yet. Please try again in a moment.');
-    }
-    
-    try {
-      // Check if we already have messages from conversation history
-      const existingMessages = await storageRef.current.getConversationMessages(conversationIdRef.current);
-      
-      // If we already have messages, just use those and don't speak a welcome message
-      if (existingMessages && existingMessages.length > 0) {
-        console.log(`Using ${existingMessages.length} existing messages instead of welcome message`);
-        setMessages(existingMessages);
-        setInterfaceState('idle');
-        return;
-      }
-      
-      // Otherwise, set the actual personalized welcome message now that we know the user's name
-      const personalWelcomeMessage = {
-        role: 'assistant',
-        content: `Hello ${childProfileRef.current?.name || 'there'}! What would you like to talk about today?`
-      };
-      
-      setMessages([personalWelcomeMessage]);
-      
-      // Save the message to conversation if we have a conversation ID
-      if (conversationIdRef.current) {
-        await storageRef.current.saveMessage(conversationIdRef.current, personalWelcomeMessage);
-      }
-      
-      // Initialize audio context for TTS
-      if (textToSpeechRef.current) {
-        textToSpeechRef.current.initAudioContext();
-      }
-      
-      // Set speaking state before TTS begins
-      setInterfaceState('speaking');
-      
-      // Speak the welcome message now that audio context is initialized
-      if (textToSpeechRef.current) {
-        try {
-          // Make sure the interface state is set to speaking before starting TTS
-          setInterfaceState('speaking');
-          console.log('Speaking welcome message with state set to speaking');
-          await textToSpeechRef.current.speak(personalWelcomeMessage.content);
-        } catch (err) {
-          console.error('Error speaking welcome message:', err);
-          setInterfaceState('idle');
-        }
-      }
-    } catch (error) {
-      console.error('Error initializing welcome message:', error);
-      throw error;
-    }
+    console.log('Welcome message function called but no longer used');
+    return;
   };
 
   // Get audio data for visualizations
@@ -576,7 +549,9 @@ export function useChat(assistantService, childId, childName) {
     processUserInput,
     initializeWelcomeMessage,
     getAudioData,
-    conversationReady: isInitialized && !!threadIdRef.current,
+    // Only mark as conversation ready when we have initialized the basic services, not the actual conversation
+    // The conversation will be created when the first question is asked
+    conversationReady: isInitialized,
     isInitialized,
     tts: textToSpeechRef.current
   };
