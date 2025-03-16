@@ -267,13 +267,19 @@ export class AuthService {
     localStorage.setItem(this.sessionKey, JSON.stringify(session));
     this.currentUser = session;
     
+    // Make sure we don't have a sessionId in localStorage that could cause validation to fail
+    localStorage.removeItem(this.sessionIdKey);
+    
     return session;
   }
   
   // Get current session from backend or localStorage
   async getSession() {
+    console.log('AuthService: getSession() called');
+    
     // First check if we already have a session in memory
     if (this.currentUser) {
+      console.log('AuthService: Using session from memory', this.currentUser);
       return this.currentUser;
     }
     
@@ -281,47 +287,70 @@ export class AuthService {
     const sessionId = localStorage.getItem(this.sessionIdKey);
     const sessionData = localStorage.getItem(this.sessionKey);
     
+    console.log('AuthService: Session data from localStorage:', {
+      sessionId,
+      sessionData,
+      sessionKeyUsed: this.sessionKey
+    });
+    
     // If no session data, no session exists
     if (!sessionData) {
+      console.log('AuthService: No session data found in localStorage');
       return null;
     }
     
     try {
       // Parse stored session
       const parsedSession = JSON.parse(sessionData);
+      console.log('AuthService: Parsed session from localStorage:', parsedSession);
+      
+      // Store in memory for future use
       this.currentUser = parsedSession;
       
-      // Check backend availability
-      await this.checkBackendAvailability();
+      // For child sessions, we should just return the session without any validation
+      if (parsedSession.type === 'child') {
+        console.log('AuthService: Child session detected, skipping backend validation');
+        return parsedSession;
+      }
       
-      if (this.isBackendAvailable && sessionId) {
-        // Validate session with backend
-        try {
-          const result = await AuthApi.validateSession(sessionId);
-          
-          // Update session info
-          this.currentUser = result.user;
-          this.currentSessionId = result.sessionId;
-          
-          // Update localStorage
-          localStorage.setItem(this.sessionKey, JSON.stringify(result.user));
-          
-          return result.user;
-        } catch (validationError) {
-          console.warn('Session validation failed:', validationError);
-          // If validation fails, clear session data and return null
-          localStorage.removeItem(this.sessionKey);
-          localStorage.removeItem(this.sessionIdKey);
-          this.currentUser = null;
-          this.currentSessionId = null;
-          return null;
+      // Only validate with backend if we have a sessionId
+      if (sessionId) {
+        await this.checkBackendAvailability();
+        
+        if (this.isBackendAvailable) {
+          // Validate session with backend
+          try {
+            console.log('AuthService: Validating session with backend');
+            const result = await AuthApi.validateSession(sessionId);
+            
+            // Update session info
+            this.currentUser = result.user;
+            this.currentSessionId = result.sessionId;
+            
+            // Update localStorage
+            localStorage.setItem(this.sessionKey, JSON.stringify(result.user));
+            
+            console.log('AuthService: Session validated successfully', result.user);
+            return result.user;
+          } catch (validationError) {
+            console.warn('Session validation failed:', validationError);
+            // If validation fails, clear session data and return null
+            localStorage.removeItem(this.sessionKey);
+            localStorage.removeItem(this.sessionIdKey);
+            this.currentUser = null;
+            this.currentSessionId = null;
+            return null;
+          }
+        } else {
+          console.log('AuthService: Backend not available, using stored session');
+          return parsedSession;
         }
       } else {
-        // If backend is not available, use stored session
+        console.log('AuthService: No sessionId, using stored session directly');
         return parsedSession;
       }
     } catch (error) {
-      console.error('Error getting session:', error);
+      console.error('Error parsing or validating session:', error);
       return null;
     }
   }

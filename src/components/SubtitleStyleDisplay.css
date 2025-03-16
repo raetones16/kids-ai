@@ -38,12 +38,12 @@
     font-size: 1.4rem;
     line-height: 1.3;
   }
-  
+
   .user-question {
     font-size: 0.95rem;
     margin-bottom: 0.5rem;
   }
-  
+
   .subtitle-style-container {
     min-height: 120px;
   }
@@ -55,13 +55,14 @@
     font-size: 1.2rem;
     line-height: 1.2;
   }
-  
+
   .user-question {
     font-size: 0.9rem;
   }
-  
+
   .subtitle-style-container {
     min-height: 100px;
+    padding-bottom: 40px;
   }
 }
 

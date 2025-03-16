@@ -419,7 +419,7 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
 
   // Skeleton loader for conversation list
   const ConversationListSkeleton = () => (
-    <div className="border rounded-lg overflow-hidden">
+    <div className="border rounded-lg overflow-hidden h-[450px] sm:h-auto">
       <div className="bg-primary-foreground p-3 border-b">
         <h3 className="font-medium">Recent Conversations</h3>
       </div>
@@ -438,7 +438,7 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
 
   // Skeleton loader for conversation details
   const ConversationDetailSkeleton = () => (
-    <div className="border rounded-lg overflow-hidden">
+    <div className="border rounded-lg overflow-hidden h-[450px] sm:h-auto">
       <div className="bg-primary-foreground p-3 border-b">
         <h3 className="font-medium">Conversation Details</h3>
         <Skeleton className="h-3 w-40 mt-1" />
@@ -469,7 +469,7 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
   const hasConversations = Array.isArray(conversations) && conversations.length > 0;
 
   return (
-    <div className="space-y-6">
+    <div className="sm:h-[calc(100vh-270px)] md:overflow-hidden flex flex-col pb-4">
       {/* Remove the title header and place search alongside child selection */}
 
       {/* Display error if there is one */}
@@ -481,10 +481,12 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
 
       {/* Stats Summary - Show skeleton while loading */}
       {loading && page === 1 ? (
-        <StatsCardsSkeleton />
+        <div className="mb-4">
+          <StatsCardsSkeleton />
+        </div>
       ) : (
         usageStats && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 flex-shrink-0 mb-4">
             <Card>
               <CardContent className="p-4 flex flex-col items-center">
                 <div className="text-3xl font-bold text-primary">
@@ -521,16 +523,19 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
         )
       )}
 
+      {/* Content Area - Conditionally show skeletons or content */}
       {loading && page === 1 ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[calc(100vh-350px)]">
-          {/* Conversation List Skeleton */}
-          <div className="md:col-span-1">
-            <ConversationListSkeleton />
-          </div>
+        <div className="pt-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full flex-grow">
+            {/* Conversation List Skeleton */}
+            <div className="md:col-span-1">
+              <ConversationListSkeleton />
+            </div>
 
-          {/* Conversation Detail Skeleton */}
-          <div className="md:col-span-2">
-            <ConversationDetailSkeleton />
+            {/* Conversation Detail Skeleton */}
+            <div className="md:col-span-2">
+              <ConversationDetailSkeleton />
+            </div>
           </div>
         </div>
       ) : filteredConversations.length === 0 && searchQuery ? (
@@ -539,7 +544,6 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
             No conversations match your search.
           </p>
           <Button variant="outline" onClick={() => setSearchQuery("")}>
-
             Clear Search
           </Button>
         </div>
@@ -554,13 +558,13 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
           </p>
         </div>
       ) : (
-        <div>
+        <div className="flex-grow overflow-hidden pt-4">
           {/* Remove the top back button section */}
           
           {/* Responsive grid layout with increased height on mobile */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[calc(100vh-280px)] sm:h-[calc(100vh-350px)]">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full sm:h-full">
             {/* Conversation list - only visible if no conversation is selected on mobile */}
-            <div className={`md:col-span-1 border rounded-lg overflow-hidden ${selectedConversationId ? 'hidden sm:block' : 'block'}`}>
+            <div className={`md:col-span-1 border rounded-lg overflow-hidden h-[450px] sm:h-auto ${selectedConversationId ? 'hidden sm:block' : 'block'}`}>
               <div className="bg-primary-foreground p-3 border-b sticky top-0 z-10">
                 <h3 className="font-medium">Recent Conversations</h3>
                 {filteredConversations.length > 0 && (
@@ -570,7 +574,7 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
                 )}
               </div>
 
-              <div className="overflow-y-auto h-[calc(100%-44px)] max-h-[70vh] pb-4">
+              <div className="overflow-y-auto h-[calc(100%-44px)] sm:h-[calc(100%-44px)] pb-4">
                 {filteredConversations.map((conversation) => (
                   <div
                     key={`${conversation.id}-${page}`}
@@ -606,10 +610,10 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
                       {loading ? (
                         <>
                           <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-b-transparent"></div>
-                          Loading more...
+                          Loading...
                         </>
                       ) : (
-                        <>Load More ({conversations.length} of {totalConversations} conversations)</>  
+                        <>Load More</>
                       )}
                     </Button>
                   </div>
@@ -618,7 +622,7 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
             </div>
 
             {/* Conversation Detail - only visible if conversation is selected on mobile */}
-            <div className={`md:col-span-2 border rounded-lg overflow-hidden ${!selectedConversationId ? 'hidden sm:block' : 'block'}`}>
+            <div className={`md:col-span-2 border rounded-lg overflow-hidden h-[450px] sm:h-auto ${!selectedConversationId ? 'hidden sm:block' : 'block'}`}>
               {selectedConversation ? (
                 <>
                   <div className="bg-primary-foreground p-3 border-b flex items-center justify-between sticky top-0 z-10">
@@ -649,7 +653,7 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
                     </div>
                   </div>
 
-                  <div className="overflow-y-auto p-4 h-[calc(100%-64px)] max-h-[70vh] space-y-4">
+                  <div className="overflow-y-auto p-4 h-[calc(100%-64px)] space-y-4">
                     {selectedConversation.messagesLoading ? (
                       <div className="flex justify-center py-8">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>

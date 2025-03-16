@@ -24,6 +24,18 @@ const ChatInterface = ({
   const [audioStream, setAudioStream] = useState(null);
   const animationFrameRef = useRef(null);
 
+  // Set up session storage as a backup for refresh
+  useEffect(() => {
+    // Store the current child info in sessionStorage for refresh resilience
+    if (childId && childName) {
+      sessionStorage.setItem('kids-ai.childSession', JSON.stringify({ id: childId, name: childName }));
+    }
+    return () => {
+      // Clean up on unmount
+      sessionStorage.removeItem('kids-ai.childSession');
+    };
+  }, [childId, childName]);
+
   // Initialize chat hook
   const {
     messages,
@@ -139,11 +151,13 @@ const ChatInterface = ({
     // First click should just show that we're ready to listen
     // We don't create a conversation yet - that happens when they actually ask a question
     if (!conversationReady) {
-      console.log("First click - preparing to listen without creating conversation");
+      console.log(
+        "First click - preparing to listen without creating conversation"
+      );
       try {
         // Reset any errors
         setError(null);
-        
+
         // Start listening immediately (no need to initialize conversation first)
         // Make sure audio context is initialized
         if (tts && typeof tts.initAudioContext === "function") {
@@ -246,9 +260,7 @@ const ChatInterface = ({
 
   return (
     <div
-      className={`min-h-screen flex flex-col text-foreground child-interface relative ${
-        showTextInput ? "chat-bottom-space" : ""
-      } overflow-hidden`}
+      className={`h-[100vh] flex flex-col text-foreground child-interface relative overflow-hidden`}
     >
       {/* Background Image - using JPG as requested */}
       <div
@@ -269,7 +281,11 @@ const ChatInterface = ({
         <Header childName={childName} onLogout={onLogout} />
       </div>
 
-      <div className="flex-grow flex flex-col items-center justify-center pb-[2rem] relative z-10 overflow-hidden">
+      <div
+        className={`flex-grow flex flex-col items-center justify-start pt-4 sm:justify-center sm:pt-6 md:pt-12 relative z-10 overflow-hidden ${
+          showTextInput ? "keyboard-active" : ""
+        }`}
+      >
         {error ? (
           <div className="w-full max-w-md px-4">
             <ErrorDisplay
@@ -278,8 +294,8 @@ const ChatInterface = ({
             />
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center w-full">
-            <div className="circle-container-wrapper mb-2 sm:mb-4">
+          <div className="flex flex-col items-center justify-start w-full h-full overflow-hidden">
+            <div className="circle-container-wrapper mb-2 sm:mb-4 flex-shrink-0" style={{ transition: 'all 0.3s ease-in-out' }}>
               <MainCircle
                 interfaceState={isLoading ? "thinking" : interfaceState}
                 audioData={audioData}
@@ -289,7 +305,9 @@ const ChatInterface = ({
             </div>
 
             <div
-              className={`${containerClass} mt-2 sm:mt-4 backdrop-blur-sm py-2 sm:py-4 rounded-lg max-h-[35vh] overflow-y-auto`}
+              className={`${containerClass} mt-2 sm:mt-4 backdrop-blur-sm py-2 sm:py-4 rounded-lg ${
+                showTextInput ? "max-h-[35vh] sm:max-h-[60vh]" : "max-h-[60vh]"
+              } overflow-y-auto mb-4 sm:mb-0`}
             >
               {isLoading ? (
                 <SubtitleStyleSkeleton />
@@ -298,10 +316,10 @@ const ChatInterface = ({
               )}
             </div>
 
-            {/* Only show the text input when toggled - use same container class */}
+            {/* Only show the text input when toggled - overlay it on mobile */}
             {showTextInput && !isLoading && (
               <div
-                className={`${containerClass} mt-2 sm:mt-4 backdrop-blur-sm py-4 rounded-lg`}
+                className={`${containerClass} fixed bottom-16 left-0 right-0 backdrop-blur-md bg-background/90 py-4 rounded-lg shadow-lg z-30 sm:shadow-none sm:static sm:mt-2 sm:backdrop-blur-sm sm:bg-transparent sm:z-10`}
               >
                 <TextInput
                   onSubmit={handleTextSubmit}
@@ -315,7 +333,7 @@ const ChatInterface = ({
       </div>
 
       {/* Fixed Position Keyboard Toggle Button */}
-      <div className="fixed left-6 bottom-6 z-50">
+      <div className="fixed left-4 bottom-4 z-50">
         <Button
           variant="secondary"
           onClick={toggleTextInput}

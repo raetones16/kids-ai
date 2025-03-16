@@ -536,12 +536,16 @@ const CanvasCircleAnimation = ({
 
     window.addEventListener("resize", handleResize);
 
+    // Also add a setTimeout to handle any delayed layout changes
+    const resizeTimer = setTimeout(handleResize, 300);
+
     // Cleanup function
     return () => {
       window.removeEventListener("resize", handleResize);
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
+      clearTimeout(resizeTimer);
     };
   }, [state, audioData, audioStream]);
 

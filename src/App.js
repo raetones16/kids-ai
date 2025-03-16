@@ -46,7 +46,11 @@ function App() {
         // Force backend availability check
         await storageService.current.checkBackendAvailability();
 
+        // Debug: Log localStorage content
+        console.log('Session in localStorage:', localStorage.getItem(`kids-ai.session`));
+
         const session = await authService.current.getSession();
+        console.log('Session returned by authService:', session);
 
         if (session) {
           Logger.info("App", "Found existing session", session);
@@ -59,6 +63,28 @@ function App() {
 
           // Set the user in state
           setUser(session);
+        } else {
+          console.log('No session found, checking if there is a raw session in localStorage');
+          // Backup check: try to directly parse from localStorage
+          try {
+            const rawSession = localStorage.getItem(`kids-ai.session`);
+            if (rawSession) {
+              const parsedSession = JSON.parse(rawSession);
+              console.log('Found raw session in localStorage:', parsedSession);
+              
+              if (parsedSession && parsedSession.type) {
+                console.log('Using raw session from localStorage');
+                setUser(parsedSession);
+                
+                if (parsedSession.type === 'parent') {
+                  setParentAuthenticated(true);
+                  loadChildProfiles();
+                }
+              }
+            }
+          } catch (parseError) {
+            console.error('Error parsing raw session:', parseError);
+          }
         }
 
         setIsSessionChecking(false);

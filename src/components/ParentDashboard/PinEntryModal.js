@@ -70,7 +70,7 @@ const PinEntryModal = ({ onVerify, error: propError, onCancel }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center">
+    <div className="fixed inset-0 p-4 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center">
       <div className="bg-background rounded-lg w-full max-w-md p-6 shadow-lg">
         <h2 className="text-xl font-semibold mb-2">
           Enter Parent Dashboard PIN

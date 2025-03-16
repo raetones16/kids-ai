@@ -18,7 +18,7 @@ const TextInput = ({ onSubmit, interfaceState, visible }) => {
 
   return (
     <form 
-      className="w-full flex justify-center gap-2" 
+      className="w-full flex justify-center gap-2 mobile-keyboard-form" 
       onSubmit={handleSubmit}
     >
       <Input

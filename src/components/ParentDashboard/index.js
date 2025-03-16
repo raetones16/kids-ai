@@ -32,7 +32,7 @@ const ParentDashboard = ({ onLogout }) => {
       try {
         const profiles = await storageService.getChildProfiles();
         setChildProfiles(profiles);
-        
+
         // No automatic selection of the first profile on initial load
       } catch (err) {
         console.error("Error loading profiles:", err);
@@ -56,9 +56,13 @@ const ParentDashboard = ({ onLogout }) => {
   // Handle tab selection
   const handleTabSelect = (tab) => {
     setActiveTab(tab);
-    
+
     // Auto-select first profile for conversation history tab if none selected
-    if (tab === "conversations" && !selectedChildId && childProfiles.length > 0) {
+    if (
+      tab === "conversations" &&
+      !selectedChildId &&
+      childProfiles.length > 0
+    ) {
       setSelectedChildId(childProfiles[0].id);
     }
   };
@@ -121,95 +125,99 @@ const ParentDashboard = ({ onLogout }) => {
         </div>
       </header>
 
-      <div className="container mx-auto py-6 w-full max-w-5xl px-6 sm:px-8 md:px-10">
+      <div className="container mx-auto pb-0 w-full max-w-5xl px-6 sm:px-8 md:px-10">
         {error && (
           <div className="mb-6 bg-destructive/10 p-4 rounded-lg border border-destructive/20 text-destructive">
             {error}
           </div>
         )}
 
-        {/* Responsive Tab Navigation */}
-        <div className="mb-6">
-          {/* Mobile dropdown for small screens */}
-          <div className="block sm:hidden">
-            <Select value={activeTab} onValueChange={handleTabSelect}>
-              <SelectTrigger className="w-full bg-grey-10 text-foreground">
-                <SelectValue>
-                  {activeTab === "profiles" && (
+        {/* Responsive Tab Navigation - Now Sticky */}
+        <div className="sticky top-16 z-40 bg-background py-2 border-b mb-4">
+          <div className="container mx-auto w-full max-w-5xl px-0 sm:px-8 md:px-10">
+            {/* Mobile dropdown for small screens */}
+            <div className="block sm:hidden">
+              <Select value={activeTab} onValueChange={handleTabSelect}>
+                <SelectTrigger className="w-full bg-grey-10 text-foreground text-base">
+                  <SelectValue>
+                    {activeTab === "profiles" && (
+                      <div className="flex items-center gap-2">
+                        <User className="h-5 w-5" />
+                        <span>Child Profiles</span>
+                      </div>
+                    )}
+                    {activeTab === "conversations" && (
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="h-5 w-5" />
+                        <span>Conversation History</span>
+                      </div>
+                    )}
+                    {activeTab === "account" && (
+                      <div className="flex items-center gap-2">
+                        <Settings className="h-5 w-5" />
+                        <span>Account Settings</span>
+                      </div>
+                    )}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="profiles">
                     <div className="flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      <span>Child Profiles</span>
+                      <User className="h-5 w-5" />
+                      <span className="text-base">Child Profiles</span>
                     </div>
-                  )}
-                  {activeTab === "conversations" && (
+                  </SelectItem>
+                  <SelectItem value="conversations">
                     <div className="flex items-center gap-2">
-                      <MessageSquare className="h-4 w-4" />
-                      <span>Conversation History</span>
+                      <MessageSquare className="h-5 w-5" />
+                      <span className="text-base">Conversation History</span>
                     </div>
-                  )}
-                  {activeTab === "account" && (
+                  </SelectItem>
+                  <SelectItem value="account">
                     <div className="flex items-center gap-2">
-                      <Settings className="h-4 w-4" />
-                      <span>Account Settings</span>
+                      <Settings className="h-5 w-5" />
+                      <span className="text-base">Account Settings</span>
                     </div>
-                  )}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="profiles">
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4" />
-                    <span>Child Profiles</span>
-                  </div>
-                </SelectItem>
-                <SelectItem value="conversations">
-                  <div className="flex items-center gap-2">
-                    <MessageSquare className="h-4 w-4" />
-                    <span>Conversation History</span>
-                  </div>
-                </SelectItem>
-                <SelectItem value="account">
-                  <div className="flex items-center gap-2">
-                    <Settings className="h-4 w-4" />
-                    <span>Account Settings</span>
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          {/* Button tabs for larger screens */}
-          <div className="hidden sm:block overflow-x-auto">
-            <div className="inline-flex p-0 bg-grey-10 rounded-lg w-full justify-center gap-[8px]">
-              <Button
-                variant={activeTab === "profiles" ? "default" : "outline"}
-                size="sm"
-                className="gap-2 rounded-md"
-                onClick={() => handleTabSelect("profiles")}
-              >
-                <User className="h-4 w-4" />
-                Child Profiles
-              </Button>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-              <Button
-                variant={activeTab === "conversations" ? "default" : "outline"}
-                size="sm"
-                className="gap-2 rounded-md"
-                onClick={() => handleTabSelect("conversations")}
-              >
-                <MessageSquare className="h-4 w-4" />
-                Conversation History
-              </Button>
+            {/* Button tabs for larger screens */}
+            <div className="hidden sm:block overflow-x-auto">
+              <div className="inline-flex p-0 bg-grey-10 rounded-lg w-full justify-center gap-[10px]">
+                <Button
+                  variant={activeTab === "profiles" ? "default" : "outline"}
+                  size="default"
+                  className="gap-2 rounded-md text-base font-medium px-5 py-2.5 h-auto"
+                  onClick={() => handleTabSelect("profiles")}
+                >
+                  <User className="h-5 w-5" />
+                  Child Profiles
+                </Button>
 
-              <Button
-                variant={activeTab === "account" ? "default" : "outline"}
-                size="sm"
-                className="gap-2 rounded-md"
-                onClick={() => handleTabSelect("account")}
-              >
-                <Settings className="h-4 w-4" />
-                Account Settings
-              </Button>
+                <Button
+                  variant={
+                    activeTab === "conversations" ? "default" : "outline"
+                  }
+                  size="default"
+                  className="gap-2 rounded-md text-base font-medium px-5 py-2.5 h-auto"
+                  onClick={() => handleTabSelect("conversations")}
+                >
+                  <MessageSquare className="h-5 w-5" />
+                  Conversation History
+                </Button>
+
+                <Button
+                  variant={activeTab === "account" ? "default" : "outline"}
+                  size="default"
+                  className="gap-2 rounded-md text-base font-medium px-5 py-2.5 h-auto"
+                  onClick={() => handleTabSelect("account")}
+                >
+                  <Settings className="h-5 w-5" />
+                  Account Settings
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -230,7 +238,7 @@ const ParentDashboard = ({ onLogout }) => {
           {activeTab === "conversations" && (
             <>
               {childProfiles.length > 0 && (
-                <div className="space-y-6 mb-6">
+                <div className="space-y-4 mb-4">
                   <h2 className="text-2xl font-bold">Conversation History</h2>
                   <div className="flex flex-col sm:flex-row sm:justify-between gap-3">
                     <div className="w-full sm:w-auto">
@@ -242,7 +250,10 @@ const ParentDashboard = ({ onLogout }) => {
                           <SelectValue placeholder="Select a child">
                             {selectedChildId && (
                               <span>
-                                Select child: {childProfiles.find(p => p.id === selectedChildId)?.name || ""}
+                                Select child:{" "}
+                                {childProfiles.find(
+                                  (p) => p.id === selectedChildId
+                                )?.name || ""}
                               </span>
                             )}
                           </SelectValue>
@@ -256,7 +267,7 @@ const ParentDashboard = ({ onLogout }) => {
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     {/* Search bar component moved here from ConversationViewer */}
                     {selectedChildId && (
                       <div className="relative w-full sm:w-auto sm:flex-grow sm:max-w-md">
@@ -301,7 +312,9 @@ const ParentDashboard = ({ onLogout }) => {
                 />
               ) : (
                 <div className="bg-muted rounded-lg p-6 text-center">
-                  <p className="text-muted-foreground">Please select a child profile to view conversation history.</p>
+                  <p className="text-muted-foreground">
+                    Please select a child profile to view conversation history.
+                  </p>
                 </div>
               )}
             </>
