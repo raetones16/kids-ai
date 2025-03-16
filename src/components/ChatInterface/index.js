@@ -260,7 +260,7 @@ const ChatInterface = ({
 
   return (
     <div
-      className={`h-[100vh] flex flex-col text-foreground child-interface relative overflow-hidden`}
+      className={`min-h-screen flex flex-col text-foreground child-interface relative overflow-hidden`}
     >
       {/* Background Image - using JPG as requested */}
       <div

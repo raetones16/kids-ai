@@ -6,7 +6,12 @@ import { Skeleton } from "../ui/skeleton";
 
 const storageService = new StorageService();
 
-const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQuery = () => {} }) => {
+const ConversationViewer = ({
+  childId,
+  childName,
+  searchQuery = "",
+  setSearchQuery = () => {},
+}) => {
   const [conversations, setConversations] = useState([]);
   const [selectedConversationId, setSelectedConversationId] = useState(null);
   const [selectedConversation, setSelectedConversation] = useState(null);
@@ -14,13 +19,13 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
   const [error, setError] = useState(null);
   const [usageStats, setUsageStats] = useState(null);
   const [filteredConversations, setFilteredConversations] = useState([]);
-  
+
   // Pagination state
   const [page, setPage] = useState(1);
   const [nextPageToLoad, setNextPageToLoad] = useState(2);
   const [totalPages, setTotalPages] = useState(1);
   const [totalConversations, setTotalConversations] = useState(0);
-  
+
   // Calculate if we can load more conversations
   const hasMoreConversations = conversations.length < totalConversations;
 
@@ -49,7 +54,7 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
     });
 
     setFilteredConversations(filtered);
-    
+
     // Reset to page 1 when searching
     setPage(1);
   }, [searchQuery, conversations]);
@@ -76,17 +81,25 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
 
         // Load paginated conversations for this child
         try {
-          console.log(`Fetching conversations for child ${childId}, page ${page}`);
-          const response = await storageService.getConversationsByChildId(childId, page);
-          console.log('Response from getConversationsByChildId:', response);
-          
+          console.log(
+            `Fetching conversations for child ${childId}, page ${page}`
+          );
+          const response = await storageService.getConversationsByChildId(
+            childId,
+            page
+          );
+          console.log("Response from getConversationsByChildId:", response);
+
           // Extract conversation data with appropriate error handling
           let childConversations = [];
           let pagination = { total: 0, pages: 1, page: 1, limit: 20 };
-          
+
           // Log the raw response to debug
-          console.log(`Raw response for page ${page}:`, JSON.stringify(response).substring(0, 100) + '...');
-          
+          console.log(
+            `Raw response for page ${page}:`,
+            JSON.stringify(response).substring(0, 100) + "..."
+          );
+
           if (response && response.conversations) {
             // New format with pagination
             childConversations = response.conversations;
@@ -95,37 +108,49 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
           } else if (Array.isArray(response)) {
             // Old format (array only)
             childConversations = response;
-            pagination = { 
-              total: response.length, 
+            pagination = {
+              total: response.length,
               pages: 1,
               page: 1,
-              limit: response.length 
+              limit: response.length,
             };
           } else {
-            console.error('Invalid response format:', response);
-            throw new Error('Invalid response format from server');
+            console.error("Invalid response format:", response);
+            throw new Error("Invalid response format from server");
           }
-          
+
           if (childConversations.length > 0) {
-            console.log(`Page ${page} first conversation:`, childConversations[0].id);
-            console.log(`Page ${page} last conversation:`, childConversations[childConversations.length-1].id);
+            console.log(
+              `Page ${page} first conversation:`,
+              childConversations[0].id
+            );
+            console.log(
+              `Page ${page} last conversation:`,
+              childConversations[childConversations.length - 1].id
+            );
           }
-          console.log(`Page ${page} conversation count:`, childConversations.length);
-          
+          console.log(
+            `Page ${page} conversation count:`,
+            childConversations.length
+          );
+
           // Update pagination state
           setTotalPages(pagination.pages || 1);
           setTotalConversations(pagination.total || childConversations.length);
-          
+
           // Process conversations and ensure we have valid objects
           const processedConversations = childConversations
-            .filter(conversation => {
+            .filter((conversation) => {
               if (!conversation || !conversation.id) {
-                console.warn('Filtered out invalid conversation:', conversation);
+                console.warn(
+                  "Filtered out invalid conversation:",
+                  conversation
+                );
                 return false;
               }
               return true;
             })
-            .map(conversation => {
+            .map((conversation) => {
               // Fix date fields
               const startDate =
                 conversation.started_at ||
@@ -146,15 +171,21 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
                 messageCount: conversation.message_count || 0,
                 firstMessageContent: conversation.first_message_content || "",
                 // Initialize with empty messages array for lazy-loading later
-                messages: conversation.messages || []
+                messages: conversation.messages || [],
               };
             });
 
-          console.log("Processed conversation count:", processedConversations.length);
+          console.log(
+            "Processed conversation count:",
+            processedConversations.length
+          );
           if (processedConversations.length > 0) {
-            console.log("First processed conversation ID:", processedConversations[0].id);
+            console.log(
+              "First processed conversation ID:",
+              processedConversations[0].id
+            );
           }
-          
+
           if (processedConversations.length === 0) {
             console.warn("No valid conversations found for this child");
           }
@@ -166,62 +197,92 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
             return dateB - dateA;
           });
 
-          console.log("Final processed conversations count:", sortedConversations.length);
-          
+          console.log(
+            "Final processed conversations count:",
+            sortedConversations.length
+          );
+
           // For infinite scrolling, we append to existing conversations for page > 1
           if (page === 1) {
             setConversations(sortedConversations);
             setFilteredConversations(sortedConversations);
           } else {
             // When appending, make sure we don't add duplicates
-            const existingIds = new Set(conversations.map(c => c.id));
-            const newConversations = sortedConversations.filter(c => !existingIds.has(c.id));
-            
-            console.log(`Adding ${newConversations.length} new unique conversations from page ${page}`);
-            console.log('New conversation IDs:', newConversations.map(c => c.id));
-            
+            const existingIds = new Set(conversations.map((c) => c.id));
+            const newConversations = sortedConversations.filter(
+              (c) => !existingIds.has(c.id)
+            );
+
+            console.log(
+              `Adding ${newConversations.length} new unique conversations from page ${page}`
+            );
+            console.log(
+              "New conversation IDs:",
+              newConversations.map((c) => c.id)
+            );
+
             if (newConversations.length > 0) {
-              setConversations(prev => [...prev, ...newConversations]);
-              setFilteredConversations(prev => [...prev, ...newConversations]);
+              setConversations((prev) => [...prev, ...newConversations]);
+              setFilteredConversations((prev) => [
+                ...prev,
+                ...newConversations,
+              ]);
             } else {
-              console.log('No new conversations to add - might be duplicate page or empty result');
+              console.log(
+                "No new conversations to add - might be duplicate page or empty result"
+              );
             }
           }
 
           // Auto-select the most recent conversation (only for first page)
           if (sortedConversations.length > 0 && page === 1) {
             const mostRecent = sortedConversations[0];
-            console.log('Auto-selecting first conversation:', mostRecent.id);
+            console.log("Auto-selecting first conversation:", mostRecent.id);
             setSelectedConversationId(mostRecent.id);
-            
+
             // Force immediate messages loading for first conversation
             // Need to set the selected conversation first with loading state
-            setSelectedConversation({...mostRecent, messagesLoading: true});
-            
+            setSelectedConversation({ ...mostRecent, messagesLoading: true });
+
             // Then load the messages
-            storageService.getConversationMessages(mostRecent.id)
-              .then(messages => {
-                console.log("Auto-loaded first conversation messages:", messages?.length || 0);
-                
+            storageService
+              .getConversationMessages(mostRecent.id)
+              .then((messages) => {
+                console.log(
+                  "Auto-loaded first conversation messages:",
+                  messages?.length || 0
+                );
+
                 // Update with messages
                 const conversationWithMessages = {
                   ...mostRecent,
                   messages: messages || [],
-                  messagesLoading: false
+                  messagesLoading: false,
                 };
-                
+
                 // Update all conversation lists with messages
                 setSelectedConversation(conversationWithMessages);
-                setConversations(prev => {
-                  return prev.map(c => c.id === mostRecent.id ? conversationWithMessages : c);
+                setConversations((prev) => {
+                  return prev.map((c) =>
+                    c.id === mostRecent.id ? conversationWithMessages : c
+                  );
                 });
-                setFilteredConversations(prev => {
-                  return prev.map(c => c.id === mostRecent.id ? conversationWithMessages : c);
+                setFilteredConversations((prev) => {
+                  return prev.map((c) =>
+                    c.id === mostRecent.id ? conversationWithMessages : c
+                  );
                 });
               })
-              .catch(err => {
-                console.error("Error auto-loading first conversation messages:", err);
-                setSelectedConversation({...mostRecent, messagesError: true, messagesLoading: false});
+              .catch((err) => {
+                console.error(
+                  "Error auto-loading first conversation messages:",
+                  err
+                );
+                setSelectedConversation({
+                  ...mostRecent,
+                  messagesError: true,
+                  messagesLoading: false,
+                });
               });
           } else if (sortedConversations.length === 0 && page === 1) {
             setSelectedConversationId(null);
@@ -240,7 +301,7 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
               totalMessages: 0,
               totalUserMessages: 0,
               totalAssistantMessages: 0,
-              averageMessagesPerConversation: '0'
+              averageMessagesPerConversation: "0",
             });
           }
 
@@ -258,76 +319,93 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
     };
 
     loadData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [childId, childName, page]);
 
   // Handle conversation selection with lazy loading of messages
   const handleSelectConversation = async (conversationId) => {
     console.log("Selecting conversation:", conversationId);
     setSelectedConversationId(conversationId);
-    
+
     // Find the conversation in our list
-    const selected = conversations.find(c => c.id === conversationId);
+    const selected = conversations.find((c) => c.id === conversationId);
     console.log("Found conversation:", selected);
-    
+
     if (!selected) {
-      console.error(`Conversation with ID ${conversationId} not found in list (${conversations.length} conversations total)`);
+      console.error(
+        `Conversation with ID ${conversationId} not found in list (${conversations.length} conversations total)`
+      );
       if (conversations.length > 0) {
-        console.log("Available conversation IDs:", conversations.slice(0, 5).map(c => c.id));
+        console.log(
+          "Available conversation IDs:",
+          conversations.slice(0, 5).map((c) => c.id)
+        );
       }
       return;
     }
-    
+
     // If we already have messages for this conversation, use them
     if (selected && selected.messages && selected.messages.length > 0) {
       console.log("Using existing messages:", selected.messages.length);
       setSelectedConversation(selected);
       return;
     }
-    
+
     // Show loading state for conversation panel only
-    setSelectedConversation({...selected, messagesLoading: true});
-    
+    setSelectedConversation({ ...selected, messagesLoading: true });
+
     try {
       // Fetch messages only for this selected conversation
       console.log("Fetching messages for conversation:", conversationId);
-      const messages = await storageService.getConversationMessages(conversationId);
+      const messages = await storageService.getConversationMessages(
+        conversationId
+      );
       console.log("Fetched messages count:", messages ? messages.length : 0);
-      
+
       // Create updated conversation object with messages
       const conversationWithMessages = {
         ...selected,
         messages: messages || [],
-        messagesLoading: false
+        messagesLoading: false,
       };
-      
+
       // Update the selected conversation
       setSelectedConversation(conversationWithMessages);
-      
+
       // Also update the conversation in our conversation list
-      setConversations(prev => {
-        return prev.map(c => c.id === conversationId ? conversationWithMessages : c);
+      setConversations((prev) => {
+        return prev.map((c) =>
+          c.id === conversationId ? conversationWithMessages : c
+        );
       });
-      
+
       // Update filtered conversations too if we're searching
       if (searchQuery) {
-        setFilteredConversations(prev => {
-          return prev.map(c => c.id === conversationId ? conversationWithMessages : c);
+        setFilteredConversations((prev) => {
+          return prev.map((c) =>
+            c.id === conversationId ? conversationWithMessages : c
+          );
         });
       }
     } catch (error) {
       console.error("Error loading conversation messages:", error);
       setError("Failed to load conversation messages. Try again later.");
       // Update selected conversation to show error state
-      setSelectedConversation({...selected, messagesError: true, messagesLoading: false});
+      setSelectedConversation({
+        ...selected,
+        messagesError: true,
+        messagesLoading: false,
+      });
     }
   };
 
   // Handle loading more conversations
   const handleLoadMore = () => {
-    console.log(`Loading more conversations. Current next page: ${nextPageToLoad}`);
+    console.log(
+      `Loading more conversations. Current next page: ${nextPageToLoad}`
+    );
     setPage(nextPageToLoad);
-    setNextPageToLoad(prev => prev + 1);
+    setNextPageToLoad((prev) => prev + 1);
   };
 
   // Format date for display
@@ -420,10 +498,10 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
   // Skeleton loader for conversation list
   const ConversationListSkeleton = () => (
     <div className="border rounded-lg overflow-hidden h-[450px] sm:h-auto">
-      <div className="bg-primary-foreground p-3 border-b">
+      <div className="bg-primary-foreground p-3 border-b sticky top-0 z-10">
         <h3 className="font-medium">Recent Conversations</h3>
       </div>
-      <div className="overflow-y-auto h-[calc(100%-44px)]">
+      <div className="overflow-y-auto h-[calc(100%-44px)] pb-4">
         {[...Array(5)].map((_, i) => (
           <div key={i} className="border-b p-3">
             <Skeleton className="h-3 w-16 mb-2" />
@@ -439,7 +517,7 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
   // Skeleton loader for conversation details
   const ConversationDetailSkeleton = () => (
     <div className="border rounded-lg overflow-hidden h-[450px] sm:h-auto">
-      <div className="bg-primary-foreground p-3 border-b">
+      <div className="bg-primary-foreground p-3 border-b sticky top-0 z-10">
         <h3 className="font-medium">Conversation Details</h3>
         <Skeleton className="h-3 w-40 mt-1" />
       </div>
@@ -466,10 +544,11 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
   );
 
   // Determine if we have actually loaded conversations
-  const hasConversations = Array.isArray(conversations) && conversations.length > 0;
+  const hasConversations =
+    Array.isArray(conversations) && conversations.length > 0;
 
   return (
-    <div className="sm:h-[calc(100vh-270px)] md:overflow-hidden flex flex-col pb-4">
+    <div className="sm:h-[calc(100vh-270px)] md:overflow-hidden flex flex-col pb-2">
       {/* Remove the title header and place search alongside child selection */}
 
       {/* Display error if there is one */}
@@ -560,16 +639,21 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
       ) : (
         <div className="flex-grow overflow-hidden pt-4">
           {/* Remove the top back button section */}
-          
+
           {/* Responsive grid layout with increased height on mobile */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full sm:h-full">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
             {/* Conversation list - only visible if no conversation is selected on mobile */}
-            <div className={`md:col-span-1 border rounded-lg overflow-hidden h-[450px] sm:h-auto ${selectedConversationId ? 'hidden sm:block' : 'block'}`}>
+            <div
+              className={`md:col-span-1 border rounded-lg overflow-hidden h-[450px] sm:h-auto ${
+                selectedConversationId ? "hidden sm:block" : "block"
+              }`}
+            >
               <div className="bg-primary-foreground p-3 border-b sticky top-0 z-10">
                 <h3 className="font-medium">Recent Conversations</h3>
                 {filteredConversations.length > 0 && (
                   <div className="text-xs text-muted-foreground mt-1">
-                    {filteredConversations.length} of {totalConversations} conversation{totalConversations !== 1 ? 's' : ''}
+                    {filteredConversations.length} of {totalConversations}{" "}
+                    conversation{totalConversations !== 1 ? "s" : ""}
                   </div>
                 )}
               </div>
@@ -579,7 +663,9 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
                   <div
                     key={`${conversation.id}-${page}`}
                     className={`border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors ${
-                      selectedConversationId === conversation.id ? "bg-muted" : ""
+                      selectedConversationId === conversation.id
+                        ? "bg-muted"
+                        : ""
                     }`}
                     onClick={() => handleSelectConversation(conversation.id)}
                   >
@@ -589,19 +675,23 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
                       )}
                     </div>
                     <div className="line-clamp-2 text-sm">
-                      {conversation.first_message_content || conversation.firstMessageContent || "Empty conversation"}
+                      {conversation.first_message_content ||
+                        conversation.firstMessageContent ||
+                        "Empty conversation"}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      {conversation.message_count || conversation.messageCount || 0}{" "}
+                      {conversation.message_count ||
+                        conversation.messageCount ||
+                        0}{" "}
                       messages
                     </div>
                   </div>
                 ))}
-                
+
                 {/* Load More Button */}
                 {!loading && totalConversations > conversations.length && (
                   <div className="flex justify-center p-4 sticky bottom-0 bg-background/80 backdrop-blur-sm">
-                    <Button 
+                    <Button
                       variant="outline"
                       onClick={handleLoadMore}
                       disabled={loading}
@@ -622,7 +712,11 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
             </div>
 
             {/* Conversation Detail - only visible if conversation is selected on mobile */}
-            <div className={`md:col-span-2 border rounded-lg overflow-hidden h-[450px] sm:h-auto ${!selectedConversationId ? 'hidden sm:block' : 'block'}`}>
+            <div
+              className={`md:col-span-2 border rounded-lg overflow-hidden h-[450px] sm:h-auto ${
+                !selectedConversationId ? "hidden sm:block" : "block"
+              }`}
+            >
               {selectedConversation ? (
                 <>
                   <div className="bg-primary-foreground p-3 border-b flex items-center justify-between sticky top-0 z-10">
@@ -631,25 +725,36 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
                         className="mr-2 sm:hidden flex items-center justify-center text-primary bg-primary/10 hover:bg-primary/20 rounded-full p-1"
                         onClick={() => setSelectedConversationId(null)}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-5 w-5"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
+                            clipRule="evenodd"
+                          />
                         </svg>
                       </button>
                       <div>
-                      <h3 className="font-medium">Conversation Details</h3>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        Started:{" "}
-                        {formatDate(
-                          selectedConversation.startedAt ||
-                            selectedConversation.lastActivityAt
-                        )}
-                        <span className="mx-2">•</span>
-                        Messages:{" "}
-                        {selectedConversation.message_count || 
-                         selectedConversation.messageCount || 
-                         (selectedConversation.messages ? selectedConversation.messages.length : 0)}
+                        <h3 className="font-medium">Conversation Details</h3>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          Started:{" "}
+                          {formatDate(
+                            selectedConversation.startedAt ||
+                              selectedConversation.lastActivityAt
+                          )}
+                          <span className="mx-2">•</span>
+                          Messages:{" "}
+                          {selectedConversation.message_count ||
+                            selectedConversation.messageCount ||
+                            (selectedConversation.messages
+                              ? selectedConversation.messages.length
+                              : 0)}
+                        </div>
                       </div>
-                    </div>
                     </div>
                   </div>
 
@@ -660,10 +765,11 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
                       </div>
                     ) : selectedConversation.messagesError ? (
                       <div className="text-center text-red-500 pt-8">
-                        Error loading messages. Try selecting the conversation again.
+                        Error loading messages. Try selecting the conversation
+                        again.
                       </div>
                     ) : selectedConversation.messages &&
-                    selectedConversation.messages.length > 0 ? (
+                      selectedConversation.messages.length > 0 ? (
                       selectedConversation.messages.map((message, index) => (
                         <div
                           key={index}
@@ -702,7 +808,7 @@ const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQue
               )}
             </div>
           </div>
-          
+
           {/* No back button here anymore - moved to the top */}
         </div>
       )}
