@@ -497,7 +497,7 @@ const ConversationViewer = ({
 
   // Skeleton loader for conversation list
   const ConversationListSkeleton = () => (
-    <div className="border rounded-lg overflow-hidden h-[450px] sm:h-auto">
+    <div className="border rounded-lg overflow-hidden h-[520px] sm:h-auto">
       <div className="bg-primary-foreground p-3 border-b sticky top-0 z-10">
         <h3 className="font-medium">Recent Conversations</h3>
       </div>
@@ -516,7 +516,7 @@ const ConversationViewer = ({
 
   // Skeleton loader for conversation details
   const ConversationDetailSkeleton = () => (
-    <div className="border rounded-lg overflow-hidden h-[450px] sm:h-auto">
+    <div className="border rounded-lg overflow-hidden h-[520px] sm:h-auto">
       <div className="bg-primary-foreground p-3 border-b sticky top-0 z-10">
         <h3 className="font-medium">Conversation Details</h3>
         <Skeleton className="h-3 w-40 mt-1" />
@@ -548,7 +548,7 @@ const ConversationViewer = ({
     Array.isArray(conversations) && conversations.length > 0;
 
   return (
-    <div className="sm:h-[calc(100vh-270px)] md:overflow-hidden flex flex-col pb-2">
+    <div className="sm:h-[calc(100vh-260px)] md:overflow-hidden flex flex-col pb-6">
       {/* Remove the title header and place search alongside child selection */}
 
       {/* Display error if there is one */}
@@ -644,7 +644,7 @@ const ConversationViewer = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
             {/* Conversation list - only visible if no conversation is selected on mobile */}
             <div
-              className={`md:col-span-1 border rounded-lg overflow-hidden h-[450px] sm:h-auto ${
+              className={`md:col-span-1 border rounded-lg overflow-hidden h-[520px] sm:h-auto ${
                 selectedConversationId ? "hidden sm:block" : "block"
               }`}
             >
@@ -713,7 +713,7 @@ const ConversationViewer = ({
 
             {/* Conversation Detail - only visible if conversation is selected on mobile */}
             <div
-              className={`md:col-span-2 border rounded-lg overflow-hidden h-[450px] sm:h-auto ${
+              className={`md:col-span-2 border rounded-lg overflow-hidden h-[520px] sm:h-auto ${
                 !selectedConversationId ? "hidden sm:block" : "block"
               }`}
             >

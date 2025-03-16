@@ -1,25 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import { Button } from '../ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { User, ShieldCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { AuthService } from '../../services/AuthService';
-import { StorageService } from '../../services/StorageService';
+import React, { useState, useEffect } from "react";
+import { Button } from "../ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "../ui/card";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { User, ShieldCheck, AlertCircle, CheckCircle2 } from "lucide-react";
+import { AuthService } from "../../services/AuthService";
+import { StorageService } from "../../services/StorageService";
 
 const authService = new AuthService();
 const storageService = new StorageService();
 
 const AccountSettings = () => {
   // Credentials state
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
   // PIN state
-  const [newPin, setNewPin] = useState(['', '', '', '', '', '']);
-  const [confirmPin, setConfirmPin] = useState(['', '', '', '', '', '']);
-  
+  const [newPin, setNewPin] = useState(["", "", "", "", "", ""]);
+  const [confirmPin, setConfirmPin] = useState(["", "", "", "", "", ""]);
+
   // UI state
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
@@ -31,35 +38,35 @@ const AccountSettings = () => {
       const credentials = await authService.getParentCredentials();
       setUsername(credentials.username);
     } catch (err) {
-      console.error('Failed to load credentials:', err);
-      setError('Failed to load current account information');
+      console.error("Failed to load credentials:", err);
+      setError("Failed to load current account information");
     }
   };
 
   // Handle account form submission
   const handleAccountSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Reset messages
     setError(null);
     setSuccess(null);
-    
+
     // Validate input
     if (!username.trim()) {
-      setError('Username is required');
+      setError("Username is required");
       return;
     }
-    
+
     if (password && password.length < 6) {
-      setError('Password must be at least 6 characters long');
+      setError("Password must be at least 6 characters long");
       return;
     }
-    
+
     if (password && password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError("Passwords do not match");
       return;
     }
-    
+
     // If password field is empty, we're just updating username
     // Get current credentials to maintain the password
     let newPassword = password;
@@ -68,25 +75,25 @@ const AccountSettings = () => {
         const credentials = await authService.getParentCredentials();
         newPassword = credentials.password;
       } catch (err) {
-        console.error('Failed to get current credentials:', err);
-        setError('Failed to update account settings');
+        console.error("Failed to get current credentials:", err);
+        setError("Failed to update account settings");
         return;
       }
     }
-    
+
     // Update credentials
     setIsLoading(true);
-    
+
     try {
       await authService.updateParentCredentials(username, newPassword);
-      setSuccess('Account settings updated successfully');
-      
+      setSuccess("Account settings updated successfully");
+
       // Clear password fields
-      setPassword('');
-      setConfirmPassword('');
+      setPassword("");
+      setConfirmPassword("");
     } catch (err) {
-      console.error('Failed to update credentials:', err);
-      setError('Failed to update account settings');
+      console.error("Failed to update credentials:", err);
+      setError("Failed to update account settings");
     } finally {
       setIsLoading(false);
     }
@@ -96,24 +103,22 @@ const AccountSettings = () => {
   const handlePinChange = (index, value, pinType) => {
     // Only allow single digit numbers
     if (!/^\d?$/.test(value)) return;
-    
+
     // Update the PIN digit
-    const updatedPin = pinType === 'new' 
-      ? [...newPin] 
-      : [...confirmPin];
-      
+    const updatedPin = pinType === "new" ? [...newPin] : [...confirmPin];
+
     updatedPin[index] = value;
-    
-    if (pinType === 'new') {
+
+    if (pinType === "new") {
       setNewPin(updatedPin);
     } else {
       setConfirmPin(updatedPin);
     }
-    
+
     // Clear any previous error/success messages
     setError(null);
     setSuccess(null);
-    
+
     // Auto-focus next input if value was entered
     if (value) {
       const nextIndex = index + 1;
@@ -124,22 +129,24 @@ const AccountSettings = () => {
         if (nextInput) {
           nextInput.focus();
         }
-      } else if (pinType === 'new') {
+      } else if (pinType === "new") {
         // If at the end of newPin, focus first confirmPin input
-        const firstConfirmInput = document.querySelector('input[name="confirm-pin-0"]');
+        const firstConfirmInput = document.querySelector(
+          'input[name="confirm-pin-0"]'
+        );
         if (firstConfirmInput) {
           firstConfirmInput.focus();
         }
       }
     }
   };
-  
+
   // Handle key navigation between PIN digits
   const handleKeyDown = (index, e, pinType) => {
-    const pin = pinType === 'new' ? newPin : confirmPin;
-    
+    const pin = pinType === "new" ? newPin : confirmPin;
+
     // Move to previous input on backspace if current is empty
-    if (e.key === 'Backspace' && !pin[index] && index > 0) {
+    if (e.key === "Backspace" && !pin[index] && index > 0) {
       const prevInput = document.querySelector(
         `input[name="${pinType}-pin-${index - 1}"]`
       );
@@ -147,9 +154,9 @@ const AccountSettings = () => {
         prevInput.focus();
       }
     }
-    
+
     // Allow left/right arrow navigation
-    if (e.key === 'ArrowLeft' && index > 0) {
+    if (e.key === "ArrowLeft" && index > 0) {
       const prevInput = document.querySelector(
         `input[name="${pinType}-pin-${index - 1}"]`
       );
@@ -157,7 +164,7 @@ const AccountSettings = () => {
         prevInput.focus();
       }
     }
-    if (e.key === 'ArrowRight' && index < 5) {
+    if (e.key === "ArrowRight" && index < 5) {
       const nextInput = document.querySelector(
         `input[name="${pinType}-pin-${index + 1}"]`
       );
@@ -166,42 +173,42 @@ const AccountSettings = () => {
       }
     }
   };
-  
+
   // Handle pin update
   const handlePinSubmit = async (e) => {
     e.preventDefault();
-    
+
     // Clear any previous messages
     setError(null);
     setSuccess(null);
-    
+
     // Check if both PINs are complete (6 digits)
-    const newPinValue = newPin.join('');
-    const confirmPinValue = confirmPin.join('');
-    
+    const newPinValue = newPin.join("");
+    const confirmPinValue = confirmPin.join("");
+
     if (newPinValue.length !== 6 || confirmPinValue.length !== 6) {
-      setError('Please enter all 6 digits for both PINs');
+      setError("Please enter all 6 digits for both PINs");
       return;
     }
-    
+
     // Check if PINs match
     if (newPinValue !== confirmPinValue) {
-      setError('PINs do not match. Please try again.');
+      setError("PINs do not match. Please try again.");
       return;
     }
-    
+
     try {
       // Update PIN via storageService
       setIsLoading(true);
       await storageService.updateParentPin(newPinValue);
-      setSuccess('PIN updated successfully');
-      
+      setSuccess("PIN updated successfully");
+
       // Clear the form
-      setNewPin(['', '', '', '', '', '']);
-      setConfirmPin(['', '', '', '', '', '']);
+      setNewPin(["", "", "", "", "", ""]);
+      setConfirmPin(["", "", "", "", "", ""]);
     } catch (err) {
-      console.error('Error updating PIN:', err);
-      setError('An error occurred while updating PIN');
+      console.error("Error updating PIN:", err);
+      setError("An error occurred while updating PIN");
     } finally {
       setIsLoading(false);
     }
@@ -213,26 +220,28 @@ const AccountSettings = () => {
   }, []);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-6">
       <div>
         <h2 className="text-2xl font-bold">Account Settings</h2>
-        <p className="text-muted-foreground">Manage your parent account and security settings</p>
+        <p className="text-muted-foreground">
+          Manage your parent account and security settings
+        </p>
       </div>
-      
+
       {error && (
         <div className="flex items-start gap-2 p-3 bg-destructive/10 text-destructive rounded-md border border-destructive/20">
           <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
           <span>{error}</span>
         </div>
       )}
-      
+
       {success && (
         <div className="flex items-start gap-2 p-3 bg-green-500/10 text-green-500 rounded-md border border-green-500/20">
           <CheckCircle2 className="h-5 w-5 shrink-0 mt-0.5" />
           <span>{success}</span>
         </div>
       )}
-      
+
       {/* Two-column layout for cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Credentials Card */}
@@ -243,12 +252,17 @@ const AccountSettings = () => {
               Login Credentials
             </CardTitle>
             <CardDescription>
-              Update your username and password. These credentials are used to initially access the application.
+              Update your username and password. These credentials are used to
+              initially access the application.
             </CardDescription>
           </CardHeader>
-          
+
           <CardContent>
-            <form id="credentials-form" onSubmit={handleAccountSubmit} className="space-y-4">
+            <form
+              id="credentials-form"
+              onSubmit={handleAccountSubmit}
+              className="space-y-4"
+            >
               <div className="space-y-2">
                 <Label htmlFor="username">Username</Label>
                 <Input
@@ -260,10 +274,13 @@ const AccountSettings = () => {
                   required
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="password">
-                  Password <span className="text-xs text-muted-foreground">(leave blank to keep current)</span>
+                  Password{" "}
+                  <span className="text-xs text-muted-foreground">
+                    (leave blank to keep current)
+                  </span>
                 </Label>
                 <Input
                   id="password"
@@ -274,7 +291,7 @@ const AccountSettings = () => {
                   disabled={isLoading}
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword">Confirm Password</Label>
                 <Input
@@ -287,26 +304,15 @@ const AccountSettings = () => {
                 />
               </div>
             </form>
-            
-            <div className="bg-muted/60 p-3 mt-6 rounded-md">
-              <p className="text-xs text-muted-foreground">
-                <strong>Note:</strong> Default credentials are:<br />
-                Username: <strong>parent</strong> | Password: <strong>password123</strong>
-              </p>
-            </div>
           </CardContent>
-          
+
           <CardFooter className="flex justify-end mt-auto">
-            <Button 
-              type="submit"
-              form="credentials-form"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Saving...' : 'Save Credentials'}
+            <Button type="submit" form="credentials-form" disabled={isLoading}>
+              {isLoading ? "Saving..." : "Save Credentials"}
             </Button>
           </CardFooter>
         </Card>
-        
+
         {/* PIN Card */}
         <Card className="h-full">
           <CardHeader>
@@ -315,12 +321,17 @@ const AccountSettings = () => {
               Dashboard PIN
             </CardTitle>
             <CardDescription>
-              Update the 6-digit PIN used to access the parent dashboard from the child selection screen.
+              Update the 6-digit PIN used to access the parent dashboard from
+              the child selection screen.
             </CardDescription>
           </CardHeader>
-          
+
           <CardContent>
-            <form id="pin-form" onSubmit={handlePinSubmit} className="space-y-4">
+            <form
+              id="pin-form"
+              onSubmit={handlePinSubmit}
+              className="space-y-4"
+            >
               <div className="space-y-2">
                 <Label>New PIN</Label>
                 <div className="flex justify-start gap-2">
@@ -333,8 +344,10 @@ const AccountSettings = () => {
                       maxLength={1}
                       name={`new-pin-${index}`}
                       value={digit}
-                      onChange={(e) => handlePinChange(index, e.target.value, 'new')}
-                      onKeyDown={(e) => handleKeyDown(index, e, 'new')}
+                      onChange={(e) =>
+                        handlePinChange(index, e.target.value, "new")
+                      }
+                      onKeyDown={(e) => handleKeyDown(index, e, "new")}
                       className="w-10 h-12 text-xl text-center"
                       disabled={isLoading}
                       required
@@ -342,7 +355,7 @@ const AccountSettings = () => {
                   ))}
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <Label>Confirm New PIN</Label>
                 <div className="flex justify-start gap-2">
@@ -355,8 +368,10 @@ const AccountSettings = () => {
                       maxLength={1}
                       name={`confirm-pin-${index}`}
                       value={digit}
-                      onChange={(e) => handlePinChange(index, e.target.value, 'confirm')}
-                      onKeyDown={(e) => handleKeyDown(index, e, 'confirm')}
+                      onChange={(e) =>
+                        handlePinChange(index, e.target.value, "confirm")
+                      }
+                      onKeyDown={(e) => handleKeyDown(index, e, "confirm")}
                       className="w-10 h-12 text-xl text-center"
                       disabled={isLoading}
                       required
@@ -365,29 +380,20 @@ const AccountSettings = () => {
                 </div>
               </div>
             </form>
-            
-            <div className="bg-muted/60 p-3 mt-6 rounded-md">
-              <p className="text-xs text-muted-foreground">
-                <strong>Note:</strong> Default PIN is: <strong>000000</strong>
-              </p>
-            </div>
           </CardContent>
-          
+
           <CardFooter className="flex justify-end mt-auto">
-            <Button 
-              type="submit"
-              form="pin-form"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Updating...' : 'Update PIN'}
+            <Button type="submit" form="pin-form" disabled={isLoading}>
+              {isLoading ? "Updating..." : "Update PIN"}
             </Button>
           </CardFooter>
         </Card>
       </div>
-      
+
       <div className="bg-accent/30 border border-accent/40 p-4 rounded-md">
         <p className="text-accent-foreground text-sm">
-          <strong>Important:</strong> Remember your credentials and PIN. If you forget them, you'll need to reset the application to regain access.
+          <strong>Important:</strong> Remember your credentials and PIN. If you
+          forget them, you'll need to reset the application to regain access.
         </p>
       </div>
     </div>
