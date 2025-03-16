@@ -55,8 +55,8 @@ export class StorageService {
     return this.conversationStorage.getConversations();
   }
   
-  async getConversationsByChildId(childId) {
-    return this.conversationStorage.getConversationsByChildId(childId);
+  async getConversationsByChildId(childId, page, limit) {
+    return this.conversationStorage.getConversationsByChildId(childId, page, limit);
   }
   
   async getConversationById(id) {

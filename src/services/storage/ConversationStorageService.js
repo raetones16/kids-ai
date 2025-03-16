@@ -179,15 +179,24 @@ export class ConversationStorageService extends BaseStorageService {
     }
   }
   
-  // Get conversations for a specific child
-  async getConversationsByChildId(childId) {
+  // Get conversations for a specific child (with pagination)
+  async getConversationsByChildId(childId, page = 1, limit = 20) {
     try {
       // Wait for backend availability check
       await this.backendAvailabilityPromise;
       
+      // Ensure page is a number and force a numeric value
+      const pageNum = Number(page);
+      const limitNum = Number(limit);
+      
+      console.log(`ConversationStorageService requesting page ${pageNum} (raw input was ${page})`);
+      
       if (this.isBackendAvailable) {
         try {
-          const conversations = await ConversationApi.getConversationsByChildId(childId);
+          const response = await ConversationApi.getConversationsByChildId(childId, pageNum, limitNum);
+          
+          // Extract conversations from response (handling both old and new API formats)
+          const conversations = response.conversations || response;
           
           // Map to frontend format
           const mappedConversations = conversations.map(conv => this.mapConversationFromBackend(conv));
@@ -198,27 +207,68 @@ export class ConversationStorageService extends BaseStorageService {
             const filteredLocalConversations = localConversations.filter(c => c.childId === childId);
             
             if (filteredLocalConversations.length > 0) {
-              return filteredLocalConversations;
+              return {
+                conversations: filteredLocalConversations,
+                pagination: {
+                  total: filteredLocalConversations.length,
+                  page: 1,
+                  limit: filteredLocalConversations.length,
+                  pages: 1
+                }
+              };
             }
           }
           
-          return mappedConversations;
+          // Return object with conversations and pagination info when available
+          return response.pagination ? 
+            { conversations: mappedConversations, pagination: response.pagination } : 
+            mappedConversations; // For backward compatibility
         } catch (apiError) {
           console.error(`Error getting backend conversations for child ${childId}:`, apiError);
           // Fall back to localStorage on API error
           const conversations = JSON.parse(localStorage.getItem(`${this.namespace}.conversations`) || '[]');
-          return conversations.filter(c => c.childId === childId);
+          const filtered = conversations.filter(c => c.childId === childId);
+          
+          return {
+            conversations: filtered,
+            pagination: {
+              total: filtered.length,
+              page: 1,
+              limit: filtered.length,
+              pages: 1
+            }
+          };
         }
       } else {
         // Use localStorage directly
         const conversations = JSON.parse(localStorage.getItem(`${this.namespace}.conversations`) || '[]');
-        return conversations.filter(c => c.childId === childId);
+        const filtered = conversations.filter(c => c.childId === childId);
+        
+        return {
+          conversations: filtered,
+          pagination: {
+            total: filtered.length,
+            page: 1,
+            limit: filtered.length,
+            pages: 1
+          }
+        };
       }
     } catch (error) {
       console.error(`Error getting conversations for child ${childId}:`, error);
       // As a last resort, try to parse from localStorage
       const conversations = JSON.parse(localStorage.getItem(`${this.namespace}.conversations`) || '[]');
-      return conversations.filter(c => c.childId === childId);
+      const filtered = conversations.filter(c => c.childId === childId);
+      
+      return {
+        conversations: filtered,
+        pagination: {
+          total: filtered.length,
+          page: 1,
+          limit: filtered.length,
+          pages: 1
+        }
+      };
     }
   }
   

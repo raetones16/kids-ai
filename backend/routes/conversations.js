@@ -13,11 +13,20 @@ function generateMessageId() {
   return `msg-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
 }
 
-// GET /api/conversations/child/:childId - Get all conversations for a child
+// GET /api/conversations/child/:childId - Get all conversations for a child (with pagination)
 router.get('/child/:childId', async (req, res, next) => {
   try {
     const { childId } = req.params;
-    console.log(`Fetching conversations for child ID: ${childId}`);
+    
+    // Debug the raw query parameters
+    console.log('Raw query parameters:', req.query);
+    console.log('Raw page param:', req.query.page, 'Type:', typeof req.query.page);
+    
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
+    
+    console.log(`Fetching conversations for child ID: ${childId}, parsed page: ${page}, limit: ${limit}, offset: ${offset}`);
 
     // Check if child exists
     const childCheck = await db.execute({
@@ -28,19 +37,74 @@ router.get('/child/:childId', async (req, res, next) => {
     if (childCheck.rows.length === 0) {
       return res.status(404).json({ error: 'Child profile not found' });
     }
-
-    console.log(`Searching database for child_id = ${childId}`);
-    const result = await db.execute({
-      sql: `
-        SELECT * FROM conversations 
-        WHERE child_id = ? 
-        ORDER BY last_activity_at DESC
-      `,
+    
+    // Get total count for pagination info
+    const countResult = await db.execute({
+      sql: 'SELECT COUNT(*) as total FROM conversations WHERE child_id = ?',
       args: [childId]
     });
+    
+    const total = countResult.rows[0].total;
+    
+    // Force pagination values to be numbers to avoid type issues
+    const numPage = Number(page);
+    const numLimit = Number(limit);
+    const numOffset = (numPage - 1) * numLimit;
 
-    console.log(`Found ${result.rows.length} conversations for child ${childId}`);
-    res.json(result.rows);
+    console.log(`Using NUMERIC offset: ${numOffset} for page ${numPage} with limit ${numLimit}`);
+    
+    // Get conversations with metadata - first message and message count
+    const result = await db.execute({
+      sql: `
+        SELECT 
+          c.id, 
+          c.child_id, 
+          c.thread_id, 
+          c.started_at, 
+          c.last_activity_at,
+          (
+            SELECT COUNT(*) 
+            FROM messages 
+            WHERE conversation_id = c.id
+          ) as message_count,
+          (
+            SELECT content
+            FROM messages
+            WHERE conversation_id = c.id
+            ORDER BY timestamp ASC
+            LIMIT 1
+          ) as first_message_content
+        FROM conversations c
+        WHERE c.child_id = ? 
+        ORDER BY c.last_activity_at DESC
+        LIMIT ? OFFSET ?
+      `,
+      args: [childId, numLimit, numOffset]
+    });
+
+    console.log(`Found ${result.rows.length} conversations for child ${childId} (page ${numPage} of ${Math.ceil(total/numLimit)})`);
+    if (result.rows.length > 0) {
+      console.log(`First conversation ID on this page:`, result.rows[0].id);
+      console.log(`Last conversation ID on this page:`, result.rows[result.rows.length-1].id);
+    }
+    
+    // Return both the conversations and pagination info
+    const responseData = {
+      conversations: result.rows,
+      pagination: {
+        total,
+        page: numPage,
+        limit: numLimit,
+        pages: Math.ceil(total / numLimit),
+        offset: numOffset
+      }
+    };
+    
+    // Log the response data structure
+    console.log(`Sending response with ${result.rows.length} conversations. Sample conversation:`, 
+                result.rows.length > 0 ? { id: result.rows[0].id, child_id: result.rows[0].child_id, message_count: result.rows[0].message_count } : 'No conversations');
+    
+    res.json(responseData);
   } catch (error) {
     console.error('Error getting conversations:', error);
     next(error);

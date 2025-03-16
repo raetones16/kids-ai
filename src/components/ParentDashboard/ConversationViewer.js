@@ -16,6 +16,15 @@ const ConversationViewer = ({ childId, childName }) => {
   const [usageStats, setUsageStats] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredConversations, setFilteredConversations] = useState([]);
+  
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [nextPageToLoad, setNextPageToLoad] = useState(2);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalConversations, setTotalConversations] = useState(0);
+  
+  // Calculate if we can load more conversations
+  const hasMoreConversations = conversations.length < totalConversations;
 
   // Filter conversations based on search query
   useEffect(() => {
@@ -26,8 +35,14 @@ const ConversationViewer = ({ childId, childName }) => {
 
     const query = searchQuery.toLowerCase().trim();
     const filtered = conversations.filter((conversation) => {
-      // Search in conversation messages
-      if (conversation.messages) {
+      // Search in all conversation attributes
+      if (conversation.firstMessageContent) {
+        return conversation.firstMessageContent.toLowerCase().includes(query);
+      }
+      if (conversation.first_message_content) {
+        return conversation.first_message_content.toLowerCase().includes(query);
+      }
+      if (conversation.messages && conversation.messages.length > 0) {
         return conversation.messages.some((message) =>
           message.content.toLowerCase().includes(query)
         );
@@ -36,109 +51,207 @@ const ConversationViewer = ({ childId, childName }) => {
     });
 
     setFilteredConversations(filtered);
+    
+    // Reset to page 1 when searching
+    setPage(1);
   }, [searchQuery, conversations]);
 
-  // Load conversations when child id changes
+  // Load conversations with infinite scrolling
   useEffect(() => {
     if (!childId) return;
 
     const loadData = async () => {
       try {
-        setLoading(true);
-        setError(null);
-
-        console.log(
-          `Loading conversations for child ID ${childId} and name: ${childName}`
-        );
-
-        // Load all conversations for this child
-        const childConversations =
-          await storageService.getConversationsByChildId(childId);
-        console.log("Loaded conversations:", childConversations);
-
-        // Ensure all conversations have proper date fields
-        const processedConversations = await Promise.all(
-          childConversations.map(async (conversation) => {
-            // Verify this conversation belongs to the current child
-            if (
-              (conversation.childId !== childId &&
-                conversation.child_id !== childId) ||
-              (!conversation.childId && !conversation.child_id)
-            ) {
-              console.error(
-                `Conversation ${conversation.id} has wrong/missing child ID:`,
-                conversation.childId || conversation.child_id
-              );
-              return null; // Skip this conversation
-            }
-
-            // Make sure we have messages loaded for each conversation
-            if (!conversation.messages || conversation.messages.length === 0) {
-              try {
-                // Load messages if they're not already included
-                const messages = await storageService.getConversationMessages(
-                  conversation.id
-                );
-                conversation.messages = messages || [];
-              } catch (err) {
-                console.error(
-                  `Failed to load messages for conversation ${conversation.id}:`,
-                  err
-                );
-                conversation.messages = [];
-              }
-            }
-
-            // Fix date fields
-            const startDate =
-              conversation.started_at ||
-              conversation.startedAt ||
-              new Date().toISOString();
-            const lastActivityDate =
-              conversation.last_activity_at ||
-              conversation.lastActivityAt ||
-              startDate;
-
-            return {
-              ...conversation,
-              childId: childId, // Ensure the childId is set correctly
-              startedAt: startDate,
-              lastActivityAt: lastActivityDate,
-            };
-          })
-        );
-
-        // Filter out any null values (conversations that don't belong to this child)
-        const validConversations = processedConversations.filter(
-          (conv) => conv !== null
-        );
-
-        // Sort conversations by last activity date
-        const sortedConversations = validConversations.sort((a, b) => {
-          const dateA = new Date(a.lastActivityAt || a.last_activity_at || 0);
-          const dateB = new Date(b.lastActivityAt || b.last_activity_at || 0);
-          return dateB - dateA;
-        });
-
-        console.log("Final processed conversations:", sortedConversations);
-        setConversations(sortedConversations);
-        setFilteredConversations(sortedConversations);
-
-        // Auto-select the most recent conversation
-        if (sortedConversations.length > 0) {
-          const mostRecent = sortedConversations[0];
-          setSelectedConversationId(mostRecent.id);
-          setSelectedConversation(mostRecent);
+        if (page === 1) {
+          // First page, reset state
+          setLoading(true);
+          setError(null);
+          setConversations([]);
         } else {
-          setSelectedConversationId(null);
-          setSelectedConversation(null);
+          // Show loading indicator for subsequent pages
+          setLoading(true);
         }
 
-        // Load usage statistics
-        const stats = await storageService.getChildUsageStats(childId);
-        setUsageStats(stats);
+        console.log(
+          `Loading conversations for child ID ${childId} and name: ${childName}, page: ${page}`
+        );
 
-        setLoading(false);
+        // Load paginated conversations for this child
+        try {
+          console.log(`Fetching conversations for child ${childId}, page ${page}`);
+          const response = await storageService.getConversationsByChildId(childId, page);
+          console.log('Response from getConversationsByChildId:', response);
+          
+          // Extract conversation data with appropriate error handling
+          let childConversations = [];
+          let pagination = { total: 0, pages: 1, page: 1, limit: 20 };
+          
+          // Log the raw response to debug
+          console.log(`Raw response for page ${page}:`, JSON.stringify(response).substring(0, 100) + '...');
+          
+          if (response && response.conversations) {
+            // New format with pagination
+            childConversations = response.conversations;
+            pagination = response.pagination;
+            console.log(`Page ${page} pagination:`, pagination);
+          } else if (Array.isArray(response)) {
+            // Old format (array only)
+            childConversations = response;
+            pagination = { 
+              total: response.length, 
+              pages: 1,
+              page: 1,
+              limit: response.length 
+            };
+          } else {
+            console.error('Invalid response format:', response);
+            throw new Error('Invalid response format from server');
+          }
+          
+          if (childConversations.length > 0) {
+            console.log(`Page ${page} first conversation:`, childConversations[0].id);
+            console.log(`Page ${page} last conversation:`, childConversations[childConversations.length-1].id);
+          }
+          console.log(`Page ${page} conversation count:`, childConversations.length);
+          
+          // Update pagination state
+          setTotalPages(pagination.pages || 1);
+          setTotalConversations(pagination.total || childConversations.length);
+          
+          // Process conversations and ensure we have valid objects
+          const processedConversations = childConversations
+            .filter(conversation => {
+              if (!conversation || !conversation.id) {
+                console.warn('Filtered out invalid conversation:', conversation);
+                return false;
+              }
+              return true;
+            })
+            .map(conversation => {
+              // Fix date fields
+              const startDate =
+                conversation.started_at ||
+                conversation.startedAt ||
+                new Date().toISOString();
+              const lastActivityDate =
+                conversation.last_activity_at ||
+                conversation.lastActivityAt ||
+                startDate;
+
+              return {
+                ...conversation,
+                // Important: preserve original ID exactly as received
+                childId: childId,
+                startedAt: startDate,
+                lastActivityAt: lastActivityDate,
+                // Store the message metadata from backend
+                messageCount: conversation.message_count || 0,
+                firstMessageContent: conversation.first_message_content || "",
+                // Initialize with empty messages array for lazy-loading later
+                messages: conversation.messages || []
+              };
+            });
+
+          console.log("Processed conversation count:", processedConversations.length);
+          if (processedConversations.length > 0) {
+            console.log("First processed conversation ID:", processedConversations[0].id);
+          }
+          
+          if (processedConversations.length === 0) {
+            console.warn("No valid conversations found for this child");
+          }
+
+          // Sort conversations by last activity date
+          const sortedConversations = processedConversations.sort((a, b) => {
+            const dateA = new Date(a.lastActivityAt || a.last_activity_at || 0);
+            const dateB = new Date(b.lastActivityAt || b.last_activity_at || 0);
+            return dateB - dateA;
+          });
+
+          console.log("Final processed conversations count:", sortedConversations.length);
+          
+          // For infinite scrolling, we append to existing conversations for page > 1
+          if (page === 1) {
+            setConversations(sortedConversations);
+            setFilteredConversations(sortedConversations);
+          } else {
+            // When appending, make sure we don't add duplicates
+            const existingIds = new Set(conversations.map(c => c.id));
+            const newConversations = sortedConversations.filter(c => !existingIds.has(c.id));
+            
+            console.log(`Adding ${newConversations.length} new unique conversations from page ${page}`);
+            console.log('New conversation IDs:', newConversations.map(c => c.id));
+            
+            if (newConversations.length > 0) {
+              setConversations(prev => [...prev, ...newConversations]);
+              setFilteredConversations(prev => [...prev, ...newConversations]);
+            } else {
+              console.log('No new conversations to add - might be duplicate page or empty result');
+            }
+          }
+
+          // Auto-select the most recent conversation (only for first page)
+          if (sortedConversations.length > 0 && page === 1) {
+            const mostRecent = sortedConversations[0];
+            console.log('Auto-selecting first conversation:', mostRecent.id);
+            setSelectedConversationId(mostRecent.id);
+            
+            // Force immediate messages loading for first conversation
+            // Need to set the selected conversation first with loading state
+            setSelectedConversation({...mostRecent, messagesLoading: true});
+            
+            // Then load the messages
+            storageService.getConversationMessages(mostRecent.id)
+              .then(messages => {
+                console.log("Auto-loaded first conversation messages:", messages?.length || 0);
+                
+                // Update with messages
+                const conversationWithMessages = {
+                  ...mostRecent,
+                  messages: messages || [],
+                  messagesLoading: false
+                };
+                
+                // Update all conversation lists with messages
+                setSelectedConversation(conversationWithMessages);
+                setConversations(prev => {
+                  return prev.map(c => c.id === mostRecent.id ? conversationWithMessages : c);
+                });
+                setFilteredConversations(prev => {
+                  return prev.map(c => c.id === mostRecent.id ? conversationWithMessages : c);
+                });
+              })
+              .catch(err => {
+                console.error("Error auto-loading first conversation messages:", err);
+                setSelectedConversation({...mostRecent, messagesError: true, messagesLoading: false});
+              });
+          } else if (sortedConversations.length === 0 && page === 1) {
+            setSelectedConversationId(null);
+            setSelectedConversation(null);
+          }
+
+          // Load usage statistics
+          try {
+            const stats = await storageService.getChildUsageStats(childId);
+            setUsageStats(stats);
+          } catch (statsError) {
+            console.error("Error loading usage stats:", statsError);
+            // Don't fail the whole page load if stats fail
+            setUsageStats({
+              totalConversations: pagination.total || 0,
+              totalMessages: 0,
+              totalUserMessages: 0,
+              totalAssistantMessages: 0,
+              averageMessagesPerConversation: '0'
+            });
+          }
+
+          setLoading(false);
+        } catch (fetchError) {
+          console.error("Error fetching conversations:", fetchError);
+          setError("Failed to load conversation history. Try again later.");
+          setLoading(false);
+        }
       } catch (err) {
         console.error("Error loading conversations:", err);
         setError("Failed to load conversation history. Try again later.");
@@ -147,13 +260,76 @@ const ConversationViewer = ({ childId, childName }) => {
     };
 
     loadData();
-  }, [childId, childName]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [childId, childName, page]);
 
-  // Handle conversation selection
-  const handleSelectConversation = (conversationId) => {
+  // Handle conversation selection with lazy loading of messages
+  const handleSelectConversation = async (conversationId) => {
+    console.log("Selecting conversation:", conversationId);
     setSelectedConversationId(conversationId);
-    const selected = conversations.find((c) => c.id === conversationId);
-    setSelectedConversation(selected);
+    
+    // Find the conversation in our list
+    const selected = conversations.find(c => c.id === conversationId);
+    console.log("Found conversation:", selected);
+    
+    if (!selected) {
+      console.error(`Conversation with ID ${conversationId} not found in list (${conversations.length} conversations total)`);
+      if (conversations.length > 0) {
+        console.log("Available conversation IDs:", conversations.slice(0, 5).map(c => c.id));
+      }
+      return;
+    }
+    
+    // If we already have messages for this conversation, use them
+    if (selected && selected.messages && selected.messages.length > 0) {
+      console.log("Using existing messages:", selected.messages.length);
+      setSelectedConversation(selected);
+      return;
+    }
+    
+    // Show loading state for conversation panel only
+    setSelectedConversation({...selected, messagesLoading: true});
+    
+    try {
+      // Fetch messages only for this selected conversation
+      console.log("Fetching messages for conversation:", conversationId);
+      const messages = await storageService.getConversationMessages(conversationId);
+      console.log("Fetched messages count:", messages ? messages.length : 0);
+      
+      // Create updated conversation object with messages
+      const conversationWithMessages = {
+        ...selected,
+        messages: messages || [],
+        messagesLoading: false
+      };
+      
+      // Update the selected conversation
+      setSelectedConversation(conversationWithMessages);
+      
+      // Also update the conversation in our conversation list
+      setConversations(prev => {
+        return prev.map(c => c.id === conversationId ? conversationWithMessages : c);
+      });
+      
+      // Update filtered conversations too if we're searching
+      if (searchQuery) {
+        setFilteredConversations(prev => {
+          return prev.map(c => c.id === conversationId ? conversationWithMessages : c);
+        });
+      }
+    } catch (error) {
+      console.error("Error loading conversation messages:", error);
+      setError("Failed to load conversation messages. Try again later.");
+      // Update selected conversation to show error state
+      setSelectedConversation({...selected, messagesError: true, messagesLoading: false});
+    }
+  };
+
+  // Handle loading more conversations
+  const handleLoadMore = () => {
+    console.log(`Loading more conversations. Current next page: ${nextPageToLoad}`);
+    setPage(nextPageToLoad);
+    setNextPageToLoad(prev => prev + 1);
   };
 
   // Format date for display
@@ -291,6 +467,9 @@ const ConversationViewer = ({ childId, childName }) => {
     </div>
   );
 
+  // Determine if we have actually loaded conversations
+  const hasConversations = Array.isArray(conversations) && conversations.length > 0;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -328,7 +507,7 @@ const ConversationViewer = ({ childId, childName }) => {
       )}
 
       {/* Stats Summary - Show skeleton while loading */}
-      {loading ? (
+      {loading && page === 1 ? (
         <StatsCardsSkeleton />
       ) : (
         usageStats && (
@@ -369,7 +548,7 @@ const ConversationViewer = ({ childId, childName }) => {
         )
       )}
 
-      {loading ? (
+      {loading && page === 1 ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[calc(100vh-350px)]">
           {/* Conversation List Skeleton */}
           <div className="md:col-span-1">
@@ -390,7 +569,7 @@ const ConversationViewer = ({ childId, childName }) => {
             Clear Search
           </Button>
         </div>
-      ) : conversations.length === 0 ? (
+      ) : !hasConversations ? (
         <div className="bg-muted rounded-lg p-6 text-center">
           <p className="text-muted-foreground">
             No conversations yet for {childName}.
@@ -410,7 +589,7 @@ const ConversationViewer = ({ childId, childName }) => {
             <div className="overflow-y-auto h-[calc(100%-44px)]">
               {filteredConversations.map((conversation) => (
                 <div
-                  key={conversation.id}
+                  key={`${conversation.id}-${page}`}
                   className={`border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors ${
                     selectedConversationId === conversation.id ? "bg-muted" : ""
                   }`}
@@ -422,16 +601,35 @@ const ConversationViewer = ({ childId, childName }) => {
                     )}
                   </div>
                   <div className="line-clamp-2 text-sm">
-                    {conversation.messages && conversation.messages.length > 0
-                      ? conversation.messages[0].content
-                      : "Empty conversation"}
+                    {conversation.first_message_content || conversation.firstMessageContent || "Empty conversation"}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
-                    {conversation.messages ? conversation.messages.length : 0}{" "}
+                    {conversation.message_count || conversation.messageCount || 0}{" "}
                     messages
                   </div>
                 </div>
               ))}
+              
+              {/* Load More Button */}
+              {!loading && totalConversations > conversations.length && (
+                <div className="flex justify-center mt-4 mb-2">
+                  <Button 
+                    variant="outline"
+                    onClick={handleLoadMore}
+                    disabled={loading}
+                    className="w-full mx-4"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-b-transparent"></div>
+                        Loading more...
+                      </>
+                    ) : (
+                      <>Load More ({conversations.length} of {totalConversations} conversations)</>  
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -449,14 +647,22 @@ const ConversationViewer = ({ childId, childName }) => {
                     )}
                     <span className="mx-2">•</span>
                     Messages:{" "}
-                    {selectedConversation.messages
-                      ? selectedConversation.messages.length
-                      : 0}
+                    {selectedConversation.message_count || 
+                     selectedConversation.messageCount || 
+                     (selectedConversation.messages ? selectedConversation.messages.length : 0)}
                   </div>
                 </div>
 
                 <div className="overflow-y-auto p-4 h-[calc(100%-64px)] space-y-4">
-                  {selectedConversation.messages &&
+                  {selectedConversation.messagesLoading ? (
+                    <div className="flex justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    </div>
+                  ) : selectedConversation.messagesError ? (
+                    <div className="text-center text-red-500 pt-8">
+                      Error loading messages. Try selecting the conversation again.
+                    </div>
+                  ) : selectedConversation.messages &&
                   selectedConversation.messages.length > 0 ? (
                     selectedConversation.messages.map((message, index) => (
                       <div

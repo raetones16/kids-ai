@@ -14,6 +14,36 @@ const { db, initializeSchema } = require('./db');
   try {
     await initializeSchema();
     console.log('Database schema initialized successfully');
+    
+    // Add performance indexes
+    try {
+      console.log('Adding performance indexes...');
+      
+      // Add index for faster conversation lookups by child_id
+      await db.execute(`
+        CREATE INDEX IF NOT EXISTS idx_conversations_child_id 
+        ON conversations(child_id)
+      `);
+      console.log('Added index on conversations.child_id');
+      
+      // Add index for faster message lookups by conversation_id
+      await db.execute(`
+        CREATE INDEX IF NOT EXISTS idx_messages_conversation_id 
+        ON messages(conversation_id)
+      `);
+      console.log('Added index on messages.conversation_id');
+      
+      // Add index for conversations sorted by last_activity_at
+      await db.execute(`
+        CREATE INDEX IF NOT EXISTS idx_conversations_last_activity 
+        ON conversations(last_activity_at DESC)
+      `);
+      console.log('Added index on conversations.last_activity_at');
+      
+      console.log('Performance indexes added successfully');
+    } catch (indexError) {
+      console.error('Error adding indexes:', indexError);
+    }
   } catch (err) {
     console.error('Database initialization warning:', err);
     console.log('Continuing without full database initialization...');
@@ -27,6 +57,7 @@ const conversationsRoutes = require('./routes/conversations');
 const settingsRoutes = require('./routes/settings');
 const migrationRoutes = require('./routes/migration');
 const authRoutes = require('./routes/auth');
+const statsRoutes = require('./routes/stats');
 
 // Create Express app
 const app = express();
@@ -54,6 +85,7 @@ app.use('/api/conversations', conversationsRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/migration', migrationRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/stats', statsRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

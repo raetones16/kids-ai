@@ -70,12 +70,18 @@ export class BaseStorageService {
   mapConversationFromBackend(conversation) {
     if (!conversation) return null;
     
+    // Debug
+    if (!conversation.id) {
+      console.warn('Conversation missing ID:', conversation);
+    }
+    
     return {
       ...conversation,
-      childId: conversation.child_id,
-      threadId: conversation.thread_id,
-      startedAt: conversation.started_at,
-      lastActivityAt: conversation.last_activity_at
+      id: conversation.id,  // Ensure ID is explicitly mapped
+      childId: conversation.child_id || conversation.childId,
+      threadId: conversation.thread_id || conversation.threadId,
+      startedAt: conversation.started_at || conversation.startedAt,
+      lastActivityAt: conversation.last_activity_at || conversation.lastActivityAt
     };
   }
   

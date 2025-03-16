@@ -11,9 +11,16 @@ async function apiRequest(url, options = {}) {
     // Set a timeout for fetch requests
     const controller = new AbortController();
     
-    // Longer timeout for search requests
+    // Longer timeout for search and conversation history requests
     const isSearchRequest = url.includes('/search');
-    const timeoutMs = isSearchRequest ? 8000 : 5000; // 8 seconds for search, 5 for others
+    const isConversationHistoryRequest = url.includes('/conversations/child/');
+    
+    let timeoutMs = 5000; // Default 5 seconds
+    if (isSearchRequest) {
+      timeoutMs = 8000; // 8 seconds for search
+    } else if (isConversationHistoryRequest) {
+      timeoutMs = 10000; // 10 seconds for conversation history
+    }
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     
     // Add session token to headers if available
@@ -175,9 +182,17 @@ export const ProfileApi = {
  * Conversation API methods
  */
 export const ConversationApi = {
-  // Get all conversations for a child
-  async getConversationsByChildId(childId) {
-    return apiRequest(`${API_URL}/conversations/child/${childId}`);
+  // Get all conversations for a child (with pagination)
+  async getConversationsByChildId(childId, page = 1, limit = 20) {
+    // Ensure page is a number
+    const pageNum = Number(page);
+    const limitNum = Number(limit);
+    
+    // Build URL with proper parameters
+    const url = `${API_URL}/conversations/child/${childId}?page=${pageNum}&limit=${limitNum}`;
+    console.log(`ApiService sending request to URL: ${url}`);
+    
+    return apiRequest(url);
   },
 
   // Get a specific conversation
@@ -244,6 +259,16 @@ export const SettingsApi = {
       method: 'POST',
       body: JSON.stringify({ pin })
     });
+  }
+};
+
+/**
+ * Stats API methods
+ */
+export const StatsApi = {
+  // Get usage statistics for a child
+  async getChildStats(childId) {
+    return apiRequest(`${API_URL}/stats/child/${childId}`);
   }
 };
 
