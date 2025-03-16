@@ -4,7 +4,7 @@ import { LogOut } from "lucide-react";
 
 const Header = ({ childName, onLogout }) => {
   return (
-    <header className="flex items-center justify-between p-4 w-full bg-[#0E1116] border-b">
+    <header className="flex items-center justify-between p-4 w-full bg-[#0E1116] border-b sticky top-0 z-50">
       <h1 className="text-xl font-semibold m-0 flex items-center">
         Hi, {childName}!
       </h1>

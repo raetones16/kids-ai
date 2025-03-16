@@ -35,6 +35,13 @@ input {
   max-width: 300px;
 }
 
+/* Remove max-width restriction on mobile */
+@media (max-width: 640px) {
+  input {
+    max-width: none;
+  }
+}
+
 h1,
 h2,
 h3 {

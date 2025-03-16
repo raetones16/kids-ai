@@ -7,7 +7,7 @@ import {
   SelectContent,
   SelectItem,
 } from "../ui/select";
-import { User, MessageSquare, Settings, LogOut } from "lucide-react";
+import { User, MessageSquare, Settings, LogOut, Search, X } from "lucide-react";
 
 import ProfileManager from "./ProfileManager";
 import ConversationViewer from "./ConversationViewer";
@@ -23,6 +23,7 @@ const ParentDashboard = ({ onLogout }) => {
   const [activeTab, setActiveTab] = useState("profiles");
   const [childProfiles, setChildProfiles] = useState([]);
   const [selectedChildId, setSelectedChildId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState(null);
 
   // Load child profiles on component mount
@@ -103,10 +104,10 @@ const ParentDashboard = ({ onLogout }) => {
   return (
     <div className="min-h-screen w-full bg-background">
       {/* Header */}
-      <header className="border-b bg-[#0E1116] text-foreground">
+      <header className="border-b bg-[#0E1116] text-foreground sticky top-0 z-50">
         <div className="flex h-16 items-center justify-between px-6">
           <h1 className="text-xl font-semibold m-0 flex items-center">
-            Kids AI - Parent Dashboard
+            Parent Dashboard
           </h1>
           <Button
             variant="outline"
@@ -127,38 +128,89 @@ const ParentDashboard = ({ onLogout }) => {
           </div>
         )}
 
-        {/* Simple Button Group Slider for Tabs */}
-        <div className="mb-6 overflow-x-auto">
-          <div className="inline-flex p-0 bg-grey-10 rounded-lg w-full justify-center gap-[8px]">
-            <Button
-              variant={activeTab === "profiles" ? "default" : "outline"}
-              size="sm"
-              className="gap-2 rounded-md"
-              onClick={() => handleTabSelect("profiles")}
-            >
-              <User className="h-4 w-4" />
-              Child Profiles
-            </Button>
+        {/* Responsive Tab Navigation */}
+        <div className="mb-6">
+          {/* Mobile dropdown for small screens */}
+          <div className="block sm:hidden">
+            <Select value={activeTab} onValueChange={handleTabSelect}>
+              <SelectTrigger className="w-full bg-grey-10 text-foreground">
+                <SelectValue>
+                  {activeTab === "profiles" && (
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      <span>Child Profiles</span>
+                    </div>
+                  )}
+                  {activeTab === "conversations" && (
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4" />
+                      <span>Conversation History</span>
+                    </div>
+                  )}
+                  {activeTab === "account" && (
+                    <div className="flex items-center gap-2">
+                      <Settings className="h-4 w-4" />
+                      <span>Account Settings</span>
+                    </div>
+                  )}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="profiles">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    <span>Child Profiles</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="conversations">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4" />
+                    <span>Conversation History</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="account">
+                  <div className="flex items-center gap-2">
+                    <Settings className="h-4 w-4" />
+                    <span>Account Settings</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Button tabs for larger screens */}
+          <div className="hidden sm:block overflow-x-auto">
+            <div className="inline-flex p-0 bg-grey-10 rounded-lg w-full justify-center gap-[8px]">
+              <Button
+                variant={activeTab === "profiles" ? "default" : "outline"}
+                size="sm"
+                className="gap-2 rounded-md"
+                onClick={() => handleTabSelect("profiles")}
+              >
+                <User className="h-4 w-4" />
+                Child Profiles
+              </Button>
 
-            <Button
-              variant={activeTab === "conversations" ? "default" : "outline"}
-              size="sm"
-              className="gap-2 rounded-md"
-              onClick={() => handleTabSelect("conversations")}
-            >
-              <MessageSquare className="h-4 w-4" />
-              Conversation History
-            </Button>
+              <Button
+                variant={activeTab === "conversations" ? "default" : "outline"}
+                size="sm"
+                className="gap-2 rounded-md"
+                onClick={() => handleTabSelect("conversations")}
+              >
+                <MessageSquare className="h-4 w-4" />
+                Conversation History
+              </Button>
 
-            <Button
-              variant={activeTab === "account" ? "default" : "outline"}
-              size="sm"
-              className="gap-2 rounded-md"
-              onClick={() => handleTabSelect("account")}
-            >
-              <Settings className="h-4 w-4" />
-              Account Settings
-            </Button>
+              <Button
+                variant={activeTab === "account" ? "default" : "outline"}
+                size="sm"
+                className="gap-2 rounded-md"
+                onClick={() => handleTabSelect("account")}
+              >
+                <Settings className="h-4 w-4" />
+                Account Settings
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -178,23 +230,62 @@ const ParentDashboard = ({ onLogout }) => {
           {activeTab === "conversations" && (
             <>
               {childProfiles.length > 0 && (
-                <div className="mb-6">
-                  <h2 className="text-lg font-semibold mb-2">Select Child</h2>
-                  <Select
-                    value={selectedChildId}
-                    onValueChange={handleChildSelectForConversation}
-                  >
-                    <SelectTrigger className="w-full max-w-xs">
-                      <SelectValue placeholder="Select a child" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {childProfiles.map((profile) => (
-                        <SelectItem key={profile.id} value={profile.id}>
-                          {profile.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="space-y-6 mb-6">
+                  <h2 className="text-2xl font-bold">Conversation History</h2>
+                  <div className="flex flex-col sm:flex-row sm:justify-between gap-3">
+                    <div className="w-full sm:w-auto">
+                      <Select
+                        value={selectedChildId}
+                        onValueChange={handleChildSelectForConversation}
+                      >
+                        <SelectTrigger className="w-full min-w-[200px] py-3 h-auto">
+                          <SelectValue placeholder="Select a child">
+                            {selectedChildId && (
+                              <span>
+                                Select child: {childProfiles.find(p => p.id === selectedChildId)?.name || ""}
+                              </span>
+                            )}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {childProfiles.map((profile) => (
+                            <SelectItem key={profile.id} value={profile.id}>
+                              {profile.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    {/* Search bar component moved here from ConversationViewer */}
+                    {selectedChildId && (
+                      <div className="relative w-full sm:w-auto sm:flex-grow sm:max-w-md">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <input
+                          type="search"
+                          placeholder="Search conversations..."
+                          className="w-full bg-background py-3 h-auto pl-8 pr-8 rounded-md border border-input shadow-sm focus:outline-none focus:ring-1 focus:ring-ring text-base max-w-full"
+                          value={selectedChildId ? searchQuery : ""}
+                          onChange={(e) => {
+                            if (selectedChildId) {
+                              setSearchQuery(e.target.value);
+                            }
+                          }}
+                          disabled={!selectedChildId}
+                        />
+                        {searchQuery && (
+                          <button
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+                            onClick={() => setSearchQuery("")}
+                            aria-label="Clear search"
+                            disabled={!selectedChildId}
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -205,6 +296,8 @@ const ParentDashboard = ({ onLogout }) => {
                     childProfiles.find((p) => p.id === selectedChildId)?.name ||
                     "Child"
                   }
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
                 />
               ) : (
                 <div className="bg-muted rounded-lg p-6 text-center">

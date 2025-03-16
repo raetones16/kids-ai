@@ -69,12 +69,12 @@ const ParentLogin = ({ onLoginSuccess, onCancel }) => {
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50">
       {/* Background Image */}
-      <div 
-        className="fixed inset-0 z-0 w-full h-full bg-cover bg-center bg-no-repeat" 
-        style={{ 
+      <div
+        className="fixed inset-0 z-0 w-full h-full bg-cover bg-center bg-no-repeat"
+        style={{
           backgroundImage: 'url("/background-images/Login.svg")',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center'
+          backgroundSize: "cover",
+          backgroundPosition: "center",
         }}
       />
 
@@ -128,11 +128,6 @@ const ParentLogin = ({ onLoginSuccess, onCancel }) => {
               <Label htmlFor="remember-me" className="text-sm font-normal">
                 Remember me forever
               </Label>
-            </div>
-
-            <div className="text-sm text-muted-foreground">
-              <p>Default username: parent</p>
-              <p>Default password: password123</p>
             </div>
           </CardContent>
 

@@ -50,10 +50,17 @@
 }
 
 .mic-hint {
-  margin-top: 1rem;
+  margin-top: 0.5rem;
   font-size: 16px;
   color: hsl(var(--muted-foreground));
   text-align: center;
+}
+
+@media (max-width: 640px) {
+  .mic-hint {
+    margin-top: 0.25rem;
+    font-size: 14px;
+  }
 }
 
 /* Loading spinner */

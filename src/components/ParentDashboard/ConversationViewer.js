@@ -1,20 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "../ui/card";
 import { Button } from "../ui/button";
-import { Search, X } from "lucide-react";
 import { StorageService } from "../../services/StorageService";
 import { Skeleton } from "../ui/skeleton";
 
 const storageService = new StorageService();
 
-const ConversationViewer = ({ childId, childName }) => {
+const ConversationViewer = ({ childId, childName, searchQuery = "", setSearchQuery = () => {} }) => {
   const [conversations, setConversations] = useState([]);
   const [selectedConversationId, setSelectedConversationId] = useState(null);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [usageStats, setUsageStats] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
   const [filteredConversations, setFilteredConversations] = useState([]);
   
   // Pagination state
@@ -472,32 +470,7 @@ const ConversationViewer = ({ childId, childName }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <h2 className="text-2xl font-bold">{childName}'s Conversations</h2>
-
-        {/* Search Bar */}
-        <div className="relative w-full md:w-64">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <input
-            type="search"
-            placeholder="Search conversations..."
-            className="w-full bg-background py-2 pl-8 pr-8 rounded-md border shadow-sm focus:outline-none focus:ring-1 focus:ring-primary"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            disabled={loading}
-          />
-          {searchQuery && (
-            <button
-              className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
-              onClick={() => setSearchQuery("")}
-              aria-label="Clear search"
-              disabled={loading}
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
-      </div>
+      {/* Remove the title header and place search alongside child selection */}
 
       {/* Display error if there is one */}
       {error && (
@@ -566,6 +539,7 @@ const ConversationViewer = ({ childId, childName }) => {
             No conversations match your search.
           </p>
           <Button variant="outline" onClick={() => setSearchQuery("")}>
+
             Clear Search
           </Button>
         </div>
@@ -580,127 +554,152 @@ const ConversationViewer = ({ childId, childName }) => {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[calc(100vh-350px)]">
-          {/* Conversation List */}
-          <div className="md:col-span-1 border rounded-lg overflow-hidden">
-            <div className="bg-primary-foreground p-3 border-b">
-              <h3 className="font-medium">Recent Conversations</h3>
-            </div>
-            <div className="overflow-y-auto h-[calc(100%-44px)]">
-              {filteredConversations.map((conversation) => (
-                <div
-                  key={`${conversation.id}-${page}`}
-                  className={`border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors ${
-                    selectedConversationId === conversation.id ? "bg-muted" : ""
-                  }`}
-                  onClick={() => handleSelectConversation(conversation.id)}
-                >
-                  <div className="text-xs text-muted-foreground mb-1">
-                    {formatShortDate(
-                      conversation.startedAt || conversation.lastActivityAt
-                    )}
-                  </div>
-                  <div className="line-clamp-2 text-sm">
-                    {conversation.first_message_content || conversation.firstMessageContent || "Empty conversation"}
-                  </div>
+        <div>
+          {/* Remove the top back button section */}
+          
+          {/* Responsive grid layout with increased height on mobile */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-[calc(100vh-280px)] sm:h-[calc(100vh-350px)]">
+            {/* Conversation list - only visible if no conversation is selected on mobile */}
+            <div className={`md:col-span-1 border rounded-lg overflow-hidden ${selectedConversationId ? 'hidden sm:block' : 'block'}`}>
+              <div className="bg-primary-foreground p-3 border-b sticky top-0 z-10">
+                <h3 className="font-medium">Recent Conversations</h3>
+                {filteredConversations.length > 0 && (
                   <div className="text-xs text-muted-foreground mt-1">
-                    {conversation.message_count || conversation.messageCount || 0}{" "}
-                    messages
+                    {filteredConversations.length} of {totalConversations} conversation{totalConversations !== 1 ? 's' : ''}
                   </div>
-                </div>
-              ))}
-              
-              {/* Load More Button */}
-              {!loading && totalConversations > conversations.length && (
-                <div className="flex justify-center mt-4 mb-2">
-                  <Button 
-                    variant="outline"
-                    onClick={handleLoadMore}
-                    disabled={loading}
-                    className="w-full mx-4"
+                )}
+              </div>
+
+              <div className="overflow-y-auto h-[calc(100%-44px)] max-h-[70vh] pb-4">
+                {filteredConversations.map((conversation) => (
+                  <div
+                    key={`${conversation.id}-${page}`}
+                    className={`border-b p-3 cursor-pointer hover:bg-muted/50 transition-colors ${
+                      selectedConversationId === conversation.id ? "bg-muted" : ""
+                    }`}
+                    onClick={() => handleSelectConversation(conversation.id)}
                   >
-                    {loading ? (
-                      <>
-                        <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-b-transparent"></div>
-                        Loading more...
-                      </>
+                    <div className="text-xs text-muted-foreground mb-1">
+                      {formatShortDate(
+                        conversation.startedAt || conversation.lastActivityAt
+                      )}
+                    </div>
+                    <div className="line-clamp-2 text-sm">
+                      {conversation.first_message_content || conversation.firstMessageContent || "Empty conversation"}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {conversation.message_count || conversation.messageCount || 0}{" "}
+                      messages
+                    </div>
+                  </div>
+                ))}
+                
+                {/* Load More Button */}
+                {!loading && totalConversations > conversations.length && (
+                  <div className="flex justify-center p-4 sticky bottom-0 bg-background/80 backdrop-blur-sm">
+                    <Button 
+                      variant="outline"
+                      onClick={handleLoadMore}
+                      disabled={loading}
+                      className="w-full"
+                    >
+                      {loading ? (
+                        <>
+                          <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-b-transparent"></div>
+                          Loading more...
+                        </>
+                      ) : (
+                        <>Load More ({conversations.length} of {totalConversations} conversations)</>  
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Conversation Detail - only visible if conversation is selected on mobile */}
+            <div className={`md:col-span-2 border rounded-lg overflow-hidden ${!selectedConversationId ? 'hidden sm:block' : 'block'}`}>
+              {selectedConversation ? (
+                <>
+                  <div className="bg-primary-foreground p-3 border-b flex items-center justify-between sticky top-0 z-10">
+                    <div className="flex items-center">
+                      <button
+                        className="mr-2 sm:hidden flex items-center justify-center text-primary bg-primary/10 hover:bg-primary/20 rounded-full p-1"
+                        onClick={() => setSelectedConversationId(null)}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                      <div>
+                      <h3 className="font-medium">Conversation Details</h3>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Started:{" "}
+                        {formatDate(
+                          selectedConversation.startedAt ||
+                            selectedConversation.lastActivityAt
+                        )}
+                        <span className="mx-2">•</span>
+                        Messages:{" "}
+                        {selectedConversation.message_count || 
+                         selectedConversation.messageCount || 
+                         (selectedConversation.messages ? selectedConversation.messages.length : 0)}
+                      </div>
+                    </div>
+                    </div>
+                  </div>
+
+                  <div className="overflow-y-auto p-4 h-[calc(100%-64px)] max-h-[70vh] space-y-4">
+                    {selectedConversation.messagesLoading ? (
+                      <div className="flex justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                      </div>
+                    ) : selectedConversation.messagesError ? (
+                      <div className="text-center text-red-500 pt-8">
+                        Error loading messages. Try selecting the conversation again.
+                      </div>
+                    ) : selectedConversation.messages &&
+                    selectedConversation.messages.length > 0 ? (
+                      selectedConversation.messages.map((message, index) => (
+                        <div
+                          key={index}
+                          className={`p-3 rounded-lg max-w-[85%] ${
+                            message.role === "user"
+                              ? "ml-auto bg-primary text-primary-foreground"
+                              : "bg-muted"
+                          }`}
+                        >
+                          <div className="flex justify-between text-xs mb-1">
+                            <span className="font-medium">
+                              {message.role === "user"
+                                ? childName
+                                : "AI Assistant"}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {formatDate(message.timestamp)}
+                            </span>
+                          </div>
+                          <div className="whitespace-pre-wrap">
+                            {message.content}
+                          </div>
+                        </div>
+                      ))
                     ) : (
-                      <>Load More ({conversations.length} of {totalConversations} conversations)</>  
+                      <div className="text-center text-muted-foreground pt-8">
+                        No messages in this conversation.
+                      </div>
                     )}
-                  </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  Select a conversation from the list to view details.
                 </div>
               )}
             </div>
           </div>
-
-          {/* Conversation Detail */}
-          <div className="md:col-span-2 border rounded-lg overflow-hidden">
-            {selectedConversation ? (
-              <>
-                <div className="bg-primary-foreground p-3 border-b">
-                  <h3 className="font-medium">Conversation Details</h3>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    Started:{" "}
-                    {formatDate(
-                      selectedConversation.startedAt ||
-                        selectedConversation.lastActivityAt
-                    )}
-                    <span className="mx-2">•</span>
-                    Messages:{" "}
-                    {selectedConversation.message_count || 
-                     selectedConversation.messageCount || 
-                     (selectedConversation.messages ? selectedConversation.messages.length : 0)}
-                  </div>
-                </div>
-
-                <div className="overflow-y-auto p-4 h-[calc(100%-64px)] space-y-4">
-                  {selectedConversation.messagesLoading ? (
-                    <div className="flex justify-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                    </div>
-                  ) : selectedConversation.messagesError ? (
-                    <div className="text-center text-red-500 pt-8">
-                      Error loading messages. Try selecting the conversation again.
-                    </div>
-                  ) : selectedConversation.messages &&
-                  selectedConversation.messages.length > 0 ? (
-                    selectedConversation.messages.map((message, index) => (
-                      <div
-                        key={index}
-                        className={`p-3 rounded-lg max-w-[85%] ${
-                          message.role === "user"
-                            ? "ml-auto bg-primary text-primary-foreground"
-                            : "bg-muted"
-                        }`}
-                      >
-                        <div className="flex justify-between text-xs mb-1">
-                          <span className="font-medium">
-                            {message.role === "user"
-                              ? childName
-                              : "AI Assistant"}
-                          </span>
-                          <span className="text-muted-foreground">
-                            {formatDate(message.timestamp)}
-                          </span>
-                        </div>
-                        <div className="whitespace-pre-wrap">
-                          {message.content}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-center text-muted-foreground pt-8">
-                      No messages in this conversation.
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div className="flex items-center justify-center h-full text-muted-foreground">
-                Select a conversation from the list to view details.
-              </div>
-            )}
-          </div>
+          
+          {/* No back button here anymore - moved to the top */}
         </div>
       )}
     </div>

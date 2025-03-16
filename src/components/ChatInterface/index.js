@@ -248,7 +248,7 @@ const ChatInterface = ({
     <div
       className={`min-h-screen flex flex-col text-foreground child-interface relative ${
         showTextInput ? "chat-bottom-space" : ""
-      }`}
+      } overflow-hidden`}
     >
       {/* Background Image - using JPG as requested */}
       <div
@@ -269,7 +269,7 @@ const ChatInterface = ({
         <Header childName={childName} onLogout={onLogout} />
       </div>
 
-      <div className="flex-grow flex flex-col items-center justify-center pb-[4rem] relative z-10">
+      <div className="flex-grow flex flex-col items-center justify-center pb-[2rem] relative z-10 overflow-hidden">
         {error ? (
           <div className="w-full max-w-md px-4">
             <ErrorDisplay
@@ -279,7 +279,7 @@ const ChatInterface = ({
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center w-full">
-            <div className="circle-container-wrapper mb-4">
+            <div className="circle-container-wrapper mb-2 sm:mb-4">
               <MainCircle
                 interfaceState={isLoading ? "thinking" : interfaceState}
                 audioData={audioData}
@@ -289,7 +289,7 @@ const ChatInterface = ({
             </div>
 
             <div
-              className={`${containerClass} mt-8 backdrop-blur-sm py-4 rounded-lg`}
+              className={`${containerClass} mt-2 sm:mt-4 backdrop-blur-sm py-2 sm:py-4 rounded-lg max-h-[35vh] overflow-y-auto`}
             >
               {isLoading ? (
                 <SubtitleStyleSkeleton />
@@ -301,7 +301,7 @@ const ChatInterface = ({
             {/* Only show the text input when toggled - use same container class */}
             {showTextInput && !isLoading && (
               <div
-                className={`${containerClass} mt-4 backdrop-blur-sm py-4 rounded-lg`}
+                className={`${containerClass} mt-2 sm:mt-4 backdrop-blur-sm py-4 rounded-lg`}
               >
                 <TextInput
                   onSubmit={handleTextSubmit}

@@ -220,14 +220,14 @@ const AccountSettings = () => {
       </div>
       
       {error && (
-        <div className="flex items-start gap-2 p-3 bg-red-50 text-red-800 rounded-md border border-red-200">
+        <div className="flex items-start gap-2 p-3 bg-destructive/10 text-destructive rounded-md border border-destructive/20">
           <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
           <span>{error}</span>
         </div>
       )}
       
       {success && (
-        <div className="flex items-start gap-2 p-3 bg-green-50 text-green-800 rounded-md border border-green-200">
+        <div className="flex items-start gap-2 p-3 bg-green-500/10 text-green-500 rounded-md border border-green-500/20">
           <CheckCircle2 className="h-5 w-5 shrink-0 mt-0.5" />
           <span>{success}</span>
         </div>
@@ -288,7 +288,7 @@ const AccountSettings = () => {
               </div>
             </form>
             
-            <div className="bg-muted p-3 mt-6 rounded-md">
+            <div className="bg-muted/60 p-3 mt-6 rounded-md">
               <p className="text-xs text-muted-foreground">
                 <strong>Note:</strong> Default credentials are:<br />
                 Username: <strong>parent</strong> | Password: <strong>password123</strong>
@@ -366,7 +366,7 @@ const AccountSettings = () => {
               </div>
             </form>
             
-            <div className="bg-muted p-3 mt-6 rounded-md">
+            <div className="bg-muted/60 p-3 mt-6 rounded-md">
               <p className="text-xs text-muted-foreground">
                 <strong>Note:</strong> Default PIN is: <strong>000000</strong>
               </p>
@@ -385,8 +385,8 @@ const AccountSettings = () => {
         </Card>
       </div>
       
-      <div className="bg-amber-50 border border-amber-200 p-4 rounded-md">
-        <p className="text-amber-800 text-sm">
+      <div className="bg-accent/30 border border-accent/40 p-4 rounded-md">
+        <p className="text-accent-foreground text-sm">
           <strong>Important:</strong> Remember your credentials and PIN. If you forget them, you'll need to reset the application to regain access.
         </p>
       </div>

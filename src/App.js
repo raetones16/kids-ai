@@ -304,7 +304,7 @@ function App() {
             </p>
             <button
               onClick={handleParentLogin}
-              className="px-6 py-3 bg-accent text-accent-foreground rounded-lg font-medium hover:bg-accent/90 transition-colors w-full"
+              className="px-6 py-3 bg-accent text-accent-foreground rounded-lg font-semibold hover:bg-accent/90 transition-colors w-full"
             >
               Parent Login
             </button>

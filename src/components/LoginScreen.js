@@ -54,7 +54,7 @@ const LoginScreen = ({
             className="gap-2 fixed top-6 right-6 z-20 bg-background/80 hover:bg-grey-90"
           >
             <LogOut className="h-4 w-4" />
-            <span>Log Out</span>
+            <span className="hidden sm:inline">Log Out</span>
           </Button>
         )}
 
@@ -66,24 +66,24 @@ const LoginScreen = ({
             Who's talking today?
           </h2>
 
-          {/* Profile grid with flex centering */}
-          <div className="flex flex-wrap justify-center gap-6">
+          {/* Responsive profile layout - 2x2 grid on mobile, centered flex on larger screens */}
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:justify-center gap-4 sm:gap-6 w-full">
             {/* Child Profiles */}
             {childProfiles.map((profile) => (
               <Card
                 key={profile.id}
-                className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer w-[180px] shadow-medium bg-background/80 backdrop-blur-sm"
+                className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer w-full max-w-[180px] shadow-medium bg-background/80 backdrop-blur-sm"
                 onClick={() => onChildLogin(profile.id)}
               >
-                <CardContent className="p-6 flex flex-col items-center justify-center">
+                <CardContent className="p-3 sm:p-6 flex flex-col items-center justify-center">
                   <div
-                    className={`w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-4 ${getProfileColor(
+                    className={`w-14 h-14 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-white text-xl sm:text-2xl font-bold mb-2 sm:mb-4 ${getProfileColor(
                       profile
                     )}`}
                   >
                     {profile.name.charAt(0).toUpperCase()}
                   </div>
-                  <div className="text-xl font-medium text-center">
+                  <div className="text-base sm:text-xl font-semibold text-center">
                     {profile.name}
                   </div>
                 </CardContent>
@@ -92,14 +92,14 @@ const LoginScreen = ({
 
             {/* Parent Card - Always last */}
             <Card
-              className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer w-[180px] shadow-medium bg-background/80 backdrop-blur-sm"
+              className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer w-full max-w-[180px] shadow-medium bg-background/80 backdrop-blur-sm"
               onClick={onParentLogin}
             >
-              <CardContent className="p-6 flex flex-col items-center justify-center">
-                <div className="w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold mb-4 bg-slate-600">
-                  <User className="h-10 w-10" />
+              <CardContent className="p-3 sm:p-6 flex flex-col items-center justify-center">
+                <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-white text-xl sm:text-2xl font-bold mb-2 sm:mb-4 bg-slate-600">
+                  <User className="h-7 w-7 sm:h-10 sm:w-10" />
                 </div>
-                <div className="text-xl font-medium text-center">Parent</div>
+                <div className="text-base sm:text-xl font-semibold text-center">Parent</div>
               </CardContent>
             </Card>
           </div>
