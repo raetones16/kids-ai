@@ -6,6 +6,7 @@ import PinEntryModal from "./components/ParentDashboard/PinEntryModal";
 import ChatInterface from "./components/ChatInterface";
 import ParentDashboard from "./components/ParentDashboard";
 import DebugPanel from "./components/DebugPanel";
+import SvgWaveBackground from "./components/SvgWaveBackground";
 import { Card, CardContent, CardHeader } from "./components/ui/card";
 import { StorageService } from "./services/StorageService";
 import { ChatCompletionService } from "./services/ChatCompletionService";
@@ -308,15 +309,13 @@ function App() {
     // No authentication - show initial parent login button
     content = (
       <div className="min-h-screen flex items-center justify-center relative">
-        {/* Background Image */}
-        <div
-          className="fixed inset-0 z-0 w-full h-full bg-cover bg-center bg-no-repeat"
-          style={{
-            backgroundImage: 'url("/background-images/Login.svg")',
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-          }}
-        />
+        {/* Background Image with wave effect */}
+        <div className="fixed inset-0 z-0 w-full h-full overflow-hidden">
+          <SvgWaveBackground 
+            imageUrl="/background-images/Login.svg" 
+            className="w-full h-full"
+          />
+        </div>
 
         <Card className="w-full max-w-sm mx-4 shadow-large p-8 relative z-10 bg-background/80 backdrop-blur-sm">
           <CardHeader className="p-0">

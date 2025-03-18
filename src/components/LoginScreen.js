@@ -1,4 +1,5 @@
 import React from "react";
+import SvgWaveBackground from "./SvgWaveBackground";
 import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { User, LogOut } from "lucide-react";
@@ -34,15 +35,13 @@ const LoginScreen = ({
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 sm:p-8 md:p-20 relative">
-      {/* Background Image */}
-      <div
-        className="fixed inset-0 z-0 w-full h-full bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: 'url("/background-images/Profile.svg")',
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      />
+      {/* Background Image with wave effect */}
+      <div className="fixed inset-0 z-0 w-full h-full overflow-hidden">
+        <SvgWaveBackground
+          imageUrl="/background-images/Profile.svg"
+          className="w-full h-full"
+        />
+      </div>
 
       {/* Content - added a higher z-index and some bg opacity to make content stand out */}
       <div className="relative z-10 w-full flex flex-col items-center justify-center pb-16">
@@ -72,7 +71,7 @@ const LoginScreen = ({
             {childProfiles.map((profile) => (
               <Card
                 key={profile.id}
-                className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer w-full max-w-[180px] shadow-medium bg-background/80 backdrop-blur-sm"
+                className="overflow-hidden hover:shadow-md transition-all cursor-pointer w-full max-w-[180px] shadow-medium bg-background/80 backdrop-blur-sm transform hover:translate-y-1 duration-200"
                 onClick={() => onChildLogin(profile.id)}
               >
                 <CardContent className="p-3 sm:p-6 flex flex-col items-center justify-center">
@@ -92,14 +91,16 @@ const LoginScreen = ({
 
             {/* Parent Card - Always last */}
             <Card
-              className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer w-full max-w-[180px] shadow-medium bg-background/80 backdrop-blur-sm"
+              className="overflow-hidden hover:shadow-md transition-all cursor-pointer w-full max-w-[180px] shadow-medium bg-background/80 backdrop-blur-sm transform hover:translate-y-1 duration-200"
               onClick={onParentLogin}
             >
               <CardContent className="p-3 sm:p-6 flex flex-col items-center justify-center">
                 <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-white text-xl sm:text-2xl font-bold mb-2 sm:mb-4 bg-slate-600">
                   <User className="h-7 w-7 sm:h-10 sm:w-10" />
                 </div>
-                <div className="text-base sm:text-xl font-semibold text-center">Parent</div>
+                <div className="text-base sm:text-xl font-semibold text-center">
+                  Parent
+                </div>
               </CardContent>
             </Card>
           </div>

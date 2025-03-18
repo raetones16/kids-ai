@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import SvgWaveBackground from "./SvgWaveBackground";
 import {
   Card,
   CardHeader,
@@ -68,15 +69,13 @@ const ParentLogin = ({ onLoginSuccess, onCancel }) => {
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50">
-      {/* Background Image */}
-      <div
-        className="fixed inset-0 z-0 w-full h-full bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: 'url("/background-images/Login.svg")',
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      />
+      {/* Background Image with wave effect */}
+      <div className="fixed inset-0 z-0 w-full h-full overflow-hidden">
+        <SvgWaveBackground 
+          imageUrl="/background-images/Login.svg" 
+          className="w-full h-full"
+        />
+      </div>
 
       <Card className="w-full max-w-sm mx-4 shadow-large relative z-10 bg-background/80 backdrop-blur-sm">
         <CardHeader>

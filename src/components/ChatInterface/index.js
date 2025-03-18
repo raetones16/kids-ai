@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import SvgWaveBackground from "../SvgWaveBackground";
 import { Button } from "../ui/button";
 import { Keyboard, X } from "lucide-react";
 import Header from "./Header";
@@ -265,16 +266,13 @@ const ChatInterface = ({
     <div
       className={`min-h-screen flex flex-col text-foreground child-interface relative overflow-hidden`}
     >
-      {/* Background Image - using SVG as requested */}
-      <div
-        className="fixed -top-[100px] sm:top-0 left-0 right-0 bottom-0 z-0 w-full h-[calc(100%+100px)] sm:h-full bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: 'url("/background-images/Chat.svg")',
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-        aria-hidden="true"
-      />
+      {/* Background Image with wave distortion effect */}
+      <div className="fixed -top-[100px] sm:top-0 left-0 right-0 bottom-0 z-0 w-full h-[calc(100%+100px)] sm:h-full overflow-hidden">
+        <SvgWaveBackground 
+          imageUrl="/background-images/Chat.svg" 
+          className="w-full h-full"
+        />
+      </div>
 
       {/* Semi-transparent overlay for better readability */}
       <div className="fixed inset-0 z-0 bg-background/40" aria-hidden="true" />
