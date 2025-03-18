@@ -34,8 +34,12 @@
   max-height: 600px;
   min-width: 300px;
   min-height: 300px;
-  transition: all 0.3s ease-in-out;
-  will-change: width, height;
+  /* Make the transition smoother but keep hover effect responsive */
+  transition: transform 0.2s ease-in-out;
+  will-change: transform;
+  /* Add these to prevent layout shifts */
+  contain: layout size;
+  transform-origin: center center;
 }
 
 .circle-container:hover {

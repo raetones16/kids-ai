@@ -1,25 +1,63 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import CanvasCircleAnimation from "../CanvasCircleAnimation";
 
 const MainCircle = ({ interfaceState, audioData, audioStream, onClick }) => {
   const [dimensions, setDimensions] = useState({});
+  const resizeTimeoutRef = useRef(null);
+  const initialRenderRef = useRef(true);
 
   useEffect(() => {
     const handleResize = () => {
-      // Update dimensions on resize
-      setDimensions({
-        key: Date.now() // Force canvas recreation on resize
-      });
+      // Debounce resize events to avoid too many re-renders
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+      
+      resizeTimeoutRef.current = setTimeout(() => {
+        // Update dimensions on resize
+        setDimensions({
+          key: Date.now(), // Force canvas recreation on resize
+          width: window.innerWidth,
+          height: window.innerHeight
+        });
+      }, 150); // Small delay to batch resize events
     };
 
     // Add event listener
     window.addEventListener('resize', handleResize);
     
-    // Call once to set initial dimensions
-    handleResize();
+    // Set initial dimensions with a slight delay to ensure proper sizing
+    if (initialRenderRef.current) {
+      // Set immediate dimensions
+      setDimensions({
+        key: 'initial',
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+      
+      // Then update after layout is complete
+      const initialTimer = setTimeout(() => {
+        initialRenderRef.current = false;
+        setDimensions({
+          key: Date.now(),
+          width: window.innerWidth,
+          height: window.innerHeight
+        });
+      }, 300);
+      
+      return () => {
+        clearTimeout(initialTimer);
+        window.removeEventListener('resize', handleResize);
+      };
+    }
 
     // Cleanup
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      if (resizeTimeoutRef.current) {
+        clearTimeout(resizeTimeoutRef.current);
+      }
+      window.removeEventListener('resize', handleResize);
+    };
   }, []);
 
   return (

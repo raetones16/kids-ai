@@ -28,11 +28,14 @@ const ChatInterface = ({
   useEffect(() => {
     // Store the current child info in sessionStorage for refresh resilience
     if (childId && childName) {
-      sessionStorage.setItem('kids-ai.childSession', JSON.stringify({ id: childId, name: childName }));
+      sessionStorage.setItem(
+        "kids-ai.childSession",
+        JSON.stringify({ id: childId, name: childName })
+      );
     }
     return () => {
       // Clean up on unmount
-      sessionStorage.removeItem('kids-ai.childSession');
+      sessionStorage.removeItem("kids-ai.childSession");
     };
   }, [childId, childName]);
 
@@ -262,11 +265,11 @@ const ChatInterface = ({
     <div
       className={`min-h-screen flex flex-col text-foreground child-interface relative overflow-hidden`}
     >
-      {/* Background Image - using JPG as requested */}
+      {/* Background Image - using SVG as requested */}
       <div
-        className="fixed inset-0 z-0 w-full h-full bg-cover bg-center bg-no-repeat"
+        className="fixed -top-[100px] sm:top-0 left-0 right-0 bottom-0 z-0 w-full h-[calc(100%+100px)] sm:h-full bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: 'url("/background-images/Chat.jpg")',
+          backgroundImage: 'url("/background-images/Chat.svg")',
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
@@ -282,7 +285,7 @@ const ChatInterface = ({
       </div>
 
       <div
-        className={`flex-grow flex flex-col items-center justify-start pt-4 sm:justify-center sm:pt-6 md:pt-12 relative z-10 overflow-hidden ${
+        className={`flex-grow flex flex-col items-center justify-start pt-4 sm:justify-center sm:pt-6 md:pt-0 relative z-10 overflow-hidden ${
           showTextInput ? "keyboard-active" : ""
         }`}
       >
@@ -295,7 +298,20 @@ const ChatInterface = ({
           </div>
         ) : (
           <div className="flex flex-col items-center justify-start w-full h-full overflow-hidden">
-            <div className="circle-container-wrapper mb-2 sm:mb-4 flex-shrink-0" style={{ transition: 'all 0.3s ease-in-out' }}>
+            <div
+              className="circle-container-wrapper mb-2 sm:mb-4 flex-shrink-0"
+              style={{
+                position: "relative",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+                /* Disable container transitions to prevent unwanted resizing */
+                transform: "translateZ(0)" /* Force GPU acceleration */,
+                perspective: "1000px" /* Improve rendering performance */,
+                backfaceVisibility:
+                  "hidden" /* Reduce flashing during transitions */,
+              }}
+            >
               <MainCircle
                 interfaceState={isLoading ? "thinking" : interfaceState}
                 audioData={audioData}

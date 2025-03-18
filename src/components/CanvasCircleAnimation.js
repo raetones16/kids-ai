@@ -35,15 +35,38 @@ const CanvasCircleAnimation = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Set up high-DPI canvas for sharper rendering
-    const dpr = window.devicePixelRatio || 1;
+    // Ensure canvas is fully initialized in layout before setting dimensions
+    const setupCanvas = () => {
+      // Set up high-DPI canvas for sharper rendering
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      
+      // Only proceed if canvas has actual dimensions
+      if (rect.width === 0 || rect.height === 0) {
+        // Try again in a moment
+        return false;
+      }
+      
+      // Set canvas dimensions once, maintaining aspect ratio
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+
+      const ctx = canvas.getContext("2d");
+      ctx.scale(dpr, dpr); // Scale all drawing operations by devicePixelRatio
+      
+      return true;
+    };
+    
+    // Try to setup canvas, if it fails (dimensions not ready), retry after a short delay
+    if (!setupCanvas()) {
+      const retryTimer = setTimeout(() => {
+        setupCanvas();
+      }, 50);
+      return () => clearTimeout(retryTimer);
+    }
+    
     const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-
     const ctx = canvas.getContext("2d");
-    ctx.scale(dpr, dpr); // Scale all drawing operations by devicePixelRatio
-
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
     const radius = Math.min(centerX, centerY) * 0.7; // Main circle radius
@@ -525,19 +548,39 @@ const CanvasCircleAnimation = ({
         animationRef.current = requestAnimationFrame(animateIdle);
     }
 
-    // Handle window resize
+    // Handle window resize with debouncing
+    let resizeTimer = null;
     const handleResize = () => {
-      const dpr = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      ctx.scale(dpr, dpr);
+      // Cancel any pending resize
+      if (resizeTimer) {
+        clearTimeout(resizeTimer);
+      }
+      
+      // Schedule a resize with a delay to avoid rapid repeated resizes
+      resizeTimer = setTimeout(() => {
+        // Only resize if canvas is still in the document
+        if (canvas && canvas.isConnected) {
+          const dpr = window.devicePixelRatio || 1;
+          const rect = canvas.getBoundingClientRect();
+          
+          // Only resize if dimensions actually changed
+          if (canvas.width !== rect.width * dpr || canvas.height !== rect.height * dpr) {
+            // Save current transformation
+            const prevWidth = canvas.width;
+            const prevHeight = canvas.height;
+            
+            // Set new dimensions
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            
+            // Apply scale
+            ctx.scale(dpr, dpr);
+          }
+        }
+      }, 150); // Debounce resize for smoother UI
     };
 
     window.addEventListener("resize", handleResize);
-
-    // Also add a setTimeout to handle any delayed layout changes
-    const resizeTimer = setTimeout(handleResize, 300);
 
     // Cleanup function
     return () => {
@@ -545,7 +588,9 @@ const CanvasCircleAnimation = ({
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
-      clearTimeout(resizeTimer);
+      if (resizeTimer) {
+        clearTimeout(resizeTimer);
+      }
     };
   }, [state, audioData, audioStream]);
 
