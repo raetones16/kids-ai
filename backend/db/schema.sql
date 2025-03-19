@@ -1,13 +1,18 @@
--- Child profiles table
+-- Child profiles table with parent relationship
 CREATE TABLE IF NOT EXISTS child_profiles (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   dob TEXT NOT NULL,
   color TEXT,
   custom_instructions TEXT,
+  parent_id TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (parent_id) REFERENCES parent_profiles(id) ON DELETE CASCADE
 );
+
+-- Create index for faster parent-child lookups
+CREATE INDEX IF NOT EXISTS idx_child_profiles_parent_id ON child_profiles(parent_id);
 
 -- Conversations table
 CREATE TABLE IF NOT EXISTS conversations (

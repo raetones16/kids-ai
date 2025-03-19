@@ -126,6 +126,14 @@ export const AuthApi = {
     });
   },
   
+  // Update parent credentials
+  async updateCredentials(username, password, currentUsername) {
+    return apiRequest(`${API_URL}/auth/update-credentials`, {
+      method: 'PUT',
+      body: JSON.stringify({ username, password, currentUsername })
+    });
+  },
+  
   // Validate session
   async validateSession(sessionId) {
     return apiRequest(`${API_URL}/auth/session/${sessionId}`);

@@ -67,25 +67,11 @@ const AccountSettings = () => {
       return;
     }
 
-    // If password field is empty, we're just updating username
-    // Get current credentials to maintain the password
-    let newPassword = password;
-    if (!password) {
-      try {
-        const credentials = await authService.getParentCredentials();
-        newPassword = credentials.password;
-      } catch (err) {
-        console.error("Failed to get current credentials:", err);
-        setError("Failed to update account settings");
-        return;
-      }
-    }
-
     // Update credentials
     setIsLoading(true);
 
     try {
-      await authService.updateParentCredentials(username, newPassword);
+      await authService.updateParentCredentials(username, password);
       setSuccess("Account settings updated successfully");
 
       // Clear password fields
@@ -93,7 +79,7 @@ const AccountSettings = () => {
       setConfirmPassword("");
     } catch (err) {
       console.error("Failed to update credentials:", err);
-      setError("Failed to update account settings");
+      setError(err.message || "Failed to update account settings");
     } finally {
       setIsLoading(false);
     }
@@ -229,16 +215,16 @@ const AccountSettings = () => {
       </div>
 
       {error && (
-        <div className="flex items-start gap-2 p-3 bg-destructive/10 text-destructive rounded-md border border-destructive/20">
+        <div className="flex items-start gap-2 p-4 mb-4 bg-destructive/20 dark:bg-destructive/30 text-destructive dark:text-white/90 rounded-md border-2 border-destructive shadow-md">
           <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
-          <span>{error}</span>
+          <span className="font-medium">{error}</span>
         </div>
       )}
 
       {success && (
-        <div className="flex items-start gap-2 p-3 bg-green-500/10 text-green-500 rounded-md border border-green-500/20">
+        <div className="flex items-start gap-2 p-4 mb-4 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 rounded-md border-2 border-green-500 shadow-md">
           <CheckCircle2 className="h-5 w-5 shrink-0 mt-0.5" />
-          <span>{success}</span>
+          <span className="font-medium">{success}</span>
         </div>
       )}
 
@@ -277,10 +263,7 @@ const AccountSettings = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="password">
-                  Password{" "}
-                  <span className="text-xs text-muted-foreground">
-                    (leave blank to keep current)
-                  </span>
+                  Password <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="password"
@@ -289,6 +272,7 @@ const AccountSettings = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter new password"
                   disabled={isLoading}
+                  required
                 />
               </div>
 

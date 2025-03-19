@@ -71,6 +71,21 @@ This application provides a child-friendly interface for interacting with an AI 
    npm start
    ```
 
+## Database Fixes
+
+### Parent-Child Relationship Fix
+If children appear in multiple parent profiles, run the database fix script:
+
+```
+cd backend
+node run-db-fix.js
+```
+
+This will:
+- Add a parent_id column to the child_profiles table if needed
+- Associate all orphaned child profiles with the first parent account
+- Create proper indexes for parent-child relationship lookups
+
 ## Project Structure
 
 - `/public` - Static files
@@ -111,6 +126,7 @@ This application provides a child-friendly interface for interacting with an AI 
 - Database integration with Turso
 - Web search integration with Brave Search API
 - Migration from localStorage to database storage
+- Parent-child relationship implementation
 
 ### Phase 3: Parent Dashboard
 - Conversation logs viewer

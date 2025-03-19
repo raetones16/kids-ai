@@ -93,7 +93,7 @@ async function initializeSchema() {
     }
     
     try {
-      // Child profiles table - updated to use string IDs
+      // Child profiles table - updated to use string IDs and include parent_id
       await client.execute(`
         CREATE TABLE IF NOT EXISTS child_profiles (
           id TEXT PRIMARY KEY,
@@ -101,9 +101,17 @@ async function initializeSchema() {
           dob TEXT NOT NULL,
           color TEXT,
           custom_instructions TEXT,
+          parent_id TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (parent_id) REFERENCES parent_profiles(id) ON DELETE CASCADE
         )
+      `);
+      
+      // Create an index on parent_id for faster lookups
+      await client.execute(`
+        CREATE INDEX IF NOT EXISTS idx_child_profiles_parent_id
+        ON child_profiles(parent_id)
       `);
     } catch (profileError) {
       console.error('Error creating child_profiles table:', profileError);
@@ -157,6 +165,40 @@ async function initializeSchema() {
       `);
     } catch (settingsError) {
       console.error('Error creating settings table:', settingsError);
+    }
+    
+    // Check existing child profiles and assign them to the first parent if parent_id is NULL
+    try {
+      // Get first parent ID
+      const parents = await client.execute('SELECT id FROM parent_profiles LIMIT 1');
+      
+      if (parents.rows.length > 0) {
+        const defaultParentId = parents.rows[0].id;
+        
+        // Add parent_id column if it doesn't exist
+        try {
+          // First check if the parent_id column exists
+          const tableInfo = await client.execute(`PRAGMA table_info(child_profiles)`);
+          const hasParentIdColumn = tableInfo.rows.some(row => row.name === 'parent_id');
+          
+          // Update existing profiles to have a parent ID if the column exists
+          if (hasParentIdColumn) {
+            // Update all profiles without a parent_id
+            const updateResult = await client.execute({
+              sql: `UPDATE child_profiles SET parent_id = ? WHERE parent_id IS NULL`,
+              args: [defaultParentId]
+            });
+            
+            if (updateResult.rowsAffected > 0) {
+              console.log(`Assigned ${updateResult.rowsAffected} orphaned child profiles to parent ID: ${defaultParentId}`);
+            }
+          }
+        } catch (error) {
+          console.error('Error updating existing profiles with parent ID:', error);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking/updating parent-child relationships:', error);
     }
     
     console.log('Database schema initialized successfully');

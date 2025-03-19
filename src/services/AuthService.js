@@ -31,19 +31,19 @@ export class AuthService {
   
   // Get parent credentials
   async getParentCredentials() {
-    // Check backend availability
-    await this.checkBackendAvailability();
+    try {
+      // Check backend availability
+      await this.checkBackendAvailability();
       
-    if (this.isBackendAvailable) {
-      // TODO: In a production version, we would have a proper endpoint
-      // For now, just return the default credentials since we know they're fixed
-      return { username: 'parent', password: 'password123' };
-    } else {
-      // Get credentials from localStorage with fallback to defaults
-      const storedCredentials = localStorage.getItem(`${this.namespace}.parent_credentials`);
-      return storedCredentials 
-        ? JSON.parse(storedCredentials) 
-        : { username: 'parent', password: 'password123' };
+      // Get the current session to get the username
+      const session = await this.getSession();
+      const currentUsername = session && session.type === 'parent' ? session.username : 'parent';
+      
+      // We don't want to expose the hashed password, so just return the username
+      return { username: currentUsername };
+    } catch (error) {
+      console.error('Error getting parent credentials:', error);
+      return { username: 'parent' };
     }
   }
 
@@ -53,28 +53,34 @@ export class AuthService {
       throw new Error('Username and password are required');
     }
     
-    // Check backend availability
-    await this.checkBackendAvailability();
-    
-    if (this.isBackendAvailable) {
-      try {
-        // TODO: Add proper API endpoint for updating credentials
-        // For now, we'll just store in localStorage
-        const credentials = { username, password };
-        localStorage.setItem(`${this.namespace}.parent_credentials`, JSON.stringify(credentials));
+    try {
+      // Check backend availability
+      await this.checkBackendAvailability();
+      
+      // Get current username
+      const currentCreds = await this.getParentCredentials();
+      const currentUsername = currentCreds.username;
+      
+      if (this.isBackendAvailable) {
+        // Use the backend API
+        await AuthApi.updateCredentials(username, password, currentUsername);
+        
+        // Update the session if we have one
+        const session = await this.getSession();
+        if (session && session.type === 'parent') {
+          session.username = username;
+          localStorage.setItem(this.sessionKey, JSON.stringify(session));
+        }
+        
         return true;
-      } catch (error) {
-        console.error('Error updating parent credentials in API:', error);
-        // Fall back to updating in localStorage
-        const credentials = { username, password };
-        localStorage.setItem(`${this.namespace}.parent_credentials`, JSON.stringify(credentials));
-        return true;
+      } else {
+        // Fall back to localStorage - however this won't work with hashed passwords
+        console.warn('Backend not available, credentials update may not work properly with hashed passwords');
+        return false;
       }
-    } else {
-      // Store in localStorage
-      const credentials = { username, password };
-      localStorage.setItem(`${this.namespace}.parent_credentials`, JSON.stringify(credentials));
-      return true;
+    } catch (error) {
+      console.error('Error updating parent credentials:', error);
+      throw error;
     }
   }
   

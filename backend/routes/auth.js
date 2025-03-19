@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { db } = require('../db');
 const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 
 // Helper function to generate a session ID
 function generateSessionId() {
@@ -31,8 +32,8 @@ router.post('/login', async (req, res, next) => {
     
     // Find parent account
     const result = await db.execute({
-      sql: 'SELECT id, username FROM parent_profiles WHERE username = ? AND password = ?',
-      args: [username, password]
+      sql: 'SELECT id, username, password FROM parent_profiles WHERE username = ?',
+      args: [username]
     });
     
     if (result.rows.length === 0) {
@@ -40,6 +41,13 @@ router.post('/login', async (req, res, next) => {
     }
     
     const parent = result.rows[0];
+    
+    // Compare password with hashed password
+    const passwordMatch = await bcrypt.compare(password, parent.password);
+    
+    if (!passwordMatch) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
     
     // Create new session
     const sessionId = generateSessionId();
@@ -62,6 +70,47 @@ router.post('/login', async (req, res, next) => {
     });
   } catch (error) {
     console.error('Error during login:', error);
+    next(error);
+  }
+});
+
+// PUT /api/auth/update-credentials - Update parent credentials
+router.put('/update-credentials', async (req, res, next) => {
+  try {
+    const { username, password, currentUsername } = req.body;
+    
+    if (!username || !password || !currentUsername) {
+      return res.status(400).json({ error: 'Username, current username, and password are required' });
+    }
+    
+    // Find parent account by current username
+    const findResult = await db.execute({
+      sql: 'SELECT id FROM parent_profiles WHERE username = ?',
+      args: [currentUsername]
+    });
+    
+    if (findResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Current account not found' });
+    }
+    
+    const parentId = findResult.rows[0].id;
+    
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    // Update parent account
+    await db.execute({
+      sql: 'UPDATE parent_profiles SET username = ?, password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      args: [username, hashedPassword, parentId]
+    });
+    
+    res.json({
+      success: true,
+      message: 'Credentials updated successfully',
+      username
+    });
+  } catch (error) {
+    console.error('Error updating credentials:', error);
     next(error);
   }
 });

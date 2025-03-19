@@ -7,7 +7,7 @@ import {
   SelectContent,
   SelectItem,
 } from "../ui/select";
-import { User, MessageSquare, Settings, LogOut, Search, X } from "lucide-react";
+import { User, MessageSquare, Settings, LogOut, Search, X, AlertCircle } from "lucide-react";
 
 import ProfileManager from "./ProfileManager";
 import ConversationViewer from "./ConversationViewer";
@@ -127,8 +127,9 @@ const ParentDashboard = ({ onLogout }) => {
 
       <div className="container mx-auto pb-0 w-full max-w-5xl px-6 sm:px-8 md:px-10">
         {error && (
-          <div className="mb-6 bg-destructive/10 p-4 rounded-lg border border-destructive/20 text-destructive">
-            {error}
+          <div className="flex items-start gap-2 p-4 my-4 bg-destructive/20 dark:bg-destructive/30 text-destructive dark:text-white/90 rounded-md border-2 border-destructive shadow-md">
+            <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+            <span className="font-medium">{error}</span>
           </div>
         )}
 

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
+import { AlertCircle } from "lucide-react";
 
 const PinEntryModal = ({ onVerify, error: propError, onCancel }) => {
   const [pin, setPin] = useState(["", "", "", "", "", ""]); // 6-digit PIN
@@ -84,8 +85,9 @@ const PinEntryModal = ({ onVerify, error: propError, onCancel }) => {
 
         <form onSubmit={handleSubmit}>
           {error && (
-            <div className="bg-destructive/10 border border-destructive/20 text-destructive p-3 rounded-md mb-4 text-sm">
-              {error}
+            <div className="flex items-start gap-2 p-4 mb-4 bg-destructive/20 dark:bg-destructive/30 text-destructive dark:text-white/90 rounded-md border-2 border-destructive shadow-md">
+              <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+              <span className="font-medium">{error}</span>
             </div>
           )}
 

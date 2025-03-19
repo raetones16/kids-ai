@@ -2,6 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const { fixChildParentRelationship } = require('./fix-parent-child-relationship');
 
 // Load environment variables
 dotenv.config();
@@ -43,6 +44,15 @@ const { db, initializeSchema } = require('./db');
       console.log('Performance indexes added successfully');
     } catch (indexError) {
       console.error('Error adding indexes:', indexError);
+    }
+    
+    // Fix parent-child relationships
+    try {
+      console.log('Running parent-child relationship fix...');
+      await fixChildParentRelationship();
+      console.log('Parent-child relationship fix completed successfully');
+    } catch (fixError) {
+      console.error('Error running parent-child relationship fix:', fixError);
     }
   } catch (err) {
     console.error('Database initialization warning:', err);
