@@ -75,8 +75,11 @@ const PinEntryModal = ({ onVerify, error: propError, onCancel }) => {
         <h2 className="text-xl font-semibold mb-2">
           Enter Parent Dashboard PIN
         </h2>
-        <p className="text-muted-foreground mb-6">
+        <p className="text-muted-foreground mb-3">
           Please enter your 6-digit PIN to access the parent dashboard.
+        </p>
+        <p className="text-sm bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 p-3 rounded-md mb-6">
+          <strong>Note:</strong> The default PIN is <code className="font-mono bg-background dark:bg-background/30 px-2 py-1 rounded border">000000</code>
         </p>
 
         <form onSubmit={handleSubmit}>

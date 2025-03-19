@@ -85,7 +85,7 @@ const ParentLogin = ({ onLoginSuccess, onCancel }) => {
         <form onSubmit={handleSubmit}>
           <CardContent className="space-y-4 w-full">
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-800 p-3 rounded-md text-sm">
+              <div className="bg-destructive/20 dark:bg-destructive/30 border-2 border-destructive text-destructive dark:text-white/90 p-4 rounded-md text-sm font-medium shadow-md">
                 {error}
               </div>
             )}

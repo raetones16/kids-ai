@@ -110,7 +110,7 @@ async function initializeSchema() {
     }
     
     try {
-      // Conversations table - update to use string IDs throughout
+      // Conversations table - update to use string IDs throughout with CASCADE delete
       await client.execute(`
         CREATE TABLE IF NOT EXISTS conversations (
           id TEXT PRIMARY KEY,
@@ -118,7 +118,7 @@ async function initializeSchema() {
           thread_id TEXT NOT NULL,
           started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           last_activity_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (child_id) REFERENCES child_profiles(id)
+          FOREIGN KEY (child_id) REFERENCES child_profiles(id) ON DELETE CASCADE
         )
       `);
     } catch (convError) {
@@ -126,7 +126,7 @@ async function initializeSchema() {
     }
     
     try {
-      // Messages table
+      // Messages table with CASCADE delete
       await client.execute(`
         CREATE TABLE IF NOT EXISTS messages (
           id TEXT PRIMARY KEY,
@@ -134,7 +134,7 @@ async function initializeSchema() {
           role TEXT NOT NULL,
           content TEXT NOT NULL,
           timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (conversation_id) REFERENCES conversations(id)
+          FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
         )
       `);
     } catch (msgError) {

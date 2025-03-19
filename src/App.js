@@ -48,10 +48,13 @@ function App() {
         await storageService.current.checkBackendAvailability();
 
         // Debug: Log localStorage content
-        console.log('Session in localStorage:', localStorage.getItem(`kids-ai.session`));
+        console.log(
+          "Session in localStorage:",
+          localStorage.getItem(`kids-ai.session`)
+        );
 
         const session = await authService.current.getSession();
-        console.log('Session returned by authService:', session);
+        console.log("Session returned by authService:", session);
 
         if (session) {
           Logger.info("App", "Found existing session", session);
@@ -65,26 +68,28 @@ function App() {
           // Set the user in state
           setUser(session);
         } else {
-          console.log('No session found, checking if there is a raw session in localStorage');
+          console.log(
+            "No session found, checking if there is a raw session in localStorage"
+          );
           // Backup check: try to directly parse from localStorage
           try {
             const rawSession = localStorage.getItem(`kids-ai.session`);
             if (rawSession) {
               const parsedSession = JSON.parse(rawSession);
-              console.log('Found raw session in localStorage:', parsedSession);
-              
+              console.log("Found raw session in localStorage:", parsedSession);
+
               if (parsedSession && parsedSession.type) {
-                console.log('Using raw session from localStorage');
+                console.log("Using raw session from localStorage");
                 setUser(parsedSession);
-                
-                if (parsedSession.type === 'parent') {
+
+                if (parsedSession.type === "parent") {
                   setParentAuthenticated(true);
                   loadChildProfiles();
                 }
               }
             }
           } catch (parseError) {
-            console.error('Error parsing raw session:', parseError);
+            console.error("Error parsing raw session:", parseError);
           }
         }
 
@@ -311,25 +316,25 @@ function App() {
       <div className="min-h-screen flex items-center justify-center relative">
         {/* Background Image with wave effect */}
         <div className="fixed inset-0 z-0 w-full h-full overflow-hidden">
-          <SvgWaveBackground 
-            imageUrl="/background-images/Login.svg" 
+          <SvgWaveBackground
+            imageUrl="/background-images/Login.svg"
             className="w-full h-full"
           />
         </div>
 
         <Card className="w-full max-w-sm mx-4 shadow-large p-8 relative z-10 bg-background/80 backdrop-blur-sm">
-          <CardHeader className="p-0">
+          <CardHeader className="p-0 mb-2">
             <h1 className="text-4xl font-bold text-center text-primary">
               Kids AI
             </h1>
           </CardHeader>
-          <CardContent className="space-y-4 text-center p-0">
+          <CardContent className="space-y-4 text-center p-0 pb-1">
             <p className="text-muted-foreground">
               A child-friendly AI assistant
             </p>
             <button
               onClick={handleParentLogin}
-              className="px-6 py-3 bg-accent text-accent-foreground rounded-lg font-semibold hover:bg-accent/90 transition-colors w-full"
+              className="px-6 py-3 bg-accent text-accent-foreground rounded-lg font-semibold hover:bg-accent/90 transition-all duration-200 ease-in-out w-full relative top-0 hover:top-0.5 hover:translate-y-0.5"
             >
               Parent Login
             </button>

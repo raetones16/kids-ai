@@ -130,6 +130,7 @@ router.put('/:id', async (req, res, next) => {
 router.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
+    console.log(`Attempting to delete profile with ID: ${id}`);
 
     // Check if profile exists
     const checkResult = await db.execute({
@@ -138,16 +139,54 @@ router.delete('/:id', async (req, res, next) => {
     });
 
     if (checkResult.rows.length === 0) {
+      console.log(`Profile with ID ${id} not found for deletion`);
       return res.status(404).json({ error: 'Profile not found' });
     }
 
-    // Delete profile (cascading delete will remove conversations and messages)
-    await db.execute({
-      sql: 'DELETE FROM child_profiles WHERE id = ?',
-      args: [id]
-    });
-
-    res.status(200).json({ message: 'Profile deleted successfully' });
+    try {
+      // Get count of related conversations before deletion (for logging)
+      const conversationCount = await db.execute({
+        sql: 'SELECT COUNT(*) as count FROM conversations WHERE child_id = ?',
+        args: [id]
+      });
+      
+      const messageCount = await db.execute({
+        sql: `SELECT COUNT(*) as count FROM messages 
+              WHERE conversation_id IN (
+                SELECT id FROM conversations WHERE child_id = ?
+              )`,
+        args: [id]
+      });
+      
+      console.log(`Found ${conversationCount.rows[0].count} conversations and ${messageCount.rows[0].count} messages for child ${id}`);
+      
+      // Delete profile (cascading delete will remove conversations and messages)
+      const deleteResult = await db.execute({
+        sql: 'DELETE FROM child_profiles WHERE id = ?',
+        args: [id]
+      });
+      
+      console.log(`Delete result for profile ${id}:`, deleteResult);
+      
+      // Verify conversations were deleted
+      const verifyConversations = await db.execute({
+        sql: 'SELECT COUNT(*) as count FROM conversations WHERE child_id = ?',
+        args: [id]
+      });
+      
+      if (verifyConversations.rows[0].count > 0) {
+        console.warn(`Warning: ${verifyConversations.rows[0].count} conversations still exist for deleted profile ${id}`);
+      }
+      
+      res.status(200).json({ 
+        message: 'Profile deleted successfully',
+        deletedConversations: conversationCount.rows[0].count,
+        deletedMessages: messageCount.rows[0].count
+      });
+    } catch (deleteError) {
+      console.error(`Error in deletion process for profile ${id}:`, deleteError);
+      throw deleteError;
+    }
   } catch (error) {
     console.error('Error deleting profile:', error);
     next(error);

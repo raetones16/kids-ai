@@ -153,19 +153,28 @@ export class ProfileStorageService extends BaseStorageService {
   // Delete a child profile
   async deleteChildProfile(id) {
     try {
+      console.log(`Attempting to delete child profile with ID: ${id}`);
+      
       // Wait for backend availability check
       await this.backendAvailabilityPromise;
       
       if (this.isBackendAvailable) {
         try {
-          await ProfileApi.deleteProfile(id);
+          console.log(`Using backend API to delete profile ${id}`);
+          const deleteResult = await ProfileApi.deleteProfile(id);
+          console.log(`Profile ${id} deleted successfully from backend`, deleteResult);
+          
+          // Also delete from localStorage for redundancy
+          this._deleteProfileFromLocalStorage(id);
           return true;
         } catch (apiError) {
           console.error(`Error deleting profile ${id} from API:`, apiError);
           // Fall back to localStorage
+          console.log(`Falling back to localStorage for profile ${id} deletion`);
           return this._deleteProfileFromLocalStorage(id);
         }
       } else {
+        console.log(`Backend unavailable, using localStorage for profile ${id} deletion`);
         return this._deleteProfileFromLocalStorage(id);
       }
     } catch (error) {
@@ -177,17 +186,27 @@ export class ProfileStorageService extends BaseStorageService {
   
   // Helper to delete profile from localStorage
   _deleteProfileFromLocalStorage(id) {
-    const profiles = JSON.parse(localStorage.getItem(`${this.namespace}.profiles`) || '[]');
-    const updatedProfiles = profiles.filter(p => p.id !== id);
-    
-    localStorage.setItem(`${this.namespace}.profiles`, JSON.stringify(updatedProfiles));
-    
-    // Also delete all conversations for this child
-    const conversations = JSON.parse(localStorage.getItem(`${this.namespace}.conversations`) || '[]');
-    const updatedConversations = conversations.filter(c => c.childId !== id);
-    
-    localStorage.setItem(`${this.namespace}.conversations`, JSON.stringify(updatedConversations));
-    
-    return true;
+    try {
+      // Delete the profile
+      const profiles = JSON.parse(localStorage.getItem(`${this.namespace}.profiles`) || '[]');
+      const updatedProfiles = profiles.filter(p => p.id !== id);
+      
+      localStorage.setItem(`${this.namespace}.profiles`, JSON.stringify(updatedProfiles));
+      
+      // Also delete all conversations for this child
+      const conversations = JSON.parse(localStorage.getItem(`${this.namespace}.conversations`) || '[]');
+      const childConversations = conversations.filter(c => c.childId === id);
+      const updatedConversations = conversations.filter(c => c.childId !== id);
+      
+      // Log the conversations being deleted for debugging
+      console.log(`Deleting ${childConversations.length} conversations for child ${id} from localStorage`);
+      
+      localStorage.setItem(`${this.namespace}.conversations`, JSON.stringify(updatedConversations));
+      
+      return true;
+    } catch (error) {
+      console.error(`Error in _deleteProfileFromLocalStorage for ${id}:`, error);
+      throw error;
+    }
   }
 }

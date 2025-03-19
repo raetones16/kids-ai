@@ -133,7 +133,7 @@ const ParentDashboard = ({ onLogout }) => {
         )}
 
         {/* Responsive Tab Navigation - Now Sticky */}
-        <div className="sticky top-16 z-40 bg-background py-2 border-b mb-4">
+        <div className="sticky top-16 z-40 bg-background py-4 mb-4">
           <div className="container mx-auto w-full max-w-5xl px-0 sm:px-8 md:px-10">
             {/* Mobile dropdown for small screens */}
             <div className="block sm:hidden">

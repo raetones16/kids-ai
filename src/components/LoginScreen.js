@@ -107,7 +107,7 @@ const LoginScreen = ({
 
           {/* Show message only if no child profiles */}
           {childProfiles.length === 0 && (
-            <div className="mt-4 p-4 text-center bg-background/80 backdrop-blur-sm rounded-lg">
+            <div className="mt-12 p-4 text-center bg-background/80 backdrop-blur-sm rounded-lg">
               <p className="text-muted-foreground">
                 No child profiles have been created yet.
               </p>

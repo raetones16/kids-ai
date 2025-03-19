@@ -5,7 +5,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
-import { PlusCircle, Pencil, Trash2 } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, AlertTriangle } from "lucide-react";
 
 // Define a fixed set of colors for profiles
 const PROFILE_COLORS = [
@@ -300,23 +300,30 @@ const ProfileManager = ({
                     )}
                 </>
               ) : (
-                <div className="w-full bg-destructive/10 p-4 rounded-lg border border-destructive/20">
-                  <p className="text-destructive mb-4">
-                    Are you sure you want to delete this profile? This will
-                    remove all conversation history.
-                  </p>
-                  <div className="flex gap-2">
+                <div className="w-full bg-destructive/20 dark:bg-destructive/30 p-5 rounded-lg border-2 border-destructive shadow-md">
+                  <div className="mb-4">
+                    <h4 className="text-destructive dark:text-white font-bold text-base mb-1">Confirm Deletion</h4>
+                    <p className="text-destructive dark:text-white/90 font-medium text-base">
+                      Are you sure you want to delete this profile? This will
+                      remove all conversation history.
+                    </p>
+                  </div>
+                  <div className="flex gap-3">
                     <Button
                       type="button"
                       variant="destructive"
+                      size="lg"
                       onClick={handleDeleteProfile}
+                      className="font-semibold gap-2 px-5 py-2"
                     >
-                      Yes, Delete Profile
+                      <Trash2 className="h-5 w-5" /> Yes, Delete Profile
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
+                      size="lg"
                       onClick={() => setShowConfirmDelete(false)}
+                      className="border-2"
                     >
                       Cancel
                     </Button>
