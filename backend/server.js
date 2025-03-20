@@ -68,6 +68,7 @@ const settingsRoutes = require('./routes/settings');
 const migrationRoutes = require('./routes/migration');
 const authRoutes = require('./routes/auth');
 const statsRoutes = require('./routes/stats');
+const aiRoutes = require('./routes/ai');
 
 // Create Express app
 const app = express();
@@ -96,6 +97,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/migration', migrationRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

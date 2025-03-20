@@ -1,16 +1,12 @@
 /**
  * OpenAITTSService.js
- * Service to handle text-to-speech using OpenAI's TTS API
- * Optimized with streaming, chunking, and low-latency features
+ * Service to handle text-to-speech using OpenAI's TTS API via our backend proxy
+ * Optimized with chunking and low-latency features
  */
 
 export class OpenAITTSService {
-  constructor(apiKey) {
-    if (!apiKey) {
-      throw new Error('OpenAI API key is required');
-    }
-    
-    this.apiKey = apiKey;
+  constructor() {
+    this.baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
     this.audioContext = null; // Initialize later on user interaction
     this.onStartCallback = null;
     this.onEndCallback = null;
@@ -33,9 +29,6 @@ export class OpenAITTSService {
     this.maxPrefetchCount = 2; // Maximum number of chunks to prefetch
     this.inProgressFetches = new Map(); // Track in-progress fetches to avoid duplicates
     this.processedChunks = new Set(); // Track which chunks we've already processed
-    
-    // Response format options - use WAV for even lower latency
-    this.responseFormat = 'wav'; // Use wav for lowest latency
   }
   
   // Initialize the audio context (should be called after a user gesture)
@@ -48,7 +41,7 @@ export class OpenAITTSService {
     }
   }
   
-  // Process text chunk for TTS with true streaming
+  // Process text chunk for TTS with backend API
   async speakChunkStreaming(chunk, voice = 'fable') {
     if (!chunk || chunk.trim() === '') return null;
     
@@ -91,68 +84,39 @@ export class OpenAITTSService {
       // Create the promise for the fetch operation
       const fetchPromise = (async () => {
         try {
-          // Call OpenAI TTS API with the chunk
-          const response = await fetch('https://api.openai.com/v1/audio/speech', {
+          // Call our backend TTS API with the chunk
+          const response = await fetch(`${this.baseUrl}/ai/tts`, {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${this.apiKey}`,
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              model: 'tts-1',
-              input: chunk,
-              voice: voice, // 'nova' is a female British voice
-              response_format: this.responseFormat, // Use wav for lowest latency
-              speed: 1.0 // Normal speech rate for better comprehension
+              text: chunk,
+              voice: voice
             }),
             signal // Add AbortController signal to allow cancellation
           });
           
           if (!response.ok) {
-            const error = await response.json();
-            throw new Error(`OpenAI TTS API error: ${error.error?.message || 'Unknown error'}`);
-          }
-          
-          // Start processing the audio stream as soon as it starts arriving
-          const reader = response.body.getReader();
-          const chunks = [];
-          let receivedLength = 0;
-          
-          // Log when we start receiving data
-          console.log(`TTS API for "${chunk.substring(0, 20)}..." started receiving data after ${performance.now() - startTime}ms`);
-          
-          let firstChunkTime = null;
-          
-          while (true) {
-            const { done, value } = await reader.read();
-            
-            if (done) {
-              break;
+            let errorMessage = 'TTS API Error';
+            try {
+              const errorData = await response.json();
+              errorMessage = errorData.error || errorMessage;
+            } catch (e) {
+              // If it's not JSON, just use the status text
+              errorMessage = `${response.status}: ${response.statusText}`;
             }
-            
-            if (!firstChunkTime) {
-              firstChunkTime = performance.now();
-              console.log(`First audio chunk received after ${firstChunkTime - startTime}ms`);
-            }
-            
-            chunks.push(value);
-            receivedLength += value.length;
+            throw new Error(errorMessage);
           }
           
-          // Concatenate all chunks into a single Uint8Array
-          const allChunks = new Uint8Array(receivedLength);
-          let position = 0;
-          for (const chunk of chunks) {
-            allChunks.set(chunk, position);
-            position += chunk.length;
-          }
+          // Get the audio blob
+          const audioBlob = await response.blob();
           
-          // Create blob and URL
-          const audioBlob = new Blob([allChunks], { type: `audio/${this.responseFormat}` });
-          const audioUrl = URL.createObjectURL(audioBlob);
-          
-          // Measure total TTS API latency
+          // Log when we receive the data
           console.log(`TTS API for "${chunk.substring(0, 20)}..." completed in ${performance.now() - startTime}ms`);
+          
+          // Create audio URL
+          const audioUrl = URL.createObjectURL(audioBlob);
           
           // Start a timer for audio decoding
           const decodeStartTime = performance.now();
@@ -591,20 +555,6 @@ export class OpenAITTSService {
   
   onError(callback) {
     this.onErrorCallback = callback;
-    return this;
-  }
-  
-  // Utility function to set the response format
-  // Allows switching between 'opus', 'wav', 'mp3', etc.
-  setResponseFormat(format) {
-    const validFormats = ['opus', 'wav', 'mp3', 'aac', 'flac', 'pcm'];
-    if (!validFormats.includes(format)) {
-      console.warn(`Invalid format: ${format}. Using 'wav' instead.`);
-      this.responseFormat = 'wav';
-    } else {
-      this.responseFormat = format;
-      console.log(`TTS response format set to ${format}`);
-    }
     return this;
   }
 }

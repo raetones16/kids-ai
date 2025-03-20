@@ -14,8 +14,8 @@ import { MockAssistantService } from "./services/MockAssistantService";
 import { AuthService } from "./services/AuthService";
 import Logger from "./utils/Logger";
 
-// Get API key from environment variable
-const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
+// Get API key from environment variable - Not needed anymore since we use backend API
+// const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
 
 // Flags for services
 const USE_REAL_API = true;
@@ -115,7 +115,7 @@ function App() {
       try {
         // Initialize the real or mock assistant based on flag
         if (USE_REAL_API) {
-          assistantRef.current = new ChatCompletionService(OPENAI_API_KEY);
+          assistantRef.current = new ChatCompletionService();
           Logger.info("App", "Using real OpenAI API with Chat Completions");
         } else {
           assistantRef.current = new MockAssistantService();

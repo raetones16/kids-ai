@@ -7,8 +7,7 @@
 import { DirectTtsService } from './DirectTtsService';
 
 export class ChatTtsService {
-  constructor(apiKey) {
-    this.apiKey = apiKey;
+  constructor() {
     this.ttsService = null;
     this.initialized = false;
     this.isPlaying = false;
@@ -24,8 +23,9 @@ export class ChatTtsService {
     if (this.initialized) return;
     
     try {
-      if (this.useOpenAI && this.apiKey) {
-        this.ttsService = new DirectTtsService(this.apiKey);
+      if (this.useOpenAI) {
+        // Use the updated DirectTtsService that calls our backend proxy
+        this.ttsService = new DirectTtsService();
         
         // Set callbacks
         if (this.ttsService) {
@@ -126,6 +126,12 @@ export class ChatTtsService {
       this.initialize();
     }
     
+    // If already playing, don't start another speech
+    if (this.isPlaying) {
+      console.log('ChatTtsService: Already speaking, ignoring new speak request');
+      return;
+    }
+    
     // Stop any current speech
     this.stop();
     
@@ -145,7 +151,7 @@ export class ChatTtsService {
       if (this.ttsService) {
         console.log('ChatTtsService: Calling TTS service speak method');
         // Always use the direct speak method to ensure the entire text is spoken as one unit
-        await this.ttsService.speak(text);
+        await this.ttsService.speak(text, voice);
       }
     } catch (error) {
       console.error('ChatTtsService: Error speaking text:', error);

@@ -2,8 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { StorageService } from '../services/StorageService';
 import { ChatTtsService } from '../services/ChatTtsService';
 
-// Configuration flags from environment
-const OPENAI_API_KEY = process.env.REACT_APP_OPENAI_API_KEY;
+// Configuration flags
 const USE_OPENAI_TTS = true; // Use OpenAI TTS instead of browser TTS
 
 export function useChat(assistantService, childId, childName) {
@@ -42,7 +41,7 @@ export function useChat(assistantService, childId, childName) {
         storageRef.current = new StorageService();
         
         // Set up text-to-speech service
-        textToSpeechRef.current = new ChatTtsService(OPENAI_API_KEY);
+        textToSpeechRef.current = new ChatTtsService();
         textToSpeechRef.current.initialize();
         console.log('Using unified TTS service with OpenAI TTS');
         
@@ -212,6 +211,27 @@ export function useChat(assistantService, childId, childName) {
     };
     
     setMessages([welcomeMessage]);
+    
+    // Initialize the TTS service
+    if (!textToSpeechRef.current) {
+      textToSpeechRef.current = new ChatTtsService();
+      textToSpeechRef.current.initialize();
+      
+      // Set up TTS callbacks
+      textToSpeechRef.current.onStart(() => {
+        setInterfaceState('speaking');
+      });
+      
+      textToSpeechRef.current.onEnd(() => {
+        setInterfaceState('idle');
+      });
+      
+      textToSpeechRef.current.onError((error) => {
+        console.error('TTS error:', error);
+        setInterfaceState('idle');
+      });
+    }
+    
     setIsInitialized(true);
     
     // Cleanup on unmount
@@ -420,7 +440,8 @@ export function useChat(assistantService, childId, childName) {
             console.log(`Complete response received in ${Date.now() - startTime}ms, length: ${completeResponse.length} chars`);
             
             // Use our simplified TTS service to speak the complete response
-            if (textToSpeechRef.current) {
+            // IMPORTANT: Only speak if we're not already speaking
+            if (textToSpeechRef.current && interfaceState !== 'speaking') {
               setInterfaceState('speaking');
               try {
                 await textToSpeechRef.current.speak(completeResponse);

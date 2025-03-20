@@ -1,12 +1,12 @@
 /**
  * DirectTtsService.js
- * A direct implementation of TTS using the OpenAI API
+ * A direct implementation of TTS using the backend API proxy to OpenAI
  * This bypasses the streaming/chunking logic to ensure a single, unified speech experience
  */
 
 export class DirectTtsService {
-  constructor(apiKey) {
-    this.apiKey = apiKey;
+  constructor() {
+    this.baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
     this.isPlaying = false;
     this.audioContext = null;
     this.currentSource = null;
@@ -43,24 +43,20 @@ export class DirectTtsService {
         this.onStartCallback();
       }
       
-      // Call OpenAI TTS API
-      const response = await fetch('https://api.openai.com/v1/audio/speech', {
+      // Call backend TTS API instead of OpenAI directly
+      const response = await fetch(`${this.baseUrl}/ai/tts`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'tts-1',
-          input: text,
-          voice: voice,
-          response_format: 'mp3', // Using mp3 for better quality
-          speed: 1.0 // Normal speech rate
+          text,
+          voice
         })
       });
       
       if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.status}`);
+        throw new Error(`Backend TTS API error: ${response.status}`);
       }
       
       console.log('DirectTtsService: API response received, processing audio');

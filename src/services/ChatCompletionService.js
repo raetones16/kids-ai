@@ -1,18 +1,14 @@
-import OpenAI from "openai";
+/**
+ * ChatCompletionService.js
+ * Service for interacting with OpenAI Chat Completions API through our backend proxy
+ */
+
 import SearchService from "./SearchService";
 import ContentSafetyService from "./safety/ContentSafetyService";
 
 export class ChatCompletionService {
-  constructor(apiKey) {
-    if (!apiKey) {
-      throw new Error("OpenAI API key is required");
-    }
-
-    this.client = new OpenAI({
-      apiKey,
-      dangerouslyAllowBrowser: true, // Allow browser usage
-      maxRetries: 2, // Reduce retries to speed up error responses
-    });
+  constructor() {
+    this.baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
     // Track the last response to avoid repetition
     this.lastResponse = null;
@@ -23,8 +19,8 @@ export class ChatCompletionService {
 
   // Create empty thread ID - just for compatibility
   async createThread() {
-    // Instead of creating a thread, we just return a unique identifier
-    // that will be used to track the conversation in local storage
+    // We no longer need to call the backend API for thread creation
+    // Just return a local ID for compatibility
     return `chat-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
   }
 
@@ -348,47 +344,36 @@ export class ChatCompletionService {
       // Log the messages we're sending to the API
       console.log(`Sending ${formattedMessages.length} messages to Chat API`);
 
-      // Create a streaming response
-      const stream = await this.client.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: formattedMessages,
-        stream: true,
-        temperature: 0.7, // Balance between creativity and consistency
-        max_tokens: 150, // Limit response length for faster replies
-      });
-
+      // Initialize variables for streaming simulation
       let fullResponse = "";
 
-      // Process the stream
-      for await (const chunk of stream) {
-        const content = chunk.choices[0]?.delta?.content || "";
-        if (content) {
-          fullResponse += content;
-
-          // Call the chunk callback with the content
-          const isPausePoint = this.isGoodBreakpoint(content);
-
-          if (onChunk) {
-            onChunk(
-              content,
-              isPausePoint,
-              chunk.choices[0]?.finish_reason === "stop",
-              fullResponse
-            );
-          }
-        } else if (chunk.choices[0]?.finish_reason === "stop") {
-          // If this is the final chunk, make sure we send a signal with the complete text
-          if (onChunk) {
-            // First call with the current chunk if it exists
-            if (content) {
-              const isPausePoint = this.isGoodBreakpoint(content);
-              onChunk(content, isPausePoint, false, fullResponse);
-            }
-
-            // Then call to signal completion
-            onChunk("", true, true, fullResponse);
-          }
+      // Call our backend API
+      try {
+        const response = await fetch(`${this.baseUrl}/ai/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message,
+            recentMessages: formattedMessages
+          }),
+        });
+        
+        if (!response.ok) {
+          throw new Error(`${response.status} ${await response.text()}`);
         }
+        
+        const data = await response.json();
+        fullResponse = data.response || '';
+        
+        // Simulate streaming by breaking the response into chunks
+        if (onChunk && fullResponse) {
+          this.simulateStreamingResponse(fullResponse, onChunk);
+        }
+      } catch (error) {
+        console.error("Error calling backend chat API:", error);
+        throw error;
       }
 
       // Store this response to check for repetition in the future
@@ -398,14 +383,42 @@ export class ChatCompletionService {
         `Chat completion completed in ${performance.now() - startTime}ms`
       );
 
-      // We no longer add a note about search
-      // The AI will provide information directly without mentioning search
-
       return fullResponse;
     } catch (error) {
       console.error("Error sending message:", error);
       throw new Error("Failed to get AI response. Please try again later.");
     }
+  }
+
+  // Simulate streaming by breaking up the response into chunks
+  simulateStreamingResponse(fullText, onChunk) {
+    if (!fullText || typeof onChunk !== 'function') return;
+    
+    // Break the text into sentences
+    const sentences = fullText.match(/[^.!?]+[.!?]+/g) || [fullText];
+    let accumulatedText = '';
+    
+    // Send each sentence as a chunk with a small delay
+    sentences.forEach((sentence, index) => {
+      setTimeout(() => {
+        accumulatedText += sentence;
+        const isLast = index === sentences.length - 1;
+        
+        onChunk(
+          accumulatedText,
+          this.isGoodBreakpoint(accumulatedText),
+          isLast,
+          accumulatedText
+        );
+        
+        // Send final empty chunk to mark completion
+        if (isLast) {
+          setTimeout(() => {
+            onChunk('', false, true, fullText);
+          }, 100);
+        }
+      }, index * 150); // Small delay between chunks
+    });
   }
 
   // Format messages for the Chat API
