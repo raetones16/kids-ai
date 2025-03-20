@@ -81,22 +81,20 @@ const PORT = process.env.PORT || 3001;
 // Middleware - Updated CORS configuration
 app.use(
   cors({
-    origin:
-      process.env.NODE_ENV === "production"
-        ? [
-            "https://kids-ai.vercel.app",
-            "https://kids-ai-tims-projects-4437c0a0.vercel.app",
-          ]
-        : "http://localhost:3000",
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    origin: '*',  // Temporarily allow all origins for testing
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   })
 );
 
 app.use(express.json());
 
-// Basic health check endpoint
+// Basic health check endpoints
+app.get("/", (req, res) => {
+  res.status(200).json({ status: "ok", message: "Kids-AI backend is running (root)" });
+});
+
 app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "ok", message: "Kids-AI backend is running" });
 });
