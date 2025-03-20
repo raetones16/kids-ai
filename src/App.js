@@ -37,6 +37,24 @@ function App() {
   // UI state
   const [showParentAuth, setShowParentAuth] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
+  
+  // Make sure we set the initial mounted state to true
+  useEffect(() => {
+    const timerId = setTimeout(() => {}, 0);
+    console.log(`Clearing all timers below ID ${timerId}`);
+    // Clear any lingering timers - this helps with unmount issues
+    for (let i = 0; i < timerId; i++) {
+      clearTimeout(i);
+    }
+    
+    // Return cleanup function
+    return () => {
+      const timerId = setTimeout(() => {}, 0);
+      for (let i = 0; i < timerId; i++) {
+        clearTimeout(i);
+      }
+    };
+  }, []);
 
   // Check for existing session on mount
   useEffect(() => {
@@ -44,53 +62,97 @@ function App() {
       try {
         Logger.info("App", "Checking for existing session");
 
-        // Force backend availability check
-        await storageService.current.checkBackendAvailability();
+        // Log localStorage content for debugging
+        const sessionData = localStorage.getItem(`kids-ai.session`);
+        console.log("Session in localStorage:", sessionData);
+        
+        // First, directly check localStorage for the most reliable session data
+        try {
+          if (sessionData) {
+            const parsedSession = JSON.parse(sessionData);
+            console.log("Found session in localStorage:", parsedSession);
 
-        // Debug: Log localStorage content
-        console.log(
-          "Session in localStorage:",
-          localStorage.getItem(`kids-ai.session`)
-        );
-
-        const session = await authService.current.getSession();
-        console.log("Session returned by authService:", session);
-
-        if (session) {
-          Logger.info("App", "Found existing session", session);
-
-          // If it's a parent session, we're authenticated
-          if (session.type === "parent") {
-            setParentAuthenticated(true);
-            loadChildProfiles();
-          }
-
-          // Set the user in state
-          setUser(session);
-        } else {
-          console.log(
-            "No session found, checking if there is a raw session in localStorage"
-          );
-          // Backup check: try to directly parse from localStorage
-          try {
-            const rawSession = localStorage.getItem(`kids-ai.session`);
-            if (rawSession) {
-              const parsedSession = JSON.parse(rawSession);
-              console.log("Found raw session in localStorage:", parsedSession);
-
-              if (parsedSession && parsedSession.type) {
-                console.log("Using raw session from localStorage");
-                setUser(parsedSession);
-
-                if (parsedSession.type === "parent") {
+            if (parsedSession && parsedSession.type) {
+              console.log("Using session from localStorage, type:", parsedSession.type);
+              
+              // The key change: Only set parentAuthenticated if we're showing the profile selection screen
+              // Do not set parentAuthenticated if going directly to parent dashboard
+              if (parsedSession.type === "parent") {
+                if (parsedSession.id === "parent" && parsedSession.name === "Parent") {
+                  // This is a dashboard-specific parent session
+                  console.log("This is a dashboard parent session, tab:", parsedSession.dashboardTab || 'profiles');
+                  
+                  // Make sure we have the dashboard tab persisted
+                  const updatedSession = { ...parsedSession };
+                  
+                  // Ensure dashboard tab is set
+                  if (!updatedSession.dashboardTab) {
+                    updatedSession.dashboardTab = "profiles";
+                  }
+                  
+                  // Add a timestamp if missing
+                  if (!updatedSession.timestamp) {
+                    updatedSession.timestamp = new Date().toISOString();
+                  }
+                  
+                  // Save the updated session with all required fields
+                  localStorage.setItem("kids-ai.session", JSON.stringify(updatedSession));
+                  
+                  // Update user state
+                  setUser(updatedSession);
                   setParentAuthenticated(true);
                   loadChildProfiles();
+                } else if (parsedSession.id === "selection") {
+                  // This is a parent login but no specific user is set - profile selection
+                  console.log("This is a profile selection parent session");
+                  setParentAuthenticated(true);
+                  setUser(null); // Important: Keep user null for profile selection
+                  loadChildProfiles();
+                } else {
+                  // Unknown parent session type - default to profile selection
+                  console.log("Unknown parent session type, defaulting to profile selection");
+                  setParentAuthenticated(true);
+                  setUser(null);
+                  loadChildProfiles();
                 }
+              } else if (parsedSession.type === "child") {
+                // Child login - straight to chat interface
+                console.log("This is a child session");
+                setUser(parsedSession);
+              } else {
+                // Unknown session type - clear it and show login
+                console.log("Unknown session type, clearing session");
+                localStorage.removeItem("kids-ai.session");
               }
+              
+              // Skip other session checking since we found a valid one
+              setIsSessionChecking(false);
+              return;
             }
-          } catch (parseError) {
-            console.error("Error parsing raw session:", parseError);
           }
+        } catch (parseError) {
+          console.error("Error parsing raw session from localStorage:", parseError);
+        }
+        
+        // If localStorage check failed, try the authentication service
+        try {
+          const session = await authService.current.getSession();
+          console.log("Session returned by authService:", session);
+
+          if (session) {
+            Logger.info("App", "Found existing session", session);
+
+            // If it's a parent session, we're authenticated
+            if (session.type === "parent") {
+              setParentAuthenticated(true);
+              loadChildProfiles();
+            }
+
+            // Set the user in state
+            setUser(session);
+          }
+        } catch (authError) {
+          console.error("Error retrieving session from auth service:", authError);
         }
 
         setIsSessionChecking(false);
@@ -102,6 +164,43 @@ function App() {
 
     checkExistingSession();
   }, []);
+
+  // Handle URL parameters to ensure proper navigation
+  useEffect(() => {
+    if (isSessionChecking) return;
+    
+    // Check for URL parameters indicating dashboard access
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get('tab');
+      const isAccessing = urlParams.get('accessing');
+      
+      // If URL indicates dashboard access but we're not showing dashboard, try to restore it
+      if (tabParam && isAccessing === 'dashboard' && (!user || user.type !== 'parent' || user.id !== 'parent')) {
+        console.log(`URL parameters indicate dashboard tab ${tabParam} but we're not showing dashboard`);
+        
+        // Only force dashboard if we're already parent authenticated
+        if (parentAuthenticated) {
+          console.log('Parent is authenticated, restoring dashboard view with tab:', tabParam);
+          
+          // Create parent dashboard user
+          const dashboardUser = {
+            type: 'parent',
+            id: 'parent',
+            name: 'Parent',
+            dashboardTab: tabParam,
+            timestamp: new Date().toISOString()
+          };
+          
+          // Set user state to dashboard and update localStorage
+          setUser(dashboardUser);
+          localStorage.setItem('kids-ai.session', JSON.stringify(dashboardUser));
+        }
+      }
+    } catch (error) {
+      console.error('Error processing URL parameters:', error);
+    }
+  }, [isSessionChecking, user, parentAuthenticated]);
 
   // Initialize app
   useEffect(() => {
@@ -156,6 +255,17 @@ function App() {
 
     // Set parent authentication state
     setParentAuthenticated(true);
+    setUser(null); // Important: Keep user null for profile selection screen
+    
+    // Create a session that indicates we're on the profile selection screen
+    const profileSelectionSession = {
+      type: "parent",
+      id: "selection", // This ID indicates we're at the profile selection, not the dashboard
+      timestamp: new Date().toISOString()
+    };
+    
+    // Save this special session type to localStorage
+    localStorage.setItem("kids-ai.session", JSON.stringify(profileSelectionSession));
 
     // Load child profiles
     await loadChildProfiles();
@@ -178,11 +288,30 @@ function App() {
     );
     if (childProfile) {
       try {
-        const session = await authService.current.loginChild(
+        // Create the session first
+        const sessionData = {
+          type: "child",
+          id: childId,
+          name: childProfile.name,
+          timestamp: new Date().toISOString()
+        };
+        
+        // Store directly in localStorage for persistence
+        localStorage.setItem("kids-ai.session", JSON.stringify(sessionData));
+        
+        // Try to login through the auth service (may be used for API authentication)
+        try {
+        await authService.current.loginChild(
           childId,
-          childProfile.name
-        );
-        setUser(session);
+            childProfile.name
+            );
+          } catch (error) {
+            Logger.error("App", "API login failed, using local only", error);
+          }
+        
+        // Set the user with our consistent session data format
+        setUser(sessionData);
+        
         Logger.info("App", `Login successful for: ${childProfile.name}`);
       } catch (error) {
         Logger.error("App", `Login failed for child ID: ${childId}`, error);
@@ -207,13 +336,19 @@ function App() {
       const isValid = await storageService.current.verifyParentPin(pin);
 
       if (isValid) {
-        // Set user as parent
+        // Set user as parent - this is a dashboard-specific parent user
         const parentUser = {
           type: "parent",
           id: "parent",
           name: "Parent",
+          dashboardTab: "profiles", // Default tab
+          timestamp: new Date().toISOString()
         };
+        
+        // Update both state and localStorage
         setUser(parentUser);
+        localStorage.setItem("kids-ai.session", JSON.stringify(parentUser));
+        
         setShowPinModal(false);
         return true;
       } else {
@@ -232,31 +367,105 @@ function App() {
       "App",
       `Logged out from child chat: ${user?.name || "unknown"}`
     );
-    // Just reset the user without clearing parent authentication
+    
+    // Create a profile selection session instead of removing the session completely
+    const profileSelectionSession = {
+      type: "parent",
+      id: "selection",
+      timestamp: new Date().toISOString()
+    };
+    
+    // Save the profile selection session
+    localStorage.setItem("kids-ai.session", JSON.stringify(profileSelectionSession));
+    
+    // Reset the user but ensure parent authentication is maintained
     setUser(null);
+    setParentAuthenticated(true);
+    
     // Make sure we reload the child profiles for user selection screen
-    if (parentAuthenticated) {
-      await loadChildProfiles();
-    }
+    await loadChildProfiles();
   };
 
   // Handle logout from parent dashboard
   const handleParentDashboardLogout = async () => {
     Logger.info("App", "Logged out from parent dashboard");
+    console.log("handleParentDashboardLogout called");
+    
+    // First clear all sessionStorage items related to dashboard
+    try {
+      sessionStorage.removeItem('kids-ai.dashboard.activeTab');
+      sessionStorage.removeItem('kids-ai.dashboard.selectedChildId');
+      sessionStorage.removeItem('kids-ai.settings.pinState');
+      sessionStorage.removeItem('kids-ai.settings.username');
+    } catch (e) {
+      console.error("Error clearing sessionStorage:", e);
+    }
+    
+    // Preserve the dashboard state (tab selection, etc.) while creating a profile selection session
+    try {
+      // Create a profile selection session but preserve dashboard state
+      const profileSelectionSession = {
+        type: "parent",
+        id: "selection",
+        timestamp: new Date().toISOString()
+      };
+      
+      // Save the profile selection session
+      localStorage.setItem("kids-ai.session", JSON.stringify(profileSelectionSession));
+      console.log("Saved profile selection session to localStorage:", profileSelectionSession);
+    } catch (error) {
+      console.error("Error setting profile selection session:", error);
+    }
+    
     // Reload child profiles before returning to selection screen
-    await loadChildProfiles();
-    // Reset the user, but keep parent authentication
+    try {
+      await loadChildProfiles();
+    } catch (e) {
+      console.error("Error loading child profiles:", e);
+    }
+    
+    // Reset the user state to null, but keep parent authenticated
+    console.log("Setting user state to null");
     setUser(null);
   };
 
-  // Handle complete logout
+  // Handle complete logout - completely erases all session data
   const handleCompleteLogout = async () => {
     Logger.info("App", "Complete logout");
-    // Logout using auth service - true flag ensures we clear remember me data
-    await authService.current.logout(true);
-    // Reset all authentication state
-    setUser(null);
-    setParentAuthenticated(false);
+    
+    try {
+      // Clear all local storage session data - do this first to ensure UI state is reset
+      localStorage.removeItem("kids-ai.session");
+      
+      // Clear any other related items that might cause persistence
+      try {
+        localStorage.removeItem(`kids-ai.remember_me`);
+        localStorage.removeItem(`kids-ai.parent_credentials`);
+        localStorage.removeItem(`kids-ai.sessionId`);
+      } catch (error) {
+        console.error("Error clearing secondary localStorage items:", error);
+      }
+      
+      // Logout using auth service - true flag ensures we clear remember me data
+      try {
+        await authService.current.logout(true);
+      } catch (error) {
+        console.error("Error in auth service logout:", error);
+      }
+      
+      // Reset all authentication state
+      setUser(null);
+      setParentAuthenticated(false);
+      
+      console.log("Complete logout successful");
+    } catch (error) {
+      console.error("Error during complete logout:", error);
+      
+      // Even if there's an error, still clear the UI state
+      setUser(null);
+      setParentAuthenticated(false);
+      localStorage.removeItem("kids-ai.session");
+    }
   };
 
   // Loading screen

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "../ui/button";
 import {
   Card,
@@ -18,52 +18,157 @@ const authService = new AuthService();
 const storageService = new StorageService();
 
 const AccountSettings = () => {
-  // Credentials state
-  const [username, setUsername] = useState("");
+  // Credentials state with safe initialization
+  const [username, setUsername] = useState(() => {
+    // Provide a safe empty default that can never be undefined
+    try {
+      // Try to get from sessionStorage for persistence
+      const sessionUsername = sessionStorage.getItem('kids-ai.settings.username');
+      return sessionUsername || "";
+    } catch (e) {
+      return "";
+    }
+  });
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // PIN state
-  const [newPin, setNewPin] = useState(["", "", "", "", "", ""]);
-  const [confirmPin, setConfirmPin] = useState(["", "", "", "", "", ""]);
+  // Track mounted state and other refs for state management
+  const isMounted = useRef(true);
+  const usernameRef = useRef("");
+  const errorRef = useRef(null);
+  
+  // Clean up function that runs when component unmounts
+  useEffect(() => {
+    return () => {
+      console.log('AccountSettings component unmounting');
+      // Clear any interval timers
+      const timerId = setTimeout(() => {}, 0);
+      for (let i = 0; i < timerId; i++) {
+        clearTimeout(i);
+      }
+      
+      // Mark component as unmounted to prevent state updates
+      isMounted.current = false;
+    };
+  }, []);
+
+  // Safe state setter functions that access the refs directly
+  const safeSetUsername = useCallback((value) => {
+    if (!isMounted.current) return;
+    
+    const safeValue = value || "";
+    usernameRef.current = safeValue; // Update ref
+    setUsername(safeValue); // Update state
+    
+    // Save to sessionStorage
+    try {
+      sessionStorage.setItem('kids-ai.settings.username', safeValue);
+    } catch (e) {
+      console.error('Error saving username to sessionStorage:', e);
+    }
+  }, []);
+  
+  const safeSetPassword = useCallback((value) => {
+    if (!isMounted.current) return;
+    setPassword(value || "");
+  }, []);
+  
+  const safeSetConfirmPassword = useCallback((value) => {
+    if (!isMounted.current) return;
+    setConfirmPassword(value || "");
+  }, []);
+  
+  const safeSetError = useCallback((value) => {
+    if (!isMounted.current) return;
+    errorRef.current = value;
+    setError(value);
+  }, []);
+  
+  // PIN state with explicit default values and guaranteed array creation
+  const [newPin, setNewPin] = useState(() => {
+    // Try to get from sessionStorage first
+    try {
+      const savedPinState = sessionStorage.getItem('kids-ai.settings.pinState');
+      if (savedPinState) {
+        const parsedState = JSON.parse(savedPinState);
+        if (parsedState.newPin && Array.isArray(parsedState.newPin) && parsedState.newPin.length === 6) {
+          return parsedState.newPin;
+        }
+      }
+    } catch (e) {
+      console.error('Error retrieving PIN state from session storage:', e);
+    }
+    return Array(6).fill("");
+  });
+  
+  const [confirmPin, setConfirmPin] = useState(() => {
+    // Try to get from sessionStorage first
+    try {
+      const savedPinState = sessionStorage.getItem('kids-ai.settings.pinState');
+      if (savedPinState) {
+        const parsedState = JSON.parse(savedPinState);
+        if (parsedState.confirmPin && Array.isArray(parsedState.confirmPin) && parsedState.confirmPin.length === 6) {
+          return parsedState.confirmPin;
+        }
+      }
+    } catch (e) {
+      console.error('Error retrieving PIN state from session storage:', e);
+    }
+    return Array(6).fill("");
+  });
 
   // UI state
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const successRef = useRef(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Safe setter for success state
+  const safeSetSuccess = useCallback((value) => {
+    if (!isMounted.current) return;
+    successRef.current = value;
+    setSuccess(value);
+  }, []);
 
-  // Load current credentials
-  const loadCurrentCredentials = async () => {
+  // Load current credentials with no dependencies
+  const loadCurrentCredentials = useCallback(async () => {
+    if (!isMounted.current) return;
+    
+    // Initialize all text fields with safe empty defaults
+    safeSetUsername("");
+    safeSetPassword("");
+    safeSetConfirmPassword("");
+    
     try {
       const credentials = await authService.getParentCredentials();
-      setUsername(credentials.username);
+      safeSetUsername(credentials.username);
     } catch (err) {
       console.error("Failed to load credentials:", err);
-      setError("Failed to load current account information");
+      safeSetError("Failed to load current account information");
     }
-  };
+  }, []);
 
   // Handle account form submission
   const handleAccountSubmit = async (e) => {
     e.preventDefault();
 
     // Reset messages
-    setError(null);
-    setSuccess(null);
+    safeSetError(null);
+    safeSetSuccess(null);
 
     // Validate input
     if (!username.trim()) {
-      setError("Username is required");
+      safeSetError("Username is required");
       return;
     }
 
     if (password && password.length < 6) {
-      setError("Password must be at least 6 characters long");
+      safeSetError("Password must be at least 6 characters long");
       return;
     }
 
     if (password && password !== confirmPassword) {
-      setError("Passwords do not match");
+      safeSetError("Passwords do not match");
       return;
     }
 
@@ -72,29 +177,43 @@ const AccountSettings = () => {
 
     try {
       await authService.updateParentCredentials(username, password);
-      setSuccess("Account settings updated successfully");
+      safeSetSuccess("Account settings updated successfully");
 
       // Clear password fields
-      setPassword("");
-      setConfirmPassword("");
+      safeSetPassword("");
+      safeSetConfirmPassword("");
     } catch (err) {
       console.error("Failed to update credentials:", err);
-      setError(err.message || "Failed to update account settings");
+      safeSetError(err.message || "Failed to update account settings");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handle pin input change
+  // Handle pin input change with enhanced error handling
   const handlePinChange = (index, value, pinType) => {
-    // Only allow single digit numbers
-    if (!/^\d?$/.test(value)) return;
+    // Ensure we're working with valid arrays
+    if (!Array.isArray(newPin) || !Array.isArray(confirmPin)) {
+      console.error('PIN arrays are invalid, resetting them');
+      setNewPin(() => Array(6).fill(""));
+      setConfirmPin(() => Array(6).fill(""));
+      return;
+    }
+    // Only allow single digit numbers or empty string
+    if (value !== "" && !/^\d$/.test(value)) return;
 
-    // Update the PIN digit
-    const updatedPin = pinType === "new" ? [...newPin] : [...confirmPin];
+    // Create new PIN array
+    let updatedPin;
+    if (pinType === "new") {
+      updatedPin = [...newPin];
+    } else {
+      updatedPin = [...confirmPin];
+    }
 
+    // Update the specified digit
     updatedPin[index] = value;
 
+    // Update state based on PIN type
     if (pinType === "new") {
       setNewPin(updatedPin);
     } else {
@@ -102,7 +221,7 @@ const AccountSettings = () => {
     }
 
     // Clear any previous error/success messages
-    setError(null);
+    safeSetError(null);
     setSuccess(null);
 
     // Auto-focus next input if value was entered
@@ -173,13 +292,13 @@ const AccountSettings = () => {
     const confirmPinValue = confirmPin.join("");
 
     if (newPinValue.length !== 6 || confirmPinValue.length !== 6) {
-      setError("Please enter all 6 digits for both PINs");
+      safeSetError("Please enter all 6 digits for both PINs");
       return;
     }
 
     // Check if PINs match
     if (newPinValue !== confirmPinValue) {
-      setError("PINs do not match. Please try again.");
+      safeSetError("PINs do not match. Please try again.");
       return;
     }
 
@@ -187,23 +306,80 @@ const AccountSettings = () => {
       // Update PIN via storageService
       setIsLoading(true);
       await storageService.updateParentPin(newPinValue);
-      setSuccess("PIN updated successfully");
+      safeSetSuccess("PIN updated successfully");
 
-      // Clear the form
-      setNewPin(["", "", "", "", "", ""]);
-      setConfirmPin(["", "", "", "", "", ""]);
+      // Clear the form - using Array.fill for guaranteed arrays
+      setNewPin(() => Array(6).fill(""));
+      setConfirmPin(() => Array(6).fill(""));
     } catch (err) {
       console.error("Error updating PIN:", err);
-      setError("An error occurred while updating PIN");
+      safeSetError("An error occurred while updating PIN");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Load current credentials on component mount
+  // Load current credentials on component mount and preserve PIN state values
   useEffect(() => {
+    // Initial load of credentials
     loadCurrentCredentials();
-  }, []);
+    
+    // Create a cleanup function that ensures the PIN arrays are valid
+    // when this component unmounts and remounts
+    return () => {
+      // First mark component as unmounted to prevent state updates
+      isMounted.current = false;
+      
+      // Store current state in session storage to survive refreshes/tab changes
+      try {
+        // Only attempt to save if we have valid arrays
+        if (Array.isArray(newPin) && Array.isArray(confirmPin)) {
+          const pinState = {
+            newPin: newPin.map(digit => digit || ""),
+            confirmPin: confirmPin.map(digit => digit || "")
+          };
+          sessionStorage.setItem('kids-ai.settings.pinState', JSON.stringify(pinState));
+        }
+      } catch (e) {
+        console.error('Error saving PIN state to session storage:', e);
+      }
+    };
+  }, [newPin, confirmPin, loadCurrentCredentials]);
+  
+  // Additional safety check to ensure PIN arrays are always arrays
+  // Use a ref to prevent infinite loops
+  const wasPinArrayFixed = useRef(false);
+  
+  useEffect(() => {
+    // Only fix once per render and skip the rest of the effect if already fixed
+    if (wasPinArrayFixed.current) return;
+    
+    // Verify PIN arrays every time the component renders
+    let shouldFixPin = false;
+
+    if (!Array.isArray(newPin) || newPin.length !== 6) {
+      console.warn('newPin is not a valid array, will reset');
+      shouldFixPin = true;
+    }
+    
+    if (!Array.isArray(confirmPin) || confirmPin.length !== 6) {
+      console.warn('confirmPin is not a valid array, will reset');
+      shouldFixPin = true;
+    }
+
+    // If either array needs fixing, do it once
+    if (shouldFixPin) {
+      wasPinArrayFixed.current = true;
+      // Use setTimeout to avoid state updates during render
+      setTimeout(() => {
+        if (isMounted.current) {
+          setNewPin(Array(6).fill(""));
+          setConfirmPin(Array(6).fill(""));
+          wasPinArrayFixed.current = false; // Reset for next render
+        }
+      }, 0);
+    }
+  }, [newPin, confirmPin]);
 
   return (
     <div className="space-y-8 pb-6">
@@ -253,8 +429,8 @@ const AccountSettings = () => {
                 <Label htmlFor="username">Username</Label>
                 <Input
                   id="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  value={username || ""}
+                  onChange={(e) => safeSetUsername(e.target.value)}
                   placeholder="Enter username"
                   disabled={isLoading}
                   required
@@ -268,8 +444,8 @@ const AccountSettings = () => {
                 <Input
                   id="password"
                   type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  value={password || ""}
+                  onChange={(e) => safeSetPassword(e.target.value)}
                   placeholder="Enter new password"
                   disabled={isLoading}
                   required
@@ -281,8 +457,8 @@ const AccountSettings = () => {
                 <Input
                   id="confirmPassword"
                   type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  value={confirmPassword || ""}
+                  onChange={(e) => safeSetConfirmPassword(e.target.value)}
                   placeholder="Confirm new password"
                   disabled={isLoading || !password}
                 />
@@ -327,7 +503,7 @@ const AccountSettings = () => {
                       pattern="[0-9]*"
                       maxLength={1}
                       name={`new-pin-${index}`}
-                      value={digit}
+                      value={digit || ""}
                       onChange={(e) =>
                         handlePinChange(index, e.target.value, "new")
                       }
@@ -351,7 +527,7 @@ const AccountSettings = () => {
                       pattern="[0-9]*"
                       maxLength={1}
                       name={`confirm-pin-${index}`}
-                      value={digit}
+                      value={digit || ""}
                       onChange={(e) =>
                         handlePinChange(index, e.target.value, "confirm")
                       }

@@ -29,15 +29,13 @@ const ChatInterface = ({
   useEffect(() => {
     // Store the current child info in sessionStorage for refresh resilience
     if (childId && childName) {
-      sessionStorage.setItem(
-        "kids-ai.childSession",
-        JSON.stringify({ id: childId, name: childName })
+      localStorage.setItem(
+        "kids-ai.session",
+        JSON.stringify({ type: "child", id: childId, name: childName })
       );
+      console.log("Saved child session to localStorage", { type: "child", id: childId, name: childName });
     }
-    return () => {
-      // Clean up on unmount
-      sessionStorage.removeItem("kids-ai.childSession");
-    };
+    // Intentionally NOT removing on unmount to persist across refreshes
   }, [childId, childName]);
 
   // Initialize chat hook
@@ -46,7 +44,6 @@ const ChatInterface = ({
     interfaceState,
     setInterfaceState,
     processUserInput,
-    initializeWelcomeMessage,
     getAudioData,
     conversationReady,
     tts,

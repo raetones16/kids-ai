@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "../ui/button";
 import {
   Select,
@@ -20,11 +20,150 @@ import "../../globals.css";
 const storageService = new StorageService();
 
 const ParentDashboard = ({ onLogout }) => {
-  const [activeTab, setActiveTab] = useState("profiles");
+  // Initialize state from session if available, with direct URL parameter handling
+  const initializeActiveTab = () => {
+    // Check for URL parameter first
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    if (tabParam && ['profiles', 'conversations', 'account'].includes(tabParam)) {
+      console.log("Setting tab from URL parameter:", tabParam);
+      return tabParam;
+    }
+    
+    // Check sessionStorage second (most reliable for browser refreshes)
+    try {
+      const sessionTab = sessionStorage.getItem('kids-ai.dashboard.activeTab');
+      if (sessionTab && ['profiles', 'conversations', 'account'].includes(sessionTab)) {
+        console.log("Restoring dashboard tab from sessionStorage:", sessionTab);
+        return sessionTab;
+      }
+    } catch (error) {
+      console.error("Error retrieving dashboard tab from sessionStorage:", error);
+    }
+    
+    // Then check stored session
+    try {
+      const sessionData = localStorage.getItem("kids-ai.session");
+      if (sessionData) {
+        const session = JSON.parse(sessionData);
+        if (session && session.dashboardTab) {
+          console.log("Restoring dashboard tab from session:", session.dashboardTab);
+          return session.dashboardTab;
+        }
+      }
+    } catch (error) {
+      console.error("Error retrieving dashboard tab from session:", error);
+    }
+    return "profiles"; // Default tab
+  };
+
+  const [activeTab, setActiveTab] = useState(initializeActiveTab);
   const [childProfiles, setChildProfiles] = useState([]);
-  const [selectedChildId, setSelectedChildId] = useState(null);
+  
+  // Initialize selected child ID from session if available
+  const initializeSelectedChildId = () => {
+    // Check sessionStorage first (most reliable for browser refreshes)
+    try {
+      const sessionChildId = sessionStorage.getItem('kids-ai.dashboard.selectedChildId');
+      if (sessionChildId) {
+        console.log("Restoring selected child ID from sessionStorage:", sessionChildId);
+        return sessionChildId;
+      }
+    } catch (error) {
+      console.error("Error retrieving selected child ID from sessionStorage:", error);
+    }
+    
+    // Then check localStorage session
+    try {
+      const sessionData = localStorage.getItem("kids-ai.session");
+      if (sessionData) {
+        const session = JSON.parse(sessionData);
+        if (session && session.selectedChildId) {
+          console.log("Restoring selected child ID from session:", session.selectedChildId);
+          return session.selectedChildId;
+        }
+      }
+    } catch (error) {
+      console.error("Error retrieving selected child ID from session:", error);
+    }
+    return null; // Default value
+  };
+
+  const [selectedChildId, setSelectedChildId] = useState(initializeSelectedChildId);
   const [searchQuery, setSearchQuery] = useState("");
   const [error, setError] = useState(null);
+  
+  // Centralized state synchronization function
+  const synchronizeSessionState = useCallback((forceSync = false) => {
+    try {
+      const sessionData = localStorage.getItem("kids-ai.session");
+      if (sessionData) {
+        const session = JSON.parse(sessionData);
+        if (session && session.type === "parent" && session.id === "parent") {
+          // Create updated session with current state
+          const updatedSession = {
+            ...session,
+            dashboardTab: activeTab,
+            selectedChildId: selectedChildId || session.selectedChildId,
+            timestamp: new Date().toISOString()
+          };
+          
+          // Update localStorage
+          localStorage.setItem("kids-ai.session", JSON.stringify(updatedSession));
+          console.log("Session synchronized with current state:", updatedSession);
+        }
+      }
+    } catch (e) {
+      console.error("Error synchronizing session:", e);
+    }
+  }, [activeTab, selectedChildId]);
+  
+  // Ensure session data stays synchronized with component state
+  useEffect(() => {
+    // Only run this if we have real values to save
+    if (activeTab) {
+      console.log("Synchronizing session data with activeTab:", activeTab);
+      
+      // Run the synchronization
+      synchronizeSessionState();
+      
+      // Use sessionStorage for more reliable tab state persistence
+      sessionStorage.setItem('kids-ai.dashboard.activeTab', activeTab);
+      if (selectedChildId) {
+        sessionStorage.setItem('kids-ai.dashboard.selectedChildId', selectedChildId);
+      }
+      
+      // Update URL with tab parameter
+      const url = new URL(window.location);
+      url.searchParams.set('tab', activeTab);
+      url.searchParams.set('accessing', 'dashboard');
+      window.history.replaceState({}, '', url);
+      
+      // Also update session before page unload
+      const handleBeforeUnload = () => {
+        synchronizeSessionState(true);
+        sessionStorage.setItem('kids-ai.dashboard.activeTab', activeTab);
+        if (selectedChildId) {
+          sessionStorage.setItem('kids-ai.dashboard.selectedChildId', selectedChildId);
+        }
+      };
+      
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+      };
+    }
+  }, [activeTab, selectedChildId, synchronizeSessionState]);
+  
+  // Additional effect to refresh session data periodically
+  useEffect(() => {
+    // Regularly sync session to prevent losing state on refresh
+    const intervalId = setInterval(() => {
+      synchronizeSessionState(true);
+    }, 10000); // Every 10 seconds
+    
+    return () => clearInterval(intervalId);
+  }, [synchronizeSessionState]);
 
   // Load child profiles on component mount
   useEffect(() => {
@@ -42,6 +181,23 @@ const ParentDashboard = ({ onLogout }) => {
 
     loadProfiles();
   }, []);
+  
+  // Component is unmounting - clean up
+  useEffect(() => {
+    return () => {
+      console.log('ParentDashboard component unmounting');
+      // Clear all intervals and timeouts
+      const timerId = setTimeout(() => {}, 0);
+      for (let i = 0; i < timerId; i++) {
+        clearTimeout(i);
+        clearInterval(i);
+      }
+      
+      // Clear session storage to be safe
+      sessionStorage.removeItem('kids-ai.dashboard.activeTab');
+      sessionStorage.removeItem('kids-ai.dashboard.selectedChildId');
+    };
+  }, []);
 
   // Update child profiles after changes
   const refreshChildProfiles = async () => {
@@ -54,18 +210,31 @@ const ParentDashboard = ({ onLogout }) => {
   };
 
   // Handle tab selection
-  const handleTabSelect = (tab) => {
+  const handleTabSelect = useCallback((tab) => {
+    console.log(`Switching to tab: ${tab}`);
     setActiveTab(tab);
-
+    
     // Auto-select first profile for conversation history tab if none selected
     if (
       tab === "conversations" &&
       !selectedChildId &&
       childProfiles.length > 0
     ) {
-      setSelectedChildId(childProfiles[0].id);
+      const firstChildId = childProfiles[0].id;
+      setSelectedChildId(firstChildId);
     }
-  };
+    
+    // Immediately synchronize tab selection
+    setTimeout(() => {
+      // Update URL with tab parameter
+      const url = new URL(window.location);
+      url.searchParams.set('tab', tab);
+      window.history.replaceState({}, '', url);
+      
+      // The synchronizeSessionState effect will handle saving to localStorage
+      synchronizeSessionState(true);
+    }, 0);
+  }, [childProfiles, selectedChildId, synchronizeSessionState]);
 
   // Handle child profile changes
   const handleProfileChange = async (action, profileData) => {
@@ -96,14 +265,16 @@ const ParentDashboard = ({ onLogout }) => {
   };
 
   // Handle child selection
-  const handleChildSelect = (childId) => {
+  const handleChildSelect = useCallback((childId) => {
     setSelectedChildId(childId);
-  };
+    // State synchronization handled by the useEffect
+  }, []);
 
   // Handle child selection for conversation history
-  const handleChildSelectForConversation = (value) => {
+  const handleChildSelectForConversation = useCallback((value) => {
     setSelectedChildId(value);
-  };
+    // State synchronization handled by the useEffect
+  }, []);
 
   return (
     <div className="min-h-screen w-full bg-background">
@@ -117,7 +288,29 @@ const ParentDashboard = ({ onLogout }) => {
             variant="outline"
             size="sm"
             className="gap-2"
-            onClick={onLogout}
+            onClick={() => {
+              console.log('Dashboard logout button clicked');
+              // Force logout by clearing all relevant state and storage
+              try {
+                // Clear all sessionStorage
+                sessionStorage.clear();
+                
+                // Set selection session in localStorage
+                const profileSelectionSession = {
+                  type: "parent",
+                  id: "selection",
+                  timestamp: new Date().toISOString()
+                };
+                localStorage.setItem("kids-ai.session", JSON.stringify(profileSelectionSession));
+                
+                // Force a page navigation to root with reload
+                window.location.href = window.location.origin;
+              } catch (error) {
+                console.error('Error during forced logout:', error);
+                // As a last resort, try the normal logout handler
+                onLogout();
+              }
+            }}
           >
             <LogOut className="h-4 w-4" />
             Exit Dashboard

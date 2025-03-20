@@ -16,10 +16,23 @@ export class AuthService {
     this.isBackendAvailable = true; // Assume backend is available initially
   }
   
-  // Check if backend is available
+  // Check if backend is available - simple method that won't throw
   async checkBackendAvailability() {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/health`);
+      // Create an abort controller with timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+      
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3001/api'}/health`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId); // Clear the timeout
+      
       this.isBackendAvailable = response.ok;
       return this.isBackendAvailable;
     } catch (error) {
@@ -269,8 +282,9 @@ export class AuthService {
       timestamp: new Date().toISOString()
     };
     
-    // Store session
+    // Store session in localStorage only for simplicity and reliability
     localStorage.setItem(this.sessionKey, JSON.stringify(session));
+    
     this.currentUser = session;
     
     // Make sure we don't have a sessionId in localStorage that could cause validation to fail
@@ -279,7 +293,7 @@ export class AuthService {
     return session;
   }
   
-  // Get current session from backend or localStorage
+  // Get current session from localStorage or backend
   async getSession() {
     console.log('AuthService: getSession() called');
     
@@ -289,9 +303,9 @@ export class AuthService {
       return this.currentUser;
     }
     
-    // Get session ID from localStorage
-    const sessionId = localStorage.getItem(this.sessionIdKey);
+    // Get session data directly from localStorage
     const sessionData = localStorage.getItem(this.sessionKey);
+    const sessionId = localStorage.getItem(this.sessionIdKey);
     
     console.log('AuthService: Session data from localStorage:', {
       sessionId,
@@ -321,9 +335,10 @@ export class AuthService {
       
       // Only validate with backend if we have a sessionId
       if (sessionId) {
-        await this.checkBackendAvailability();
+        // Check backend availability without throwing - we'll try to validate if available
+        const isBackendUp = await this.checkBackendAvailability().catch(() => false);
         
-        if (this.isBackendAvailable) {
+        if (isBackendUp) {
           // Validate session with backend
           try {
             console.log('AuthService: Validating session with backend');
