@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import "./App.css";
+import "./components/MobileFixes.css"; // Mobile-specific fixes
 import LoginScreen from "./components/LoginScreen";
 import ParentLogin from "./components/ParentLogin";
 import PinEntryModal from "./components/ParentDashboard/PinEntryModal";

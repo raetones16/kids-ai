@@ -1,0 +1,74 @@
+/* Mobile fixes to prevent unwanted zooming and other mobile-specific issues */
+
+/* Prevent zooming on form inputs */
+@media screen and (max-width: 768px) {
+  input[type="text"],
+  input[type="password"],
+  input[type="email"],
+  input[type="number"],
+  textarea,
+  select {
+    font-size: 16px !important; /* Prevents iOS zoom */
+  }
+
+  button {
+    -webkit-appearance: none;
+    appearance: none;
+    font-size: 16px !important;
+  }
+
+  /* Ensure the whole page doesn't zoom */
+  html, body {
+    touch-action: manipulation;
+    -webkit-text-size-adjust: none;
+    text-size-adjust: none;
+  }
+
+  /* Fix focusing behavior in inputs */
+  .mobile-keyboard-form {
+    transform: translateZ(0);
+  }
+  
+  /* Performance optimizations for mobile devices */
+  .svg-wave-background,
+  .animation-canvas,
+  .circle-animation {
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+  
+  /* Reduce animation complexity on mobile */
+  @media screen and (max-width: 640px) {
+    .ripple, .wave, .orbit {
+      animation-duration: 1.5s !important; /* Slower animations */
+    }
+    
+    /* Force hardware acceleration for critical animations */
+    .circle-container {
+      transform: translateZ(0);
+      will-change: transform;
+    }
+    
+    /* Reduce shadow complexity */
+    .main-circle, .circle-animation * {
+      filter: none !important;
+      box-shadow: none !important;
+    }
+  }
+}
+
+/* Improve Safari input behavior */
+@supports (-webkit-touch-callout: none) {
+  input,
+  textarea {
+    /* Disable iOS shadow and custom appearance */
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  
+  /* Additional Safari-specific optimizations */
+  .animation-canvas {
+    transform: translateZ(0);
+  }
+}

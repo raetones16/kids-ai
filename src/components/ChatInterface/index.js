@@ -66,6 +66,57 @@ const ChatInterface = ({
     }
   }, [speechError]);
 
+  // Set up automatic state recovery and timeout for stuck states
+  useEffect(() => {
+    let stateTimeoutId = null;
+    
+    const checkForStuckState = () => {
+      if (interfaceState === "speaking") {
+        // Check if TTS has actually started
+        const currentTime = Date.now();
+        const speakingStartTime = tts?.speakingStartTime || 0;
+        const speakingDuration = currentTime - speakingStartTime;
+        
+        // If we've been "speaking" for more than 15 seconds with no sound, it might be stuck
+        if (speakingDuration > 15000 && (!audioData || audioData.length === 0)) {
+          console.log("Automatic detection of stuck speaking state");
+          // Try to stop TTS and reset state
+          if (tts) {
+            try {
+              tts.stop();
+            } catch (e) {
+              console.error("Error during automatic state recovery:", e);
+            }
+          }
+          // Force browser TTS reset as well
+          if (window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+          }
+          setInterfaceState("idle");
+        }
+      }
+    };
+    
+    // Check for stuck states every 5 seconds
+    const intervalId = setInterval(checkForStuckState, 5000);
+    
+    // Also set a timeout for any active state that isn't idle
+    // This ensures we never get permanently stuck in any state
+    if (interfaceState !== "idle") {
+      stateTimeoutId = setTimeout(() => {
+        console.log(`State timeout: ${interfaceState} lasted too long, resetting to idle`);
+        setInterfaceState("idle");
+        if (tts) tts.stop();
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+      }, 60000); // 1 minute absolute maximum for any state
+    }
+    
+    return () => {
+      clearInterval(intervalId);
+      if (stateTimeoutId) clearTimeout(stateTimeoutId);
+    };
+  }, [interfaceState, tts, audioData, setInterfaceState]);
+
   // Set up audio data updates
   useEffect(() => {
     console.log(`ChatInterface: State changed to ${interfaceState}`);
@@ -184,9 +235,36 @@ const ChatInterface = ({
       }
     }
 
-    // Stop speaking if the circle is clicked while speaking
+    // Stop speaking if the circle is clicked while speaking OR tap to reset if stuck
     if (interfaceState === "speaking") {
       console.log("Stopping speech playback");
+      // Track if circle has been in speaking state too long
+      const currentTime = Date.now();
+      const speakingStartTime = tts?.speakingStartTime || 0;
+      const speakingDuration = currentTime - speakingStartTime;
+      
+      // Force reset if it's been in speaking state for more than 10 seconds without sound
+      const isLikelyStuck = speakingDuration > 10000 && (!audioData || (audioData.length === 0));
+      
+      if (isLikelyStuck) {
+        console.log("Detected stuck speaking state, performing force reset");
+        // Force more aggressive reset
+        if (tts) {
+          try {
+            tts.stop();
+          } catch (e) {
+            console.error("Error during force stop:", e);
+          }
+        }
+        // Force browser TTS reset as well
+        if (window.speechSynthesis) {
+          window.speechSynthesis.cancel();
+        }
+        setInterfaceState("idle");
+        return;
+      }
+      
+      // Normal speech stopping behavior
       if (tts) {
         try {
           // Stop the speech
@@ -248,9 +326,23 @@ const ChatInterface = ({
     }
   };
 
-  // Toggle text input visibility
+  // Toggle text input visibility with improved mobile handling
   const toggleTextInput = () => {
-    setShowTextInput(!showTextInput);
+    const newVisible = !showTextInput;
+    setShowTextInput(newVisible);
+    
+    // On mobile, ensure we scroll to the input when it's shown
+    // This helps avoid the zooming issue by ensuring the input is in view
+    if (newVisible && window.innerWidth <= 640) {
+      // Small delay to ensure the DOM has updated
+      setTimeout(() => {
+        // Scroll to the bottom of the page where the input is
+        window.scrollTo({
+          top: document.body.scrollHeight,
+          behavior: 'smooth'
+        });
+      }, 100);
+    }
   };
 
   // Define a consistent container for both subtitle and text input

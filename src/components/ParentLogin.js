@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import SvgWaveBackground from "./SvgWaveBackground";
 import {
   Card,
@@ -21,6 +21,8 @@ const ParentLogin = ({ onLoginSuccess, onCancel }) => {
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const usernameRef = useRef(null);
+  const passwordRef = useRef(null);
 
   // Check for saved credentials on component mount
   useEffect(() => {
@@ -49,6 +51,10 @@ const ParentLogin = ({ onLoginSuccess, onCancel }) => {
       setError("Please enter both username and password");
       return;
     }
+    
+    // Blur inputs to prevent keyboard zoom issues
+    if (usernameRef.current) usernameRef.current.blur();
+    if (passwordRef.current) passwordRef.current.blur();
 
     setIsLoading(true);
     setError("");
@@ -93,6 +99,7 @@ const ParentLogin = ({ onLoginSuccess, onCancel }) => {
             <div className="space-y-2 w-full">
               <Label htmlFor="username">Username</Label>
               <Input
+                ref={usernameRef}
                 type="text"
                 id="username"
                 value={username}
@@ -101,12 +108,15 @@ const ParentLogin = ({ onLoginSuccess, onCancel }) => {
                 disabled={isLoading}
                 required
                 className="w-full max-w-none"
+                inputMode="text"
+                autoComplete="username"
               />
             </div>
 
             <div className="space-y-2 w-full">
               <Label htmlFor="password">Password</Label>
               <Input
+                ref={passwordRef}
                 type="password"
                 id="password"
                 value={password}
@@ -115,6 +125,7 @@ const ParentLogin = ({ onLoginSuccess, onCancel }) => {
                 disabled={isLoading}
                 required
                 className="w-full max-w-none"
+                autoComplete="current-password"
               />
             </div>
 

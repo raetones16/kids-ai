@@ -13,6 +13,9 @@ export class DirectTtsService {
     this.onStartCallback = null;
     this.onEndCallback = null;
     this.analyserNode = null;
+    this.timeoutId = null;
+    this.speakingStartTime = 0;
+    this.maxSpeakingDuration = 30000; // Maximum time in speaking state (30 seconds)
   }
   
   // Initialize audio context (needed for Web Audio API)
@@ -36,8 +39,22 @@ export class DirectTtsService {
     
     try {
       console.log('DirectTtsService: Starting to speak text');
-      // Signal that speech is starting
+      // Signal that speech is starting and track start time
       this.isPlaying = true;
+      this.speakingStartTime = Date.now();
+      console.log('DirectTtsService: Speech started at:', this.speakingStartTime);
+      
+      // Set a safety timeout to prevent getting stuck in speaking state
+      if (this.timeoutId) {
+        clearTimeout(this.timeoutId);
+      }
+      
+      // Force reset to idle state after timeout period
+      this.timeoutId = setTimeout(() => {
+        console.log('DirectTtsService: Safety timeout triggered - forcing end of speech state');
+        this.stop();
+      }, this.maxSpeakingDuration);
+      
       if (this.onStartCallback) {
         console.log('DirectTtsService: Calling onStartCallback');
         this.onStartCallback();
@@ -126,6 +143,13 @@ export class DirectTtsService {
   // Stop any current playback
   stop() {
     console.log('DirectTtsService: Stopping playback');
+    
+    // Clear safety timeout
+    if (this.timeoutId) {
+      clearTimeout(this.timeoutId);
+      this.timeoutId = null;
+      console.log('DirectTtsService: Cleared safety timeout');
+    }
     
     // Clear heartbeat interval first
     if (this.heartbeatInterval) {

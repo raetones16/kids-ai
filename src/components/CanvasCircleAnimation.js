@@ -34,11 +34,18 @@ const CanvasCircleAnimation = ({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    
+    // Add frame rate limiting for mobile devices
+    const FRAME_RATE_LIMIT = window.innerWidth < 768 ? 24 : 60; // Lower FPS on mobile
+    const FRAME_INTERVAL = 1000 / FRAME_RATE_LIMIT;
+    let lastFrameTime = 0;
 
     // Ensure canvas is fully initialized in layout before setting dimensions
     const setupCanvas = () => {
-      // Set up high-DPI canvas for sharper rendering
-      const dpr = window.devicePixelRatio || 1;
+      // Set up canvas with device-appropriate resolution
+      // Limit DPR on mobile to improve performance
+      const maxDpr = window.innerWidth < 768 ? 1.5 : 2;
+      const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
       const rect = canvas.getBoundingClientRect();
       
       // Only proceed if canvas has actual dimensions
@@ -184,6 +191,13 @@ const CanvasCircleAnimation = ({
 
     // Idle animation (more noticeable pulsing with occasional ripples)
     const animateIdle = (timestamp) => {
+      // Frame rate limiting for better performance on mobile
+      if (timestamp - lastFrameTime < FRAME_INTERVAL) {
+        animationRef.current = requestAnimationFrame(animateIdle);
+        return;
+      }
+      lastFrameTime = timestamp;
+      
       const time = timestamp * 0.001;
       pulseTimeRef.current = time;
 
@@ -236,12 +250,19 @@ const CanvasCircleAnimation = ({
       }
     };
 
-    // Listening animation (blue ripples)
+    // Listening animation (blue ripples) - optimized for mobile
     const animateListening = (timestamp) => {
+      // Frame rate limiting for better performance on mobile
+      if (timestamp - lastFrameTime < FRAME_INTERVAL) {
+        animationRef.current = requestAnimationFrame(animateListening);
+        return;
+      }
+      lastFrameTime = timestamp;
+      
       drawMainCircle();
 
-      // Create 3 ripples with different phases
-      const ripples = 3;
+      // Create 2 ripples with different phases (reduced for mobile)
+      const ripples = window.innerWidth < 768 ? 2 : 3;
       for (let i = 0; i < ripples; i++) {
         const timeOffset = timestamp * 0.001 + i * 0.7;
         const ripplePhase = timeOffset % 2; // 2-second cycle
@@ -254,7 +275,7 @@ const CanvasCircleAnimation = ({
         ctx.beginPath();
         ctx.arc(centerX, centerY, rippleRadius, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(66, 133, 244, ${alpha})`;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = window.innerWidth < 768 ? 1.5 : 2; // Thinner lines on mobile
         ctx.stroke();
       }
 
@@ -263,19 +284,27 @@ const CanvasCircleAnimation = ({
       }
     };
 
-    // Smooth, wave-like thinking animation
+    // Smooth, wave-like thinking animation - optimized for mobile
     const animateThinking = (timestamp) => {
+      // Frame rate limiting for better performance on mobile
+      if (timestamp - lastFrameTime < FRAME_INTERVAL) {
+        animationRef.current = requestAnimationFrame(animateThinking);
+        return;
+      }
+      lastFrameTime = timestamp;
+      
       const time = timestamp * 0.001;
       drawMainCircle();
 
-      // Draw multiple smooth wavy circles
-      const numWaves = 3;
+      // Draw multiple smooth wavy circles - fewer on mobile
+      const numWaves = window.innerWidth < 768 ? 2 : 3;
 
       for (let waveIndex = 0; waveIndex < numWaves; waveIndex++) {
         // Different radius for each wave
         const baseRadius = radius * (1.1 + waveIndex * 0.1);
         const waveAmplitude = radius * 0.06 * (1 - waveIndex * 0.2); // Decreasing amplitude for outer waves
-        const segments = 60; // Higher for smoother curves
+        // Reduce segments on mobile for better performance
+        const segments = window.innerWidth < 768 ? 30 : 60;
 
         // Draw a complete wavy circle
         ctx.beginPath();
@@ -339,7 +368,14 @@ const CanvasCircleAnimation = ({
     };
 
     // Speaking animation with dramatically more movement
-    const animateSpeaking = () => {
+    const animateSpeaking = (timestamp) => {
+      // Frame rate limiting for better performance on mobile
+      if (timestamp - lastFrameTime < FRAME_INTERVAL) {
+        animationRef.current = requestAnimationFrame(animateSpeaking);
+        return;
+      }
+      lastFrameTime = timestamp;
+      
       drawMainCircle();
 
       // Prepare audio data
@@ -370,8 +406,8 @@ const CanvasCircleAnimation = ({
         }
       }
 
-      // Create a more energetic spike-based visualization
-      const numSpikes = 60; // Number of spikes around the circle
+      // Create a more energetic spike-based visualization - optimized for mobile
+      const numSpikes = window.innerWidth < 768 ? 30 : 60; // Fewer spikes on mobile
       const baseRadius = radius * 1.02; // Slightly outside the main circle
 
       // Draw the spikes around the circle
@@ -455,6 +491,13 @@ const CanvasCircleAnimation = ({
 
     // Simplified searching animation (subtle wavy circles)
     const animateSearching = (timestamp) => {
+      // Frame rate limiting for better performance on mobile
+      if (timestamp - lastFrameTime < FRAME_INTERVAL) {
+        animationRef.current = requestAnimationFrame(animateSearching);
+        return;
+      }
+      lastFrameTime = timestamp;
+      
       const time = timestamp * 0.001;
       drawMainCircle();
 

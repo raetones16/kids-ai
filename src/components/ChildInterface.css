@@ -1,4 +1,4 @@
-/* Mobile-specific layout adjustments */
+/* Mobile-specific layout adjustments with zoom prevention */
 @media (max-width: 640px) {
   .circle-container {
     max-width: 280px;
@@ -40,6 +40,9 @@
   /* Add these to prevent layout shifts */
   contain: layout size;
   transform-origin: center center;
+  /* Prevent any touch gestures that might trigger zooming */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .circle-container:hover {
@@ -107,7 +110,7 @@
   }
 }
 
-/* Mobile keyboard handling */
+/* Enhanced mobile keyboard handling with zoom prevention */
 @media (max-width: 640px) {
   .mobile-keyboard-overlay {
     position: fixed;
@@ -125,6 +128,8 @@
   
   .input-visible {
     padding-bottom: 80px;
+    /* Prevent page jumping when input is focused */
+    transform: translateZ(0);
   }
   
   /* Reduce subtitle container height when keyboard is visible */
@@ -133,9 +138,15 @@
   }
 }
 
-/* Make sure the keyboard button is always visible */
+/* Make sure the keyboard button is always visible and accessible */
 .fixed-keyboard-button {
   z-index: 50;
+  /* Make the tap target larger on mobile */
+  min-height: 48px;
+  min-width: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Consistent width container for messages and input */

@@ -14,8 +14,11 @@ export class ChatTtsService {
     this.onStartCallback = null;
     this.onEndCallback = null;
     this.onErrorCallback = null;
+    this.timeoutId = null;
+    this.speakingStartTime = 0;
     
     this.useOpenAI = true; // Default to OpenAI TTS
+    this.maxSpeakingDuration = 60000; // Maximum time in speaking state (60 seconds)
   }
   
   // Initialize
@@ -138,9 +141,21 @@ export class ChatTtsService {
     try {
       console.log(`ChatTtsService: Speaking text of length ${text.length}: "${text.substring(0, 40)}..."`);
       
-      // Start speech
+      // Start speech and track start time
       this.isPlaying = true;
-      console.log('ChatTtsService: Setting isPlaying to true');
+      this.speakingStartTime = Date.now();
+      console.log('ChatTtsService: Setting isPlaying to true, speech started at:', this.speakingStartTime);
+      
+      // Set a safety timeout to prevent getting stuck in speaking state
+      if (this.timeoutId) {
+        clearTimeout(this.timeoutId);
+      }
+      
+      // Force reset to idle state after timeout period
+      this.timeoutId = setTimeout(() => {
+        console.log('ChatTtsService: Safety timeout triggered - forcing end of speech state');
+        this.stop();
+      }, this.maxSpeakingDuration);
       
       if (this.onStartCallback) {
         console.log('ChatTtsService: Calling onStartCallback');
@@ -198,6 +213,12 @@ export class ChatTtsService {
   
   // Stop any current speech
   stop() {
+    // Clear any safety timeout
+    if (this.timeoutId) {
+      clearTimeout(this.timeoutId);
+      this.timeoutId = null;
+    }
+    
     if (this.ttsService) {
       if (typeof this.ttsService.stop === 'function') {
         this.ttsService.stop();

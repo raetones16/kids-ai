@@ -447,7 +447,22 @@ export function useChat(assistantService, childId, childName) {
                 await textToSpeechRef.current.speak(completeResponse);
               } catch (error) {
                 console.error('Error speaking text:', error);
+                // Ensure we reset to idle state on any TTS error
                 setInterfaceState('idle');
+                
+                // Also make sure all TTS services are properly stopped to prevent audio issues
+                if (textToSpeechRef.current) {
+                  try {
+                    textToSpeechRef.current.stop();
+                  } catch (stopError) {
+                    console.error('Additional error while stopping TTS:', stopError);
+                  }
+                }
+                
+                // Force browser TTS to stop as well
+                if (window.speechSynthesis) {
+                  window.speechSynthesis.cancel();
+                }
               }
             }
           }
