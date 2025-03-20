@@ -13,8 +13,8 @@ if (!dbUrl || !authToken) {
 let client;
 
 // Try to connect to Turso, with fallback to in-memory SQLite
-try {
-  if (dbUrl && authToken) {
+if (dbUrl && authToken) {
+  try {
     client = createClient({
       url: dbUrl,
       authToken: authToken,
@@ -24,27 +24,18 @@ try {
       }
     });
     console.log('Connected to Turso database');
-  } else {
-    throw new Error('Missing database credentials');
-  }
-} catch (error) {
-  console.error('Failed to connect to Turso database:', error);
-  console.log('Falling back to in-memory SQLite');
-  try {
+  } catch (error) {
+    console.error('Failed to connect to Turso database:', error);
+    console.log('Falling back to in-memory SQLite');
     client = createClient({
       url: 'file:memdb1?mode=memory&cache=shared'
     });
-    console.log('Successfully set up in-memory SQLite database');
-  } catch (fallbackError) {
-    console.error('Failed to set up in-memory SQLite database:', fallbackError);
-    // Create a dummy client that doesn't throw errors
-    client = {
-      execute: async () => ({ rows: [] }),
-      batch: async () => ({ rows: [] }),
-      sync: async () => {}
-    };
-    console.log('Using mock database client');
   }
+} else {
+  client = createClient({
+    url: 'file:memdb1?mode=memory&cache=shared'
+  });
+  console.log('Using in-memory SQLite database');
 }
 
 // Cache to store if our schema has been initialized
@@ -73,14 +64,18 @@ async function initializeSchema() {
       // Insert default parent account if none exists
       const parentCheck = await client.execute('SELECT COUNT(*) as count FROM parent_profiles');
       if (parentCheck.rows[0].count === 0) {
+        // Import bcryptjs for password hashing
+        const bcryptjs = require('bcryptjs');
+        const hashedPassword = await bcryptjs.hash('password123', 10);
+        
         await client.execute({
           sql: `
             INSERT INTO parent_profiles (id, username, password)
             VALUES (?, ?, ?)
           `,
-          args: ['parent', 'parent', 'password123']
+          args: ['parent', 'parent', hashedPassword]
         });
-        console.log('Created default parent account');
+        console.log('Created default parent account with hashed password');
       }
     } catch (parentProfileError) {
       console.error('Error creating parent_profiles table:', parentProfileError);

@@ -1,5 +1,5 @@
 // Script to add a new parent account
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const { db } = require('./db');
 const readline = require('readline');
 

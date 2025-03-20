@@ -1,5 +1,5 @@
 // Script to update password hashing and add a second parent account
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const { db } = require('./db');
 
 // Configuration

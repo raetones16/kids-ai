@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { db } = require('../db');
 const crypto = require('crypto');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 // Helper function to generate a session ID
 function generateSessionId() {

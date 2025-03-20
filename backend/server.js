@@ -2,39 +2,15 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const {
+  fixChildParentRelationship,
+} = require("./fix-parent-child-relationship");
 
 // Load environment variables
 dotenv.config();
 
-let db;
-let initializeSchema;
-let fixChildParentRelationship;
-
-// Initialize the database with better error handling
-try {
-  console.log('Loading database module...');
-  const dbModule = require('./db');
-  db = dbModule.db;
-  initializeSchema = dbModule.initializeSchema;
-  console.log('Database module loaded successfully');
-  
-  try {
-    const relationshipFix = require('./fix-parent-child-relationship');
-    fixChildParentRelationship = relationshipFix.fixChildParentRelationship;
-    console.log('Relationship fix module loaded successfully');
-  } catch (fixError) {
-    console.error('Failed to load relationship fix module:', fixError);
-    fixChildParentRelationship = async () => console.log('Using mock relationship fix');
-  }
-} catch (dbError) {
-  console.error('Failed to load database module:', dbError);
-  // Create a mock db object to allow the server to start without the database
-  db = {
-    execute: async () => ({ rows: [] })
-  };
-  initializeSchema = async () => console.log('Using mock schema initialization');
-  fixChildParentRelationship = async () => console.log('Using mock relationship fix');
-}
+// Initialize the database
+const { db, initializeSchema } = require('./db');
 
 // Initialize database schema with error handling
 (async () => {
@@ -48,23 +24,23 @@ try {
 
       // Add index for faster conversation lookups by child_id
       await db.execute(`
-        CREATE INDEX IF NOT EXISTS idx_conversations_child_id
+        CREATE INDEX IF NOT EXISTS idx_conversations_child_id 
         ON conversations(child_id)
-      `).catch(e => console.error('Error creating idx_conversations_child_id:', e));
+      `);
       console.log("Added index on conversations.child_id");
 
       // Add index for faster message lookups by conversation_id
       await db.execute(`
-        CREATE INDEX IF NOT EXISTS idx_messages_conversation_id
+        CREATE INDEX IF NOT EXISTS idx_messages_conversation_id 
         ON messages(conversation_id)
-      `).catch(e => console.error('Error creating idx_messages_conversation_id:', e));
+      `);
       console.log("Added index on messages.conversation_id");
 
       // Add index for conversations sorted by last_activity_at
       await db.execute(`
-        CREATE INDEX IF NOT EXISTS idx_conversations_last_activity
+        CREATE INDEX IF NOT EXISTS idx_conversations_last_activity 
         ON conversations(last_activity_at DESC)
-      `).catch(e => console.error('Error creating idx_conversations_last_activity:', e));
+      `);
       console.log("Added index on conversations.last_activity_at");
 
       console.log("Performance indexes added successfully");
@@ -102,25 +78,17 @@ const app = express();
 // Set port
 const PORT = process.env.PORT || 3001;
 
-// Middleware - Updated CORS configuration
-app.use(
-  cors({
-    origin: '*',  // Temporarily allow all origins for testing
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
-  })
-);
-
+// Middleware
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.FRONTEND_URL 
+    : 'http://localhost:3000'
+}));
 app.use(express.json());
 
-// Basic health check endpoints
-app.get("/", (req, res) => {
-  res.status(200).json({ status: "ok", message: "Kids-AI backend is running (root)" });
-});
-
-app.get("/api/health", (req, res) => {
-  res.status(200).json({ status: "ok", message: "Kids-AI backend is running" });
+// Basic health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'Kids-AI backend is running' });
 });
 
 // Routes
@@ -136,9 +104,9 @@ app.use("/api/ai", aiRoutes);
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error("Server error:", err);
-  res.status(500).json({
-    error: "Internal server error",
-    message: process.env.NODE_ENV === "development" ? err.message : undefined,
+  res.status(500).json({ 
+    error: "Internal server error", 
+    message: process.env.NODE_ENV === "development" ? err.message : undefined
   });
 });
 
