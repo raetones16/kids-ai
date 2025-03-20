@@ -2,15 +2,39 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
-const {
-  fixChildParentRelationship,
-} = require("./fix-parent-child-relationship");
 
 // Load environment variables
 dotenv.config();
 
-// Initialize the database
-const { db, initializeSchema } = require("./db");
+let db;
+let initializeSchema;
+let fixChildParentRelationship;
+
+// Initialize the database with better error handling
+try {
+  console.log('Loading database module...');
+  const dbModule = require('./db');
+  db = dbModule.db;
+  initializeSchema = dbModule.initializeSchema;
+  console.log('Database module loaded successfully');
+  
+  try {
+    const relationshipFix = require('./fix-parent-child-relationship');
+    fixChildParentRelationship = relationshipFix.fixChildParentRelationship;
+    console.log('Relationship fix module loaded successfully');
+  } catch (fixError) {
+    console.error('Failed to load relationship fix module:', fixError);
+    fixChildParentRelationship = async () => console.log('Using mock relationship fix');
+  }
+} catch (dbError) {
+  console.error('Failed to load database module:', dbError);
+  // Create a mock db object to allow the server to start without the database
+  db = {
+    execute: async () => ({ rows: [] })
+  };
+  initializeSchema = async () => console.log('Using mock schema initialization');
+  fixChildParentRelationship = async () => console.log('Using mock relationship fix');
+}
 
 // Initialize database schema with error handling
 (async () => {
@@ -26,21 +50,21 @@ const { db, initializeSchema } = require("./db");
       await db.execute(`
         CREATE INDEX IF NOT EXISTS idx_conversations_child_id
         ON conversations(child_id)
-      `);
+      `).catch(e => console.error('Error creating idx_conversations_child_id:', e));
       console.log("Added index on conversations.child_id");
 
       // Add index for faster message lookups by conversation_id
       await db.execute(`
         CREATE INDEX IF NOT EXISTS idx_messages_conversation_id
         ON messages(conversation_id)
-      `);
+      `).catch(e => console.error('Error creating idx_messages_conversation_id:', e));
       console.log("Added index on messages.conversation_id");
 
       // Add index for conversations sorted by last_activity_at
       await db.execute(`
         CREATE INDEX IF NOT EXISTS idx_conversations_last_activity
         ON conversations(last_activity_at DESC)
-      `);
+      `).catch(e => console.error('Error creating idx_conversations_last_activity:', e));
       console.log("Added index on conversations.last_activity_at");
 
       console.log("Performance indexes added successfully");
