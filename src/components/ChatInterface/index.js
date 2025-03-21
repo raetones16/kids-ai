@@ -200,6 +200,13 @@ const ChatInterface = ({
   const handleMicrophoneClick = async () => {
     console.log("Microphone clicked, current state:", interfaceState);
 
+    // Initialize audio context FIRST, before any other operations
+    // This is critical for mobile devices where audio context must be initialized during user gesture
+    if (tts && typeof tts.initAudioContext === "function") {
+      console.log("Initializing audio context during user interaction");
+      tts.initAudioContext({forceNew: true});
+    }
+
     // First click should just show that we're ready to listen
     // We don't create a conversation yet - that happens when they actually ask a question
     if (!conversationReady) {
@@ -209,12 +216,6 @@ const ChatInterface = ({
       try {
         // Reset any errors
         setError(null);
-
-        // Start listening immediately (no need to initialize conversation first)
-        // Make sure audio context is initialized
-        if (tts && typeof tts.initAudioContext === "function") {
-          tts.initAudioContext();
-        }
 
         if (!speechAvailable) {
           setError("Speech recognition is not available on your device");
@@ -285,11 +286,6 @@ const ChatInterface = ({
 
     // Normal microphone behavior after initialization
     if (interfaceState === "idle") {
-      // Make sure audio context is initialized
-      if (tts && typeof tts.initAudioContext === "function") {
-        tts.initAudioContext();
-      }
-
       if (!speechAvailable) {
         setError("Speech recognition is not available on your device");
         setShowTextInput(true);
@@ -314,9 +310,9 @@ const ChatInterface = ({
 
   // Handle text input submit
   const handleTextSubmit = async (text) => {
-    // Make sure audio context is initialized
+    // Make sure audio context is initialized FIRST during user interaction
     if (tts && typeof tts.initAudioContext === "function") {
-      tts.initAudioContext();
+      tts.initAudioContext({forceNew: true});
     }
 
     try {

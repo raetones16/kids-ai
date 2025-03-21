@@ -372,7 +372,7 @@ export function useChat(assistantService, childId, childName) {
       // Initialize audio context for streaming TTS
       if (USE_OPENAI_TTS && textToSpeechRef.current && 
           typeof textToSpeechRef.current.initAudioContext === 'function') {
-        textToSpeechRef.current.initAudioContext();
+        textToSpeechRef.current.initAudioContext({forceNew: true});
       }
       
       // Get all conversation messages from storage for context

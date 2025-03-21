@@ -2,6 +2,7 @@
  * DirectTtsService.js
  * A direct implementation of TTS using the backend API proxy to OpenAI
  * This bypasses the streaming/chunking logic to ensure a single, unified speech experience
+ * Enhanced with better mobile support
  */
 
 export class DirectTtsService {
@@ -16,18 +17,76 @@ export class DirectTtsService {
     this.timeoutId = null;
     this.speakingStartTime = 0;
     this.maxSpeakingDuration = 30000; // Maximum time in speaking state (30 seconds)
+    this.heartbeatInterval = null;
+    this.audioElement = null;
+    this.dummyOscillator = null;
   }
   
-  // Initialize audio context (needed for Web Audio API)
-  initAudioContext() {
-    if (!this.audioContext) {
-      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    } else if (this.audioContext.state === 'suspended') {
-      this.audioContext.resume();
+  // Enhanced AudioContext initialization for mobile compatibility
+  initAudioContext(options = {}) {
+    try {
+      // On iOS specifically, we need a new context each time
+      if ((this.isIOS() || options?.forceNew) && this.audioContext) {
+        try {
+          // Try to close the existing context
+          if (this.audioContext.state !== 'closed') {
+            this.audioContext.close();
+          }
+          this.audioContext = null;
+        } catch (e) {
+          console.warn('Error closing AudioContext:', e);
+        }
+      }
+
+      if (!this.audioContext) {
+        // Always create a new AudioContext instead of reusing
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        console.log('DirectTtsService: Created new AudioContext, state:', this.audioContext.state);
+      }
+      
+      // On iOS/Safari, audio context might be in suspended state and needs user interaction
+      if (this.audioContext.state === 'suspended') {
+        // Try to resume the context
+        this.audioContext.resume().then(() => {
+          console.log('DirectTtsService: AudioContext resumed successfully, state:', this.audioContext.state);
+        }).catch(err => {
+          console.error('DirectTtsService: Failed to resume AudioContext:', err);
+        });
+      }
+      
+      // Critical: unlock audio on iOS with silent sound during user gesture
+      if (this.isIOS()) {
+        // Create and play a silent sound to unlock audio - critical for iOS
+        const silentSound = this.audioContext.createBuffer(1, 1, 22050);
+        const source = this.audioContext.createBufferSource();
+        source.buffer = silentSound;
+        source.connect(this.audioContext.destination);
+        source.start(0);
+        console.log('DirectTtsService: Played silent sound to unlock audio on iOS');
+      }
+    } catch (error) {
+      console.error('DirectTtsService: Error initializing audio context:', error);
     }
   }
   
-  // Speak the text as a single unified utterance
+  // Helper to detect iOS devices
+  isIOS() {
+    return [
+      'iPad Simulator', 'iPhone Simulator', 'iPod Simulator',
+      'iPad', 'iPhone', 'iPod'
+    ].includes(navigator.platform) ||
+    // iPad on iOS 13 detection
+    (navigator.userAgent.includes('Mac') && 'ontouchend' in document);
+  }
+  
+  // Helper to detect mobile devices
+  isMobile() {
+    return this.isIOS() || 
+      /Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+      (window.innerWidth <= 768);
+  }
+  
+  // Multi-method speak function with improved mobile support
   async speak(text, voice = 'fable') {
     if (!text || !text.trim()) return;
     
@@ -37,28 +96,28 @@ export class DirectTtsService {
     // Stop any current playback
     this.stop();
     
+    // Begin tracking state
+    this.isPlaying = true;
+    this.speakingStartTime = Date.now();
+    
+    // Set safety timeout to prevent getting stuck in speaking state
+    if (this.timeoutId) {
+      clearTimeout(this.timeoutId);
+    }
+    
+    // Force reset to idle state after timeout period
+    this.timeoutId = setTimeout(() => {
+      console.log('DirectTtsService: Safety timeout triggered - forcing end of speech state');
+      this.stop();
+    }, this.maxSpeakingDuration);
+    
+    if (this.onStartCallback) {
+      console.log('DirectTtsService: Calling onStartCallback');
+      this.onStartCallback();
+    }
+    
     try {
       console.log('DirectTtsService: Starting to speak text');
-      // Signal that speech is starting and track start time
-      this.isPlaying = true;
-      this.speakingStartTime = Date.now();
-      console.log('DirectTtsService: Speech started at:', this.speakingStartTime);
-      
-      // Set a safety timeout to prevent getting stuck in speaking state
-      if (this.timeoutId) {
-        clearTimeout(this.timeoutId);
-      }
-      
-      // Force reset to idle state after timeout period
-      this.timeoutId = setTimeout(() => {
-        console.log('DirectTtsService: Safety timeout triggered - forcing end of speech state');
-        this.stop();
-      }, this.maxSpeakingDuration);
-      
-      if (this.onStartCallback) {
-        console.log('DirectTtsService: Calling onStartCallback');
-        this.onStartCallback();
-      }
       
       // Call backend TTS API instead of OpenAI directly
       const response = await fetch(`${this.baseUrl}/ai/tts`, {
@@ -80,67 +139,280 @@ export class DirectTtsService {
       
       // Get audio data as a blob
       const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
       
-      // Create a source from the blob
-      const arrayBuffer = await audioBlob.arrayBuffer();
-      const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
-      
-      // Create source and connect to an analyzer for visualization
-      const source = this.audioContext.createBufferSource();
-      source.buffer = audioBuffer;
-      
-      // Set up analyzer for visualization data
-      this.analyserNode = this.audioContext.createAnalyser();
-      this.analyserNode.fftSize = 128; // Smaller FFT size for better performance
-      this.analyserNode.smoothingTimeConstant = 0.7; // Add smoothing for more natural visualization
-      source.connect(this.analyserNode);
-      this.analyserNode.connect(this.audioContext.destination);
-      
-      // Store source for potential stopping
-      this.currentSource = source;
-      
-      // Set up event handler for when audio ends
-      source.onended = () => {
-        console.log('Audio playback ended');
-        this.isPlaying = false;
-        if (this.onEndCallback) this.onEndCallback();
-      };
-      
-      // Create a heartbeat to ensure we maintain the speaking state while audio is playing
-      // This helps keep the animation going even if the analyzer doesn't produce data
-      this.heartbeatInterval = setInterval(() => {
-        // Only continue if we're still playing
-        if (this.isPlaying) {
-          // Force a call to the start callback to ensure speaking state is maintained
-          if (this.onStartCallback) {
-            this.onStartCallback();
-          }
-        } else {
-          // Clear interval if we're no longer playing
-          clearInterval(this.heartbeatInterval);
-        }
-      }, 500); // Check every 500ms
-      
-      // Make sure we're in playing state
-      this.isPlaying = true;
-      if (this.onStartCallback) {
-        console.log('DirectTtsService: Calling onStartCallback again before play');
-        this.onStartCallback();
+      // CRITICAL CHANGE: First try with HTML5 Audio element (better mobile support)
+      if (this.isMobile()) {
+        await this.playWithAudioElement(audioUrl);
+      } else {
+        // Use Web Audio API for desktop (better visualization control)
+        await this.playWithWebAudio(audioBlob);
       }
-      
-      // Start playback
-      console.log('DirectTtsService: Starting audio playback');
-      source.start(0);
       
       return this.analyserNode;
     } catch (error) {
       console.error('Error in TTS:', error);
-      this.isPlaying = false;
+      
+      // If TTS fails on mobile, try the built-in speech synthesis as a last resort
+      if (this.isMobile() && window.speechSynthesis) {
+        try {
+          console.log('Trying native speech synthesis as a fallback for mobile');
+          this.speakWithFallback(text);
+          return this.analyserNode;
+        } catch (fallbackError) {
+          console.error('Error in fallback TTS:', fallbackError);
+        }
+      }
+      
+      // Always clean up
+      this.stop();
       throw error;
     }
   }
   
-  // Stop any current playback
+  // New method to play with HTML5 Audio element (better for mobile)
+  async playWithAudioElement(audioUrl) {
+    return new Promise((resolve, reject) => {
+      const audio = new Audio(audioUrl);
+      this.audioElement = audio;
+      
+      // Monitor playback with a heartbeat for visualization
+      this.heartbeatInterval = setInterval(() => {
+        if (this.isPlaying && this.onStartCallback) {
+          this.onStartCallback();
+        }
+      }, 100);
+      
+      // Create a dummy analyzer for visualization
+      this.analyserNode = this.createDummyAnalyser();
+      
+      // Set up event handlers
+      audio.onplay = () => {
+        console.log('Audio element playback started');
+        this.isPlaying = true;
+        if (this.onStartCallback) this.onStartCallback();
+      };
+      
+      audio.onended = () => {
+        console.log('Audio element playback ended');
+        this.stop();
+        resolve();
+      };
+      
+      audio.onerror = (e) => {
+        console.error('Audio element error:', e);
+        this.stop();
+        reject(new Error('Audio playback error'));
+      };
+      
+      // Start playback
+      audio.play().catch(err => {
+        console.error('Error playing audio element:', err);
+        // If HTML5 Audio fails, try Web Audio as last resort
+        this.stop();
+        reject(err);
+      });
+    });
+  }
+  
+  // Desktop method (existing, but made more robust)
+  async playWithWebAudio(audioBlob) {
+    try {
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+      
+      // Create source
+      const source = this.audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+      
+      // Set up analyzer
+      this.setupAnalyzer(source);
+      
+      // Store source
+      this.currentSource = source;
+      
+      // Add event handlers
+      source.onended = () => {
+        console.log('Audio source playback ended');
+        this.stop();
+      };
+      
+      // Start playback
+      source.start(0);
+    } catch (error) {
+      console.error("Error in playWithWebAudio:", error);
+      throw error;
+    }
+  }
+  
+  // Set up audio analyzer for visualization
+  setupAnalyzer(source) {
+    // Create analyzer node if needed
+    if (!this.analyserNode) {
+      this.analyserNode = this.audioContext.createAnalyser();
+      this.analyserNode.fftSize = 256;
+      this.analyserNode.smoothingTimeConstant = 0.7;
+    }
+    
+    // Connect the source to the analyzer and output
+    source.connect(this.analyserNode);
+    this.analyserNode.connect(this.audioContext.destination);
+  }
+  
+  // Create a dummy analyzer for HTML5 Audio playback
+  createDummyAnalyser() {
+    if (!this.audioContext) {
+      this.initAudioContext();
+    }
+    
+    try {
+      const analyser = this.audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.7;
+      
+      // Create a low-volume oscillator to feed the analyzer with data
+      // for visualization purposes only
+      const oscillator = this.audioContext.createOscillator();
+      const gainNode = this.audioContext.createGain();
+      
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(440, this.audioContext.currentTime);
+      
+      // Set volume extremely low (essentially silent but enough for analyzer)
+      gainNode.gain.setValueAtTime(0.001, this.audioContext.currentTime);
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(analyser);
+      // Don't connect to destination to avoid hearing it
+      
+      oscillator.start();
+      
+      // Store oscillator for cleanup later
+      this.dummyOscillator = oscillator;
+      
+      return analyser;
+    } catch (error) {
+      console.error('Failed to create dummy analyser:', error);
+      return null;
+    }
+  }
+  
+  // Mobile-friendly fallback using browser's built-in TTS
+  speakWithFallback(text) {
+    console.log('Using native speech synthesis as a fallback for mobile');
+    
+    // Ensure the speech synthesis interface exists
+    if (!window.speechSynthesis) {
+      console.error('Speech synthesis not supported on this device');
+      this.isPlaying = false;
+      if (this.onEndCallback) this.onEndCallback();
+      return;
+    }
+    
+    try {
+      // Set up speech synthesis
+      const utterance = new SpeechSynthesisUtterance(text);
+      
+      // Get available voices
+      let voices = window.speechSynthesis.getVoices();
+      
+      // If no voices available yet, wait for them to load
+      if (!voices || voices.length === 0) {
+        console.log('No voices available yet, waiting for voiceschanged event');
+        window.speechSynthesis.onvoiceschanged = () => {
+          voices = window.speechSynthesis.getVoices();
+          this.selectVoiceAndSpeak(utterance, voices);
+        };
+      } else {
+        // Voices already available, select one and speak
+        this.selectVoiceAndSpeak(utterance, voices);
+      }
+      
+      // Set up analyser node for visualization
+      // Even though we can't get real audio data from native TTS,
+      // we'll create a dummy analyzer for the visualization
+      this.analyserNode = this.createDummyAnalyser();
+      
+      return this.analyserNode;
+    } catch (error) {
+      console.error('Error in fallback TTS:', error);
+      this.isPlaying = false;
+      if (this.onEndCallback) this.onEndCallback();
+    }
+  }
+  
+  // Helper to select an appropriate voice and start speaking
+  selectVoiceAndSpeak(utterance, voices) {
+    // Try to find a good voice - prioritize natural sounding voices
+    const preferredVoices = [
+      voices.find(v => v.name.includes('Samantha')), // iOS/macOS
+      voices.find(v => v.name.includes('Google') && v.name.includes('US English')),
+      voices.find(v => v.name.includes('Daniel')), // UK English
+      voices.find(v => v.name.includes('US English')), // Any US English
+      voices.find(v => v.lang === 'en-US'),
+      voices.find(v => v.lang.startsWith('en')),
+      voices[0] // Fallback to first available voice
+    ];
+    
+    // Find first non-null voice from the preferred list
+    utterance.voice = preferredVoices.find(v => v !== undefined);
+    
+    if (utterance.voice) {
+      console.log(`Using voice: ${utterance.voice.name} (${utterance.voice.lang})`);
+    }
+    
+    // Set other speech parameters
+    utterance.rate = 1.0; // Normal speaking rate
+    utterance.pitch = 1.0; // Normal pitch
+    utterance.volume = 1.0; // Full volume
+    
+    // Event handlers
+    utterance.onstart = () => {
+      console.log('Native speech started');
+      this.isPlaying = true;
+      // Make sure callback is called
+      if (this.onStartCallback) this.onStartCallback();
+    };
+    
+    utterance.onend = () => {
+      console.log('Native speech ended');
+      this.isPlaying = false;
+      if (this.onEndCallback) this.onEndCallback();
+    };
+    
+    utterance.onerror = (event) => {
+      console.error('Speech synthesis error:', event.error);
+      this.isPlaying = false;
+      if (this.onEndCallback) this.onEndCallback();
+    };
+    
+    // Start speaking
+    console.log('Starting native speech synthesis');
+    window.speechSynthesis.cancel(); // Cancel any existing speech
+    window.speechSynthesis.speak(utterance);
+    
+    // Add workaround for iOS and Chrome issue where speech can sometimes stop prematurely
+    if (this.isIOS() || /Chrome/i.test(navigator.userAgent)) {
+      // Create an interval to keep speech synthesis active
+      const speechKeepAliveInterval = setInterval(() => {
+        // Check if still speaking
+        if (window.speechSynthesis.speaking) {
+          console.log('Keeping speech synthesis active...');
+          window.speechSynthesis.pause();
+          window.speechSynthesis.resume();
+        } else {
+          clearInterval(speechKeepAliveInterval);
+        }
+      }, 5000); // Check every 5 seconds
+      
+      // Clear interval after maximum speaking duration
+      setTimeout(() => {
+        clearInterval(speechKeepAliveInterval);
+      }, this.maxSpeakingDuration);
+    }
+  }
+  
+  // Improved stop method
   stop() {
     console.log('DirectTtsService: Stopping playback');
     
@@ -151,11 +423,36 @@ export class DirectTtsService {
       console.log('DirectTtsService: Cleared safety timeout');
     }
     
-    // Clear heartbeat interval first
+    // Clear heartbeat interval
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = null;
       console.log('DirectTtsService: Cleared heartbeat interval');
+    }
+    
+    // Stop HTML5 Audio if it exists
+    if (this.audioElement) {
+      try {
+        this.audioElement.pause();
+        this.audioElement.src = '';
+        this.audioElement = null;
+        console.log('DirectTtsService: Stopped HTML5 Audio element');
+      } catch (e) {
+        console.log('Non-critical error when stopping HTML5 Audio:', e);
+      }
+    }
+    
+    // Stop dummy oscillator if exists
+    if (this.dummyOscillator) {
+      try {
+        this.dummyOscillator.stop();
+        this.dummyOscillator.disconnect();
+        console.log('DirectTtsService: Stopped dummy oscillator');
+      } catch (e) {
+        // Ignore errors when stopping
+        console.log('Non-critical error when stopping dummy oscillator:', e);
+      }
+      this.dummyOscillator = null;
     }
     
     // Stop audio source
@@ -180,6 +477,12 @@ export class DirectTtsService {
         // Ignore disconnection errors
         console.log('Non-critical error when disconnecting analyzer:', e);
       }
+    }
+    
+    // Always make sure native speech synthesis is cancelled too
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      console.log('DirectTtsService: Cancelled native speech synthesis');
     }
     
     // Signal that playback has stopped
