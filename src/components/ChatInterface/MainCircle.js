@@ -13,8 +13,13 @@ const MainCircle = ({ interfaceState, audioData, audioStream, onClick, ttsServic
     if (ttsService && !audioInitializedRef.current) {
       console.log("Initializing audio context on user interaction");
       if (typeof ttsService.initAudioContext === 'function') {
-        ttsService.initAudioContext();
+        ttsService.initAudioContext({forceNew: true}); // Force new context for iOS
         audioInitializedRef.current = true;
+      }
+    } else if (ttsService) {
+      // Always try to initialize on every click for iOS Safari
+      if (typeof ttsService.initAudioContext === 'function') {
+        ttsService.initAudioContext();
       }
     }
     

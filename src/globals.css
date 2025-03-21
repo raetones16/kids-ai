@@ -4,137 +4,105 @@
 
 @layer base {
   :root {
-    /* Base UI colors */
     --background: 0 0% 100%;
-    --foreground: 222 10% 10%;
+    --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 10% 10%;
+    --card-foreground: 222.2 84% 4.9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 10% 10%;
+    --popover-foreground: 222.2 84% 4.9%;
 
-    /* Grey Scale - Braun-inspired neutral palette */
-    --grey-0: 213 22% 7%; /* 0E1116 */
-    --grey-10: 210 26% 16%; /* #14181F */
-    --grey-20: 213 25% 24%; /* #28323E */
-    --grey-30: 213 22% 32%; /* #3C4B5D */
-    --grey-40: 212 21% 40%; /* #50647C */
-    --grey-50: 213 20% 50%; /* #667D99 */
-    --grey-60: 211 19% 60%; /* #8397AF */
-    --grey-70: 211 18% 70%; /* #A2B1C3 */
-    --grey-80: 212 16% 80%; /* #C1CBD7 */
-    --grey-90: 212 14% 90%; /* #E0E5EB */
-    --grey-100: 210 12% 97%; /* #F3F5F7 */
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
 
-    /* Orange Scale - Braun-inspired accent palette */
-    --orange-10: 21 70% 10%; /* #2B1508 */
-    --orange-20: 21 77% 20%; /* #5A280C */
-    --orange-30: 21 76% 30%; /* #873C12 */
-    --orange-40: 21 70% 40%; /* #AD521F */
-    --orange-50: 21 63% 50%; /* #D0692F */
-    --orange-60: 21 60% 60%; /* #E7834B */
-    --orange-70: 21 58% 70%; /* #EDA278 */
-    --orange-80: 21 55% 80%; /* #F3C1A5 */
-    --orange-90: 21 50% 90%; /* #F9E0D2 */
-    --orange-100: 21 45% 96%; /* #FDF3ED */
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
 
-    /* Semantic colors based on our scale */
-    --primary: var(--orange-60);
-    --primary-foreground: var(--orange-100);
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
 
-    --secondary: var(--grey-90);
-    --secondary-foreground: var(--grey-10);
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
 
-    --muted: var(--grey-100);
-    --muted-foreground: var(--grey-30);
-
-    --accent: var(--orange-50);
-    --accent-foreground: var(--grey-10);
-
-    --destructive: 0 84% 60%;
+    --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    /* State colors (for animations) */
-    --state-listening: 221 89% 59%; /* #4285F4 blue */
-    --state-thinking: 36 100% 50%; /* #FFA000 amber */
-    --state-speaking: 4 68% 54%; /* #DB4437 red */
-    --state-searching: 283 65% 40%; /* #8E24AA purple */
-    --state-idle: 0 0% 100%; /* Pure white for visibility */
-
-    --border: var(--grey-80);
-    --input: var(--grey-80);
-    --ring: var(--grey-40);
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
 
     --radius: 0.5rem;
 
-    /* Box Shadows */
-    --shadow-large: 0px 116px 60px -24px rgba(0, 0, 0, 0.1);
-    --shadow-medium: 0px 60px 60px -24px rgba(0, 0, 0, 0.1);
-    --shadow-small: 0px 32px 32px -16px rgba(0, 0, 0, 0.1);
+    /* Custom colors */
+    --grey-0: 0 0% 100%;
+    --grey-10: 0 0% 90%;
+    --grey-20: 0 0% 80%;
+    --grey-30: 0 0% 70%;
+    --grey-40: 0 0% 60%;
+    --grey-50: 0 0% 50%;
+    --grey-60: 0 0% 40%;
+    --grey-70: 0 0% 30%;
+    --grey-80: 0 0% 20%;
+    --grey-90: 0 0% 10%;
+    --grey-100: 0 0% 0%;
 
-    /* Animation circle shadows */
-    --circle-shadow: 0px -44px 52px -8px rgba(255, 255, 255, 0.2),
-      0px 36px 68px -8px rgba(44, 55, 58, 0.5);
-    --circle-shadow-listening: var(--circle-shadow);
-    --circle-shadow-thinking: var(--circle-shadow);
-    --circle-shadow-speaking: var(--circle-shadow);
-    --circle-shadow-searching: var(--circle-shadow);
-    --circle-shadow-idle: var(--circle-shadow);
+    /* State colors */
+    --state-idle: 0 0% 100%;
+    --state-listening: 220 100% 70%;
+    --state-thinking: 40 100% 50%;
+    --state-speaking: 0 100% 70%;
+    --state-searching: 280 80% 65%;
+
+    /* Border color */
+    --border: 0 0% 93%;
   }
 
   .dark {
-    /* Base UI colors */
-    --background: var(--grey-10);
-    --foreground: var(--grey-90);
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
 
-    --card: var(--grey-20);
-    --card-foreground: var(--grey-90);
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: var(--grey-20);
-    --popover-foreground: var(--grey-90);
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
 
-    /* Semantic colors based on our scale */
-    --primary: var(--grey-90);
-    --primary-foreground: var(--grey-10);
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: var(--grey-20);
-    --secondary-foreground: var(--grey-100);
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: var(--grey-30);
-    --muted-foreground: var(--grey-70);
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: var(--orange-50);
-    --accent-foreground: var(--grey-100);
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 62% 30%;
+    --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: var(--grey-30);
-    --input: var(--grey-30);
-    --ring: var(--grey-70);
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
 
-    /* State colors (for dark mode) adjust slightly for better visibility */
-    --state-listening: 221 89% 65%;
-    --state-thinking: 36 100% 55%;
-    --state-speaking: 4 68% 60%;
-    --state-searching: 283 65% 45%;
-    /* Force a bright white for better visibility in dark mode */
-    --state-idle: 0 0% 100%;
+    /* Grey scale - dark mode */
+    --grey-0: 0 0% 10%;
+    --grey-10: 0 0% 18%;
+    --grey-20: 0 0% 27%;
+    --grey-30: 0 0% 35%;
+    --grey-40: 0 0% 45%;
+    --grey-50: 0 0% 55%;
+    --grey-60: 0 0% 65%;
+    --grey-70: 0 0% 75%;
+    --grey-80: 0 0% 85%;
+    --grey-90: 0 0% 93%;
+    --grey-100: 0 0% 100%;
 
-    /* Box Shadows for dark mode */
-    --shadow-large: 0px 116px 60px -24px rgba(0, 0, 0, 0.35);
-    --shadow-medium: 0px 60px 60px -24px rgba(0, 0, 0, 0.35);
-    --shadow-small: 0px 32px 32px -16px rgba(0, 0, 0, 0.35);
-
-    /* Animation circle shadows for dark mode - adjusted for dark background */
-    --circle-shadow: 0px -44px 52px -8px rgba(0, 0, 0, 0.3),
-      0px 36px 68px -8px rgba(255, 255, 255, 0.15);
-    --circle-shadow-listening: var(--circle-shadow);
-    --circle-shadow-thinking: var(--circle-shadow);
-    --circle-shadow-speaking: var(--circle-shadow);
-    --circle-shadow-searching: var(--circle-shadow);
-    --circle-shadow-idle: var(--circle-shadow);
+    /* State colors - dark mode stays the same */
+    /* Border color - dark mode */
+    --border: 0 0% 20%;
   }
 }
 
@@ -144,25 +112,69 @@
   }
   body {
     @apply bg-background text-foreground;
-    /* Prevent unwanted zooming on mobile */
-    text-size-adjust: 100%;
-    -webkit-text-size-adjust: 100%;
-    touch-action: manipulation;
   }
-  /* Forcefully override heading margins */
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    margin: 0 !important;
+  h1, h2, h3, h4, h5, h6 {
+    font-family: "Arvo", Georgia, serif;
+    font-display: swap;
+  }
+  body, p, div, button, input, textarea {
+    font-family: "Asap", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-display: swap;
   }
 }
 
-/* Additional override outside of Tailwind layers to ensure it takes priority */
-h1,
-h2,
-h3 {
-  margin-bottom: 0 !important;
+/* Font-related fixes */
+@font-face {
+  font-family: 'Arvo';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/arvo/v20/tDbD2oWUg0MKqScQ7Q.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0300-036F, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+@font-face {
+  font-family: 'Arvo';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/arvo/v20/tDbM2oWUg0MKoZw1-LPK89D4.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0300-036F, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+@font-face {
+  font-family: 'Asap';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/asap/v30/KFOOCniXp96a4Tc2DaTeuDAoKsE615hGW36MAA.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0300-036F, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+@font-face {
+  font-family: 'Asap';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/asap/v30/KFOOCniXp96a4Tc2DaTeuDAoKsE615hGW36MAA.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0300-036F, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+/* Global loader animation */
+.loader {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-top-color: hsl(var(--primary));
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }

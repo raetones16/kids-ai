@@ -4,7 +4,7 @@
  * as the primary implementation for cross-platform compatibility
  */
 
-import { MobileFriendlyTTSService } from './MobileFriendlyTTSService';
+import { MobileFriendlyTTSService } from './tts';
 
 export class ChatTtsService {
   constructor() {
@@ -63,14 +63,16 @@ export class ChatTtsService {
   }
   
   // Ensure audio context is initialized (during user interaction)
-  initAudioContext() {
+  initAudioContext(options = {}) {
     if (!this.initialized) {
       this.initialize();
     }
     
     if (this.ttsService && typeof this.ttsService.initAudioContext === 'function') {
-      this.ttsService.initAudioContext();
+      return this.ttsService.initAudioContext(options);
     }
+    
+    return false;
   }
   
   // Speak the entire text as a single unit
@@ -185,3 +187,5 @@ export class ChatTtsService {
     return this;
   }
 }
+
+export default ChatTtsService;
