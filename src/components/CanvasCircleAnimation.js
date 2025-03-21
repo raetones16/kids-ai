@@ -11,6 +11,10 @@ const CanvasCircleAnimation = ({
   const isSpeakingRef = useRef(false);
   const pulseTimeRef = useRef(0);
   const lastPulseTimeRef = useRef(0);
+  const deviceDetectionRef = useRef({
+    isMobile: window.innerWidth < 768,
+    isHighDPI: window.devicePixelRatio > 1.5
+  });
 
   // Track if we're actually speaking (voice is playing)
   useEffect(() => {
@@ -36,7 +40,8 @@ const CanvasCircleAnimation = ({
     if (!canvas) return;
     
     // Add frame rate limiting for mobile devices
-    const FRAME_RATE_LIMIT = window.innerWidth < 768 ? 24 : 60; // Lower FPS on mobile
+    const isMobile = deviceDetectionRef.current.isMobile;
+    const FRAME_RATE_LIMIT = isMobile ? 24 : 60; // Lower FPS on mobile
     const FRAME_INTERVAL = 1000 / FRAME_RATE_LIMIT;
     let lastFrameTime = 0;
 
@@ -44,7 +49,7 @@ const CanvasCircleAnimation = ({
     const setupCanvas = () => {
       // Set up canvas with device-appropriate resolution
       // Limit DPR on mobile to improve performance
-      const maxDpr = window.innerWidth < 768 ? 1.5 : 2;
+      const maxDpr = isMobile ? 1.5 : 2;
       const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
       const rect = canvas.getBoundingClientRect();
       
@@ -148,12 +153,23 @@ const CanvasCircleAnimation = ({
       // Get shadow values from CSS variables - use simple pre-defined values for now
       const isDarkMode = document.documentElement.classList.contains("dark");
 
-      // Use hardcoded shadows to ensure the circle is visible
+      // For mobile, use simpler shadows or none depending on performance
+      let topShadowBlur, bottomShadowBlur;
+      if (isMobile) {
+        // Simpler shadows for mobile
+        topShadowBlur = 40;
+        bottomShadowBlur = 50;
+      } else {
+        // Full shadows for desktop
+        topShadowBlur = 52;
+        bottomShadowBlur = 68;
+      }
+
       // Top shadow (light)
       ctx.shadowColor = isDarkMode
         ? "rgba(255, 255, 255, 0.10)"
         : "rgba(255, 255, 255, 0.10)";
-      ctx.shadowBlur = 52;
+      ctx.shadowBlur = topShadowBlur;
       ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = -44;
 
@@ -167,7 +183,7 @@ const CanvasCircleAnimation = ({
       ctx.shadowColor = isDarkMode
         ? "rgba(0, 0, 0, 0.3)"
         : "rgba(44, 55, 58, 0.30)";
-      ctx.shadowBlur = 68;
+      ctx.shadowBlur = bottomShadowBlur;
       ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = 36;
 
@@ -262,7 +278,7 @@ const CanvasCircleAnimation = ({
       drawMainCircle();
 
       // Create 2 ripples with different phases (reduced for mobile)
-      const ripples = window.innerWidth < 768 ? 2 : 3;
+      const ripples = isMobile ? 2 : 3;
       for (let i = 0; i < ripples; i++) {
         const timeOffset = timestamp * 0.001 + i * 0.7;
         const ripplePhase = timeOffset % 2; // 2-second cycle
@@ -275,7 +291,7 @@ const CanvasCircleAnimation = ({
         ctx.beginPath();
         ctx.arc(centerX, centerY, rippleRadius, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(66, 133, 244, ${alpha})`;
-        ctx.lineWidth = window.innerWidth < 768 ? 1.5 : 2; // Thinner lines on mobile
+        ctx.lineWidth = isMobile ? 1.5 : 2; // Thinner lines on mobile
         ctx.stroke();
       }
 
@@ -297,14 +313,14 @@ const CanvasCircleAnimation = ({
       drawMainCircle();
 
       // Draw multiple smooth wavy circles - fewer on mobile
-      const numWaves = window.innerWidth < 768 ? 2 : 3;
+      const numWaves = isMobile ? 2 : 3;
 
       for (let waveIndex = 0; waveIndex < numWaves; waveIndex++) {
         // Different radius for each wave
         const baseRadius = radius * (1.1 + waveIndex * 0.1);
         const waveAmplitude = radius * 0.06 * (1 - waveIndex * 0.2); // Decreasing amplitude for outer waves
         // Reduce segments on mobile for better performance
-        const segments = window.innerWidth < 768 ? 30 : 60;
+        const segments = isMobile ? 30 : 60;
 
         // Draw a complete wavy circle
         ctx.beginPath();
@@ -339,28 +355,31 @@ const CanvasCircleAnimation = ({
         ctx.stroke();
       }
 
-      // Create rotating glow effect
-      const glowTime = time * 0.7;
-      const glowX = centerX + Math.cos(glowTime) * radius * 0.7;
-      const glowY = centerY + Math.sin(glowTime) * radius * 0.7;
+      // Only add glow effect on non-mobile devices for better performance
+      if (!isMobile) {
+        // Create rotating glow effect
+        const glowTime = time * 0.7;
+        const glowX = centerX + Math.cos(glowTime) * radius * 0.7;
+        const glowY = centerY + Math.sin(glowTime) * radius * 0.7;
 
-      // Subtle radial gradient
-      const gradient = ctx.createRadialGradient(
-        glowX,
-        glowY,
-        0,
-        glowX,
-        glowY,
-        radius * 0.8
-      );
-      gradient.addColorStop(0, "rgba(255, 180, 50, 0.3)");
-      gradient.addColorStop(0.6, "rgba(255, 160, 0, 0.05)");
-      gradient.addColorStop(1, "rgba(255, 160, 0, 0)");
+        // Subtle radial gradient
+        const gradient = ctx.createRadialGradient(
+          glowX,
+          glowY,
+          0,
+          glowX,
+          glowY,
+          radius * 0.8
+        );
+        gradient.addColorStop(0, "rgba(255, 180, 50, 0.3)");
+        gradient.addColorStop(0.6, "rgba(255, 160, 0, 0.05)");
+        gradient.addColorStop(1, "rgba(255, 160, 0, 0)");
 
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, radius * 0.9, 0, Math.PI * 2);
-      ctx.fillStyle = gradient;
-      ctx.fill();
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius * 0.9, 0, Math.PI * 2);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+      }
 
       if (state === "thinking") {
         animationRef.current = requestAnimationFrame(animateThinking);
@@ -384,7 +403,7 @@ const CanvasCircleAnimation = ({
         audioFrequencyData = audioData;
       } else {
         // Generate fake audio data with more dramatic variations
-        audioFrequencyData = new Uint8Array(64);
+        audioFrequencyData = new Uint8Array(isMobile ? 32 : 64); // Smaller array for mobile
         const time = Date.now() * 0.001;
 
         for (let i = 0; i < audioFrequencyData.length; i++) {
@@ -407,7 +426,7 @@ const CanvasCircleAnimation = ({
       }
 
       // Create a more energetic spike-based visualization - optimized for mobile
-      const numSpikes = window.innerWidth < 768 ? 30 : 60; // Fewer spikes on mobile
+      const numSpikes = isMobile ? 30 : 60; // Fewer spikes on mobile
       const baseRadius = radius * 1.02; // Slightly outside the main circle
 
       // Draw the spikes around the circle
@@ -469,7 +488,8 @@ const CanvasCircleAnimation = ({
       ctx.stroke();
 
       // Add pulsing circles for extra movement
-      const numCircles = 3;
+      // Fewer on mobile for better performance
+      const numCircles = isMobile ? 2 : 3;
       const time = Date.now() * 0.002; // Speed up time for more movement
 
       for (let i = 0; i < numCircles; i++) {
@@ -508,7 +528,7 @@ const CanvasCircleAnimation = ({
         // Different radius for each wave
         const baseRadius = radius * (1.1 + waveIndex * 0.12);
         const waveAmplitude = radius * 0.04; // Small, subtle waves
-        const segments = 60; // Higher for smoother curves
+        const segments = isMobile ? 30 : 60; // Fewer segments on mobile
 
         // Draw a complete wavy circle
         ctx.beginPath();
@@ -594,6 +614,12 @@ const CanvasCircleAnimation = ({
     // Handle window resize with debouncing
     let resizeTimer = null;
     const handleResize = () => {
+      // Update mobile detection
+      deviceDetectionRef.current = {
+        isMobile: window.innerWidth < 768,
+        isHighDPI: window.devicePixelRatio > 1.5
+      };
+      
       // Cancel any pending resize
       if (resizeTimer) {
         clearTimeout(resizeTimer);
@@ -603,7 +629,9 @@ const CanvasCircleAnimation = ({
       resizeTimer = setTimeout(() => {
         // Only resize if canvas is still in the document
         if (canvas && canvas.isConnected) {
-          const dpr = window.devicePixelRatio || 1;
+          // Maximum DPR depends on device type
+          const maxDpr = deviceDetectionRef.current.isMobile ? 1.5 : 2;
+          const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
           const rect = canvas.getBoundingClientRect();
           
           // Only resize if dimensions actually changed

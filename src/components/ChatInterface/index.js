@@ -400,6 +400,7 @@ const ChatInterface = ({
                 audioData={audioData}
                 audioStream={audioStream}
                 onClick={handleMicrophoneClick}
+                ttsService={tts}
               />
             </div>
 

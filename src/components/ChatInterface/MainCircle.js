@@ -1,10 +1,28 @@
 import React, { useEffect, useState, useRef } from "react";
 import CanvasCircleAnimation from "../CanvasCircleAnimation";
 
-const MainCircle = ({ interfaceState, audioData, audioStream, onClick }) => {
+const MainCircle = ({ interfaceState, audioData, audioStream, onClick, ttsService }) => {
   const [dimensions, setDimensions] = useState({});
   const resizeTimeoutRef = useRef(null);
   const initialRenderRef = useRef(true);
+  const audioInitializedRef = useRef(false);
+
+  // Function to handle clicks and initialize audio
+  const handleClick = (e) => {
+    // Initialize audio context during user interaction for mobile browsers
+    if (ttsService && !audioInitializedRef.current) {
+      console.log("Initializing audio context on user interaction");
+      if (typeof ttsService.initAudioContext === 'function') {
+        ttsService.initAudioContext();
+        audioInitializedRef.current = true;
+      }
+    }
+    
+    // Call the original onClick handler
+    if (onClick) {
+      onClick(e);
+    }
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -61,7 +79,11 @@ const MainCircle = ({ interfaceState, audioData, audioStream, onClick }) => {
   }, []);
 
   return (
-    <div className="circle-container" onClick={onClick} style={{ transition: 'all 0.3s ease-in-out' }}>
+    <div 
+      className="circle-container" 
+      onClick={handleClick} 
+      style={{ transition: 'all 0.3s ease-in-out' }}
+    >
       <CanvasCircleAnimation
         state={interfaceState}
         audioData={audioData}

@@ -1,74 +1,126 @@
-/* Mobile fixes to prevent unwanted zooming and other mobile-specific issues */
+/**
+ * MobileFixes.css
+ * Dedicated stylesheet for mobile-specific fixes and optimizations
+ */
 
-/* Prevent zooming on form inputs */
-@media screen and (max-width: 768px) {
-  input[type="text"],
-  input[type="password"],
-  input[type="email"],
-  input[type="number"],
-  textarea,
-  select {
-    font-size: 16px !important; /* Prevents iOS zoom */
-  }
-
-  button {
-    -webkit-appearance: none;
-    appearance: none;
-    font-size: 16px !important;
-  }
-
-  /* Ensure the whole page doesn't zoom */
-  html, body {
-    touch-action: manipulation;
-    -webkit-text-size-adjust: none;
-    text-size-adjust: none;
-  }
-
-  /* Fix focusing behavior in inputs */
-  .mobile-keyboard-form {
+/* Mobile optimization for the circle animation */
+@media (max-width: 767px) {
+  .circle-container {
+    max-width: 300px;
+    max-height: 300px;
+    margin: 0 auto;
+    /* Reduce GPU load by using transforms instead of shadows on mobile */
+    will-change: transform;
     transform: translateZ(0);
   }
   
-  /* Performance optimizations for mobile devices */
-  .svg-wave-background,
-  .animation-canvas,
-  .circle-animation {
+  .animation-canvas {
+    /* Improve performance by hinting browser about compositing */
     will-change: transform;
+    transform: translateZ(0);
+    /* Fix iOS Safari rendering issues */
+    -webkit-backface-visibility: hidden;
+    -webkit-transform-style: preserve-3d;
+  }
+  
+  /* Make text a bit larger on small screens */
+  .mic-hint {
+    font-size: 1.1rem;
+    margin-top: 10px;
+  }
+  
+  /* Optimize audio visualizations for mobile */
+  .circle-animation {
+    /* Use hardware acceleration on mobile */
     transform: translateZ(0);
     backface-visibility: hidden;
   }
   
-  /* Reduce animation complexity on mobile */
-  @media screen and (max-width: 640px) {
-    .ripple, .wave, .orbit {
-      animation-duration: 1.5s !important; /* Slower animations */
+  /* Improve touch target sizes on mobile */
+  button, 
+  .interactive-element {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 12px;
+  }
+  
+  /* Make sure the text input is large enough on mobile */
+  textarea,
+  input[type="text"] {
+    font-size: 16px; /* Prevents iOS zoom on focus */
+    padding: 12px;
+  }
+  
+  /* Fix for Safari overflow issues */
+  .subtitle-container {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Reduce motion for users who prefer it */
+  @media (prefers-reduced-motion) {
+    .circle-animation {
+      transition: none !important;
+      animation: none !important;
     }
     
-    /* Force hardware acceleration for critical animations */
+    .animation-canvas {
+      animation-duration: 0s !important;
+      transition-duration: 0s !important;
+    }
+  }
+  
+  /* iOS-specific fixes */
+  @supports (-webkit-touch-callout: none) {
+    /* iOS specific styles */
     .circle-container {
-      transform: translateZ(0);
-      will-change: transform;
+      /* Fix for iOS Safari rendering issues */
+      -webkit-transform: translateZ(0);
+      -webkit-backface-visibility: hidden;
     }
     
-    /* Reduce shadow complexity */
-    .main-circle, .circle-animation * {
-      filter: none !important;
-      box-shadow: none !important;
+    /* Prevent scroll bounce effect in iOS */
+    html, body {
+      position: fixed;
+      overflow: hidden;
+      width: 100%;
+      height: 100%;
+    }
+    
+    /* Fix for iOS audio element positioning */
+    audio {
+      position: absolute;
+      top: -9999px;
+      left: -9999px;
     }
   }
 }
 
-/* Improve Safari input behavior */
-@supports (-webkit-touch-callout: none) {
-  input,
-  textarea {
-    /* Disable iOS shadow and custom appearance */
-    -webkit-appearance: none;
-    appearance: none;
+/* Tablet optimization */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .circle-container {
+    max-width: 400px;
+    max-height: 400px;
+    margin: 0 auto;
   }
   
-  /* Additional Safari-specific optimizations */
+  /* Use moderate performance optimizations for tablets */
   .animation-canvas {
-    transform: translateZ(0);
+    will-change: transform;
   }
+}
+
+/* Prevent layout flash during audio context initialization */
+.audio-loading {
+  opacity: 0.9;
+  transition: opacity 0.3s ease;
+}
+
+/* Hide any dynamically created audio elements used for iOS unlocking */
+audio.audio-unlock {
+  display: none !important;
+  height: 0 !important;
+  width: 0 !important;
+  position: absolute !important;
+  top: -9999px !important;
+  left: -9999px !important;
 }

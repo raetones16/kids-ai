@@ -1,10 +1,10 @@
 /**
  * ChatTtsService.js
- * A simplified TTS manager that handles the full text at once instead of chunking
- * This ensures a smooth, natural speech experience with no gaps
+ * A simplified TTS manager updated to use the MobileFriendlyTTSService
+ * as the primary implementation for cross-platform compatibility
  */
 
-import { DirectTtsService } from './DirectTtsService';
+import { MobileFriendlyTTSService } from './MobileFriendlyTTSService';
 
 export class ChatTtsService {
   constructor() {
@@ -17,100 +17,52 @@ export class ChatTtsService {
     this.timeoutId = null;
     this.speakingStartTime = 0;
     
-    this.useOpenAI = true; // Default to OpenAI TTS
     this.maxSpeakingDuration = 60000; // Maximum time in speaking state (60 seconds)
   }
   
-  // Initialize
+  // Initialize the service
   initialize() {
     if (this.initialized) return;
     
     try {
-      if (this.useOpenAI) {
-        // Use the updated DirectTtsService that calls our backend proxy
-        this.ttsService = new DirectTtsService();
+      // Always use the MobileFriendlyTTSService
+      this.ttsService = new MobileFriendlyTTSService();
+      
+      // Set callbacks
+      if (this.ttsService) {
+        this.ttsService.onStart(() => {
+          console.log('ChatTtsService: TTS service onStart callback fired');
+          this.isPlaying = true;
+          if (this.onStartCallback) this.onStartCallback();
+        });
         
-        // Set callbacks
-        if (this.ttsService) {
-          this.ttsService.onStart(() => {
-            console.log('ChatTtsService: TTS service onStart callback fired');
-            this.isPlaying = true;
-            if (this.onStartCallback) this.onStartCallback();
-          });
-          
-          this.ttsService.onEnd(() => {
-            console.log('ChatTtsService: TTS service onEnd callback fired');
-            this.isPlaying = false;
-            if (this.onEndCallback) this.onEndCallback();
-          });
-        }
-      } else {
-        // Fallback to browser's built-in TTS
-        this.ttsService = {
-          speak: (text) => {
-            const speechSynthesis = window.speechSynthesis;
-            const utterance = new SpeechSynthesisUtterance(text);
-            
-            // Set callbacks
-            utterance.onstart = () => {
-              console.log('Browser TTS onstart fired');
-              this.isPlaying = true;
-              if (this.onStartCallback) this.onStartCallback();
-            };
-            
-            utterance.onend = () => {
-              console.log('Browser TTS onend fired');
-              this.isPlaying = false;
-              if (this.onEndCallback) this.onEndCallback();
-            };
-            
-            speechSynthesis.speak(utterance);
-          },
-          stop: () => {
-            window.speechSynthesis.cancel();
-          },
-          initAudioContext: () => {}
-        };
+        this.ttsService.onEnd(() => {
+          console.log('ChatTtsService: TTS service onEnd callback fired');
+          this.isPlaying = false;
+          if (this.onEndCallback) this.onEndCallback();
+        });
+        
+        this.ttsService.onError((error) => {
+          console.error('ChatTtsService: TTS service error:', error);
+          this.isPlaying = false;
+          if (this.onErrorCallback) this.onErrorCallback(error);
+        });
       }
       
       this.initialized = true;
     } catch (error) {
       console.error('Failed to initialize TTS service:', error);
-      // Fallback to browser's built-in TTS
-      try {
-        this.ttsService = {
-          speak: (text) => {
-            const speechSynthesis = window.speechSynthesis;
-            const utterance = new SpeechSynthesisUtterance(text);
-            
-            // Set callbacks
-            utterance.onstart = () => {
-              console.log('Browser TTS fallback onstart fired');
-              this.isPlaying = true;
-              if (this.onStartCallback) this.onStartCallback();
-            };
-            
-            utterance.onend = () => {
-              console.log('Browser TTS fallback onend fired');
-              this.isPlaying = false;
-              if (this.onEndCallback) this.onEndCallback();
-            };
-            
-            speechSynthesis.speak(utterance);
-          },
-          stop: () => {
-            window.speechSynthesis.cancel();
-          },
-          initAudioContext: () => {}
-        };
-        this.initialized = true;
-      } catch (fallbackError) {
-        console.error('Fallback TTS error:', fallbackError);
+      
+      // If initialization fails, still mark as initialized but in error state
+      this.initialized = true;
+      
+      if (this.onErrorCallback) {
+        this.onErrorCallback(error);
       }
     }
   }
   
-  // Ensure audio context is initialized (needed for OpenAI TTS)
+  // Ensure audio context is initialized (during user interaction)
   initAudioContext() {
     if (!this.initialized) {
       this.initialize();
@@ -165,7 +117,6 @@ export class ChatTtsService {
       // Speak using the TTS service
       if (this.ttsService) {
         console.log('ChatTtsService: Calling TTS service speak method');
-        // Always use the direct speak method to ensure the entire text is spoken as one unit
         await this.ttsService.speak(text, voice);
       }
     } catch (error) {
@@ -175,38 +126,12 @@ export class ChatTtsService {
         this.onErrorCallback(error);
       }
       
-      // Try fallback to browser's built-in TTS
-      try {
-        console.log('ChatTtsService: Trying fallback browser TTS');
-        // Set playing state to ensure proper animation
-        this.isPlaying = true;
-        if (this.onStartCallback) {
-          console.log('ChatTtsService: Calling onStartCallback for fallback');
-          this.onStartCallback();
-        }
-        
-        const speechSynthesis = window.speechSynthesis;
-        const utterance = new SpeechSynthesisUtterance(text);
-        
-        // Add event handlers to manage state
-        utterance.onstart = () => {
-          console.log('Browser TTS started');
-          this.isPlaying = true;
-          if (this.onStartCallback) this.onStartCallback();
-        };
-        
-        utterance.onend = () => {
-          console.log('Browser TTS ended');
-          this.isPlaying = false;
-          if (this.onEndCallback) this.onEndCallback();
-        };
-        
-        // Explicitly force the speaking state
-        if (this.onStartCallback) this.onStartCallback();
-        
-        speechSynthesis.speak(utterance);
-      } catch (fallbackError) {
-        console.error('ChatTtsService: Fallback TTS error:', fallbackError);
+      // Reset state
+      this.isPlaying = false;
+      
+      // Explicitly call the onEnd callback to ensure UI state is updated
+      if (this.onEndCallback) {
+        this.onEndCallback();
       }
     }
   }
@@ -233,11 +158,6 @@ export class ChatTtsService {
       if (this.onEndCallback) {
         this.onEndCallback();
       }
-    }
-    
-    // Also ensure browser's built-in TTS is stopped as a fallback
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
     }
   }
   
